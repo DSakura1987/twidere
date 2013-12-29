@@ -1,49 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-	android:key="settings_other"
-	android:title="@string/other_settings">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-	<!--
-	<CheckBoxPreference
-		android:defaultValue="true"
-		android:enabled="@bool/hw_accel_supported"
-		android:key="hardware_acceleration"
-		android:summary="@string/hardware_acceleration_summary"
-		android:title="@string/hardware_acceleration"/>
-	-->
 	<CheckBoxPreference
 		android:defaultValue="false"
 		android:key="quick_send"
 		android:summary="@string/quick_send_summary"
 		android:title="@string/quick_send"/>
 
-	<ListPreference
+	<org.mariotaku.twidere.preference.AutoInvalidateListPreference
 		android:defaultValue="ask"
 		android:entries="@array/entries_compose_quit_action"
 		android:entryValues="@array/values_compose_quit_action"
 		android:key="compose_quit_action"
+		android:summary="%s"
 		android:title="@string/compose_quit_action"/>
 
 	<CheckBoxPreference
 		android:defaultValue="false"
 		android:key="no_close_after_tweet_sent"
-		android:summary="@string/no_close_after_tweet_sent_summary"
-		android:title="@string/no_close_after_tweet_sent"/>
-	<CheckBoxPreference
-		android:defaultValue="false"
-		android:key="disable_tab_swipe"
-		android:title="@string/disable_tab_swipe"/>
+		android:summary="@string/no_close_after_status_updated_summary"
+		android:title="@string/no_close_after_status_updated"/>
 
 	<Preference
+		android:fragment="org.mariotaku.twidere.fragment.DataProfilingSettingsFragment"
 		android:key="data_profiling_settings"
-		android:title="@string/data_profiling">
-		<intent
-			android:targetClass="org.mariotaku.twidere.activity.DataProfilingSettingsActivity"
-			android:targetPackage="org.mariotaku.twidere"/>
-	</Preference>
-	<Preference
-		android:key="disable_background_service"
-		android:summary="@string/disable_background_service_summary"
-		android:title="@string/disable_background_service"/>
+		android:title="@string/data_profiling"/>
 
 </PreferenceScreen>

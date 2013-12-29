@@ -21,20 +21,21 @@ package org.mariotaku.twidere.loader;
 
 import static org.mariotaku.twidere.util.Utils.getTwitterInstance;
 
-import java.util.Collections;
-import java.util.List;
+import android.content.Context;
+import android.support.v4.content.AsyncTaskLoader;
 
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.model.ParcelableUserList;
-import org.mariotaku.twidere.util.NoDuplicatesArrayList;
+import org.mariotaku.twidere.util.collection.NoDuplicatesArrayList;
 
 import twitter4j.CursorSupport;
 import twitter4j.PagableResponseList;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.UserList;
-import android.content.Context;
-import android.support.v4.content.AsyncTaskLoader;
+
+import java.util.Collections;
+import java.util.List;
 
 public abstract class BaseUserListsLoader extends AsyncTaskLoader<List<ParcelableUserList>> {
 
@@ -85,12 +86,15 @@ public abstract class BaseUserListsLoader extends AsyncTaskLoader<List<Parcelabl
 				mNextCursor = ((CursorSupport) list_loaded).getNextCursor();
 				mPrevCursor = ((CursorSupport) list_loaded).getPreviousCursor();
 				for (int i = 0; i < list_size; i++) {
-					mData.add(new ParcelableUserList(list_loaded.get(i), mAccountId, (mCursor + 1) * 20 + i,
-							mHiResProfileImage));
+					final UserList list = list_loaded.get(i);
+					mData.add(new ParcelableUserList(list, mAccountId, (mCursor + 1) * 20 + i, mHiResProfileImage,
+							isFollowing(list)));
 				}
 			} else {
 				for (int i = 0; i < list_size; i++) {
-					mData.add(new ParcelableUserList(list_loaded.get(i), mAccountId, i, mHiResProfileImage));
+					final UserList list = list_loaded.get(i);
+					mData.add(new ParcelableUserList(list_loaded.get(i), mAccountId, i, mHiResProfileImage,
+							isFollowing(list)));
 				}
 			}
 		}
@@ -101,5 +105,9 @@ public abstract class BaseUserListsLoader extends AsyncTaskLoader<List<Parcelabl
 	@Override
 	public void onStartLoading() {
 		forceLoad();
+	}
+
+	protected boolean isFollowing(final UserList list) {
+		return list.isFollowing();
 	}
 }

@@ -2,10 +2,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
 	<item
-		android:id="@id/view"
-		android:icon="@drawable/ic_menu_view"
-		android:title="@string/view"/>
-	<item
 		android:id="@id/reply"
 		android:icon="@drawable/ic_menu_reply"
 		android:title="@string/reply"/>
@@ -38,31 +34,31 @@
 		android:title="@string/favorite"/>
 	<item
 		android:id="@id/share"
-		android:icon="@drawable/ic_menu_share"
+		android:icon="@android:drawable/ic_menu_share"
 		android:title="@string/share"/>
 	<item
 		android:id="@id/copy"
 		android:icon="@drawable/ic_menu_copy"
 		android:title="@android:string/copy"/>
 	<item
+		android:id="@id/add_to_filter"
+		android:icon="@drawable/ic_menu_mute"
+		android:title="@string/add_to_filter"/>
+	<item
 		android:id="@+id/delete_submenu"
-		android:icon="@drawable/ic_menu_delete"
+		android:icon="@android:drawable/ic_menu_delete"
 		android:title="@string/delete"
 		android:visible="false">
 		<menu>
 			<item
 				android:id="@id/delete"
-				android:icon="@drawable/ic_menu_delete"
+				android:icon="@android:drawable/ic_menu_delete"
 				android:title="@string/delete"/>
 			<item
-				android:icon="@drawable/ic_menu_close_clear_cancel"
+				android:icon="@android:drawable/ic_menu_close_clear_cancel"
 				android:title="@android:string/cancel"/>
 		</menu>
 	</item>
-	<item
-		android:id="@id/load_from_position"
-		android:icon="@drawable/ic_menu_refresh"
-		android:title="@string/load_from_here"/>
 	<item
 		android:id="@id/multi_select"
 		android:icon="@drawable/ic_menu_mark"

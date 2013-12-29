@@ -19,14 +19,26 @@
 
 package org.mariotaku.twidere.fragment;
 
-import org.mariotaku.twidere.activity.InternalSettingsDetailsActivity;
-import org.mariotaku.twidere.model.Panes;
+import android.os.Bundle;
+import android.preference.PreferenceScreen;
 
-public class SettingsDetailsFragment extends ActivityHostFragment<InternalSettingsDetailsActivity> implements
-		Panes.Right {
+import org.mariotaku.twidere.util.Utils;
+
+public class SettingsDetailsFragment extends BasePreferenceFragment {
 
 	@Override
-	protected Class<InternalSettingsDetailsActivity> getActivityClass() {
-		return InternalSettingsDetailsActivity.class;
+	public void onActivityCreated(final Bundle savedInstanceState) {
+		super.onActivityCreated(savedInstanceState);
+		final PreferenceScreen screen = getPreferenceScreen();
+		if (screen != null) {
+			screen.removeAll();
+		}
+		final Bundle args = getArguments();
+		final String rawResId = args != null ? args.getString(EXTRA_RESID) : null;
+		final int resId = Utils.getResId(getActivity(), rawResId);
+		if (resId != 0) {
+			addPreferencesFromResource(resId);
+		}
 	}
+
 }

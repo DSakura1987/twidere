@@ -4,9 +4,17 @@
         <ignore path="res/layout/accounts_drawer_item_group.xml" />
         <ignore path="res/layout/pull_to_refresh_header.xml" />
     </issue>
-    <issue id="NewApi">
+    <issue id="ExportedContentProvider">
+        <ignore path="AndroidManifest.xml" />
+    </issue>
+    <issue id="ExportedService">
+        <ignore path="AndroidManifest.xml" />
+    </issue>
+    <issue id="MissingTranslation" severity="ignore" />
+    <issue id="NewApi" severity="ignore">
         <ignore path="res/values/holo__styles.xml" />
         <ignore path="res/values/popup__styles.xml" />
+        <ignore path="res/values/styles.xml" />
         <ignore path="src/org/mariotaku/twidere/activity/SettingsDetailsActivity.java" />
     </issue>
     <issue id="UseSparseArrays">

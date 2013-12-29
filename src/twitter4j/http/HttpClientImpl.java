@@ -17,6 +17,10 @@
 package twitter4j.http;
 
 import static twitter4j.http.RequestMethod.POST;
+import twitter4j.TwitterException;
+import twitter4j.conf.ConfigurationContext;
+import twitter4j.internal.logging.Logger;
+import twitter4j.internal.util.InternalStringUtil;
 
 import java.io.BufferedInputStream;
 import java.io.DataOutputStream;
@@ -47,11 +51,6 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-
-import twitter4j.TwitterException;
-import twitter4j.conf.ConfigurationContext;
-import twitter4j.internal.logging.Logger;
-import twitter4j.internal.util.InternalStringUtil;
 
 /**
  * @author Yusuke Yamamoto - yusuke at mac.com
@@ -127,7 +126,7 @@ public class HttpClientImpl extends HttpClientBase implements HttpClient, HttpRe
 								if (param.isFile()) {
 									write(out, boundary + "\r\n");
 									write(out, "Content-Disposition: form-data; name=\"" + param.getName()
-											+ "\"; filename=\"" + param.getFile().getName() + "\"\r\n");
+											+ "\"; filename=\"" + param.getFileName() + "\"\r\n");
 									write(out, "Content-Type: " + param.getContentType() + "\r\n\r\n");
 									final BufferedInputStream in = new BufferedInputStream(
 											param.hasFileBody() ? param.getFileBody() : new FileInputStream(
@@ -188,8 +187,10 @@ public class HttpClientImpl extends HttpClientBase implements HttpClient, HttpRe
 					}
 				} finally {
 					try {
-						os.close();
-					} catch (final Exception ignore) {
+						if (os != null) {
+							os.close();
+						}
+					} catch (final IOException ignore) {
 					}
 				}
 			} catch (final IOException ioe) {
@@ -200,6 +201,7 @@ public class HttpClientImpl extends HttpClientBase implements HttpClient, HttpRe
 					throw new TwitterException(ioe.getMessage(), req, res);
 			} catch (final NullPointerException e) {
 				// This exception will be thown when URL is invalid.
+				e.printStackTrace();
 				throw new TwitterException("The URL requested is invalid.", e);
 			} catch (final OutOfMemoryError e) {
 				throw new TwitterException(e.getMessage(), e);

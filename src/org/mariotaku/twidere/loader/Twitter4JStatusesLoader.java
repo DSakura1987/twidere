@@ -19,32 +19,32 @@
 
 package org.mariotaku.twidere.loader;
 
-import static org.mariotaku.twidere.util.Utils.getImagePreviewDisplayOptionInt;
 import static org.mariotaku.twidere.util.Utils.getTwitterInstance;
+import static org.mariotaku.twidere.util.Utils.truncateStatuses;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.ConcurrentModificationException;
-import java.util.List;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.Handler;
 
 import org.mariotaku.jsonserializer.JSONSerializer;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.app.TwidereApplication;
 import org.mariotaku.twidere.model.ParcelableStatus;
-import org.mariotaku.twidere.util.CacheUsersStatusesTask;
+import org.mariotaku.twidere.task.CacheUsersStatusesTask;
 import org.mariotaku.twidere.util.TwitterWrapper.StatusListResponse;
 
 import twitter4j.Paging;
 import twitter4j.Status;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.database.sqlite.SQLiteDatabase;
-import android.os.Handler;
-import android.util.Log;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public abstract class Twitter4JStatusesLoader extends ParcelableStatusesLoader {
 
@@ -52,7 +52,6 @@ public abstract class Twitter4JStatusesLoader extends ParcelableStatusesLoader {
 	private final long mAccountId;
 	private final long mMaxId, mSinceId;
 	private final boolean mHiResProfileImage;
-	private final boolean mLargeInlineImagePreview;
 	private final SQLiteDatabase mDatabase;
 	private final Handler mHandler;
 	private final Object[] mSavedStatusesFileArgs;
@@ -66,7 +65,6 @@ public abstract class Twitter4JStatusesLoader extends ParcelableStatusesLoader {
 		mMaxId = max_id;
 		mSinceId = since_id;
 		mHiResProfileImage = context.getResources().getBoolean(R.bool.hires_profile_image);
-		mLargeInlineImagePreview = getImagePreviewDisplayOptionInt(context) == IMAGE_PREVIEW_DISPLAY_OPTION_CODE_LARGE;
 		mDatabase = TwidereApplication.getInstance(context).getSQLiteDatabase();
 		mHandler = new Handler();
 		mSavedStatusesFileArgs = saved_statuses_args;
@@ -74,77 +72,98 @@ public abstract class Twitter4JStatusesLoader extends ParcelableStatusesLoader {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public List<ParcelableStatus> loadInBackground() {
+	public final List<ParcelableStatus> loadInBackground() {
+		final File serializationFile = getSerializationFile();
 		final List<ParcelableStatus> data = getData();
-		if (isFirstLoad() && getTabPosition() >= 0) {
-			try {
-				final File file = JSONSerializer.getSerializationFile(getContext(), mSavedStatusesFileArgs);
-				final List<ParcelableStatus> statuses = JSONSerializer.listFromFile(file);
-				if (data != null && statuses != null) {
-					data.addAll(statuses);
-					Collections.sort(data);
-				}
-				return data;
-			} catch (final IOException e) {
+		if (isFirstLoad() && getTabPosition() >= 0 && serializationFile != null) {
+			final List<ParcelableStatus> cached = getCachedData(serializationFile);
+			if (cached != null) {
+				data.addAll(cached);
+				Collections.sort(data);
+				return new CopyOnWriteArrayList<ParcelableStatus>(data);
 			}
 		}
 		final List<Status> statuses;
+		final boolean truncated;
 		final Context context = getContext();
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final int load_item_limit = prefs.getInt(PREFERENCE_KEY_LOAD_ITEM_LIMIT, PREFERENCE_DEFAULT_LOAD_ITEM_LIMIT);
+		final int loadItemLimit = prefs.getInt(PREFERENCE_KEY_LOAD_ITEM_LIMIT, PREFERENCE_DEFAULT_LOAD_ITEM_LIMIT);
 		try {
 			final Paging paging = new Paging();
-			paging.setCount(load_item_limit);
+			paging.setCount(loadItemLimit);
 			if (mMaxId > 0) {
 				paging.setMaxId(mMaxId);
 			}
 			if (mSinceId > 0) {
-				paging.setSinceId(mSinceId);
+				paging.setSinceId(mSinceId - 1);
 			}
-			statuses = getStatuses(getTwitter(), paging);
+			statuses = new ArrayList<Status>();
+			truncated = truncateStatuses(getStatuses(getTwitter(), paging), statuses, mSinceId);
 		} catch (final TwitterException e) {
 			// mHandler.post(new ShowErrorRunnable(e));
 			e.printStackTrace();
-			return data;
+			return new CopyOnWriteArrayList<ParcelableStatus>(data);
 		}
-		if (statuses != null) {
-			final Status min_status = statuses.size() > 0 ? Collections.min(statuses) : null;
-			final long min_status_id = min_status != null ? min_status.getId() : -1;
-			final boolean insert_gap = min_status_id > 0 && load_item_limit <= statuses.size() && data.size() > 0;
-			mHandler.post(CacheUsersStatusesTask.getRunnable(context, new StatusListResponse(mAccountId, statuses)));
-			for (final Status status : statuses) {
-				final long id = status.getId();
-				deleteStatus(id);
-				data.add(new ParcelableStatus(status, mAccountId, min_status_id == id && insert_gap,
-						mHiResProfileImage, mLargeInlineImagePreview));
+		final long minStatusId = statuses.isEmpty() ? -1 : Collections.min(statuses).getId();
+		final boolean insertGap = minStatusId > 0 && statuses.size() > 1 && !data.isEmpty() && !truncated;
+		mHandler.post(CacheUsersStatusesTask.getRunnable(context, new StatusListResponse(mAccountId, statuses)));
+		for (final Status status : statuses) {
+			final long id = status.getId();
+			final boolean deleted = deleteStatus(data, id);
+			data.add(new ParcelableStatus(status, mAccountId, minStatusId == id && insertGap && !deleted,
+					mHiResProfileImage));
+		}
+		Collections.sort(data);
+		final ParcelableStatus[] array = data.toArray(new ParcelableStatus[data.size()]);
+		for (int i = 0, size = array.length; i < size; i++) {
+			final ParcelableStatus status = array[i];
+			if (shouldFilterStatus(mDatabase, status) && !status.is_gap && i != size - 1) {
+				deleteStatus(data, status.id);
 			}
 		}
-		try {
-			Collections.sort(data);
-			final List<ParcelableStatus> statuses_to_remove = new ArrayList<ParcelableStatus>();
-			final int count = data.size();
-			for (int i = 0; i < count; i++) {
-				final ParcelableStatus status = data.get(i);
-				if (shouldFilterStatus(mDatabase, status) && !status.is_gap && i != count - 1) {
-					statuses_to_remove.add(status);
-				}
-			}
-			data.removeAll(statuses_to_remove);
-		} catch (final ConcurrentModificationException e) {
-			Log.w(LOGTAG, e);
-		}
-		return data;
+		saveCachedData(serializationFile, data);
+		return new CopyOnWriteArrayList<ParcelableStatus>(data);
 	}
 
 	protected abstract List<Status> getStatuses(Twitter twitter, Paging paging) throws TwitterException;
 
 	protected final Twitter getTwitter() {
-		return getTwitterInstance(mContext, mAccountId, true, shouldIncludeRetweets());
+		return getTwitterInstance(mContext, mAccountId, true, true);
 	}
 
 	protected abstract boolean shouldFilterStatus(final SQLiteDatabase database, final ParcelableStatus status);
 
-	protected boolean shouldIncludeRetweets() {
-		return true;
+	private List<ParcelableStatus> getCachedData(final File file) {
+		if (file == null) return null;
+		try {
+			return JSONSerializer.listFromFile(file);
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
+
+	private File getSerializationFile() {
+		if (mSavedStatusesFileArgs == null) return null;
+		try {
+			return JSONSerializer.getSerializationFile(mContext, mSavedStatusesFileArgs);
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	private void saveCachedData(final File file, final List<ParcelableStatus> data) {
+		if (file == null || data == null) return;
+		final SharedPreferences prefs = mContext.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
+		final int databaseItemLimit = prefs.getInt(PREFERENCE_KEY_DATABASE_ITEM_LIMIT,
+				PREFERENCE_DEFAULT_DATABASE_ITEM_LIMIT);
+		try {
+			final List<ParcelableStatus> activities = data.subList(0, Math.min(databaseItemLimit, data.size()));
+			JSONSerializer.toFile(file, activities.toArray(new ParcelableStatus[activities.size()]));
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 }

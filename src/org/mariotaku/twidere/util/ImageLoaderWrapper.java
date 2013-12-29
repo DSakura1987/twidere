@@ -21,31 +21,17 @@ package org.mariotaku.twidere.util;
 
 import static org.mariotaku.twidere.util.Utils.getBestBannerType;
 
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.R;
-
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.text.TextUtils;
-import android.widget.GridView;
 import android.widget.ImageView;
-import android.widget.ListView;
 
 import com.nostra13.universalimageloader.core.DisplayImageOptions;
 import com.nostra13.universalimageloader.core.ImageLoader;
 import com.nostra13.universalimageloader.core.assist.ImageLoadingListener;
 
-/**
- * Lazy image loader for {@link ListView} and {@link GridView} etc.</br> </br>
- * Inspired by <a href="https://github.com/thest1/LazyList">LazyList</a>, this
- * class has extra features like image loading/caching image to
- * /mnt/sdcard/Android/data/[package name]/cache features.</br> </br> Requires
- * Android 2.2, you can modify {@link Context#getExternalCacheDir()} to other to
- * support Android 2.1 and below.
- * 
- * @author mariotaku
- * 
- */
+import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.R;
+
 public class ImageLoaderWrapper implements Constants {
 
 	private final ImageLoader mImageLoader;
@@ -53,17 +39,17 @@ public class ImageLoaderWrapper implements Constants {
 
 	public ImageLoaderWrapper(final ImageLoader loader) {
 		mImageLoader = loader;
-		final DisplayImageOptions.Builder profile_opts_builder = new DisplayImageOptions.Builder();
-		profile_opts_builder.cacheInMemory(true);
-		profile_opts_builder.cacheOnDisc(true);
-		profile_opts_builder.showStubImage(R.drawable.ic_profile_image_default);
-		profile_opts_builder.bitmapConfig(Bitmap.Config.ARGB_8888);
-		profile_opts_builder.resetViewBeforeLoading(true);
-		final DisplayImageOptions.Builder image_opts_builder = new DisplayImageOptions.Builder();
-		image_opts_builder.cacheInMemory(true);
-		image_opts_builder.cacheOnDisc(true);
-		image_opts_builder.bitmapConfig(Bitmap.Config.RGB_565);
-		image_opts_builder.resetViewBeforeLoading(true);
+		final DisplayImageOptions.Builder profileOptsNuilder = new DisplayImageOptions.Builder();
+		profileOptsNuilder.cacheInMemory(true);
+		profileOptsNuilder.cacheOnDisc(true);
+		profileOptsNuilder.showStubImage(R.drawable.ic_profile_image_default);
+		profileOptsNuilder.bitmapConfig(Bitmap.Config.ARGB_8888);
+		profileOptsNuilder.resetViewBeforeLoading(true);
+		final DisplayImageOptions.Builder imageOptsBuilder = new DisplayImageOptions.Builder();
+		imageOptsBuilder.cacheInMemory(true);
+		imageOptsBuilder.cacheOnDisc(true);
+		imageOptsBuilder.bitmapConfig(Bitmap.Config.RGB_565);
+		imageOptsBuilder.resetViewBeforeLoading(true);
 		final DisplayImageOptions.Builder banner_opts_builder = new DisplayImageOptions.Builder();
 		banner_opts_builder.cacheInMemory(true);
 		banner_opts_builder.cacheOnDisc(true);
@@ -71,8 +57,8 @@ public class ImageLoaderWrapper implements Constants {
 		banner_opts_builder.resetViewBeforeLoading(true);
 		banner_opts_builder.showStubImage(android.R.color.transparent);
 
-		mProfileImageDisplayOptions = profile_opts_builder.build();
-		mImageDisplayOptions = image_opts_builder.build();
+		mProfileImageDisplayOptions = profileOptsNuilder.build();
+		mImageDisplayOptions = imageOptsBuilder.build();
 		mBannerDisplayOptions = banner_opts_builder.build();
 	}
 
@@ -88,8 +74,8 @@ public class ImageLoaderWrapper implements Constants {
 		mImageLoader.displayImage(url, view, mImageDisplayOptions);
 	}
 
-	public void displayPreviewImage(final ImageView view, final String url, final ImageLoadingListener listener) {
-		mImageLoader.displayImage(url, view, mImageDisplayOptions, listener);
+	public void displayPreviewImage(final ImageView view, final String url, final ImageLoadingHandler loadingHandler) {
+		mImageLoader.displayImage(url, view, mImageDisplayOptions, loadingHandler, loadingHandler);
 	}
 
 	public void displayProfileBanner(final ImageView view, final String base_url, final int width) {
@@ -102,4 +88,7 @@ public class ImageLoaderWrapper implements Constants {
 		mImageLoader.displayImage(url, view, mProfileImageDisplayOptions);
 	}
 
+	public void loadProfileImage(final String url, final ImageLoadingListener listener) {
+		mImageLoader.loadImage(url, mProfileImageDisplayOptions, listener);
+	}
 }

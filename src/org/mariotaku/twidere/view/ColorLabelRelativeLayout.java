@@ -19,25 +19,16 @@
 
 package org.mariotaku.twidere.view;
 
-import static org.mariotaku.twidere.util.Utils.isRTL;
-
-import org.mariotaku.twidere.view.iface.IColorLabelView;
-
 import android.content.Context;
-import android.content.res.Resources;
 import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.widget.RelativeLayout;
 
+import org.mariotaku.twidere.view.iface.IColorLabelView;
+
 public class ColorLabelRelativeLayout extends RelativeLayout implements IColorLabelView {
 
-	private final Paint mPaintLeft = new Paint(), mPaintRight = new Paint(), mPaintBackground = new Paint();
-	private final Rect mRectLeft = new Rect(), mRectRight = new Rect(), mRectBackground = new Rect();
-	private final float mDensity;
-	private final boolean mIsRTL;
+	private final Helper mHelper;
 
 	public ColorLabelRelativeLayout(final Context context) {
 		this(context, null);
@@ -49,55 +40,44 @@ public class ColorLabelRelativeLayout extends RelativeLayout implements IColorLa
 
 	public ColorLabelRelativeLayout(final Context context, final AttributeSet attrs, final int defStyle) {
 		super(context, attrs, defStyle);
-		final Resources res = context.getResources();
-		mDensity = res.getDisplayMetrics().density;
-		mPaintLeft.setColor(Color.TRANSPARENT);
-		mPaintRight.setColor(Color.TRANSPARENT);
-		mPaintBackground.setColor(Color.TRANSPARENT);
-		mIsRTL = isRTL(context);
+		mHelper = new Helper(this, context, attrs, defStyle);
 	}
 
 	@Override
 	public void drawBackground(final int color) {
-		drawLabel(mPaintLeft.getColor(), mPaintRight.getColor(), color);
+		mHelper.drawBackground(color);
 	}
 
 	@Override
-	public void drawLabel(final int left, final int right, final int background) {
-		mPaintBackground.setColor(background);
-		mPaintLeft.setColor(left);
-		mPaintRight.setColor(right);
-		invalidate();
+	public void drawEnd(final int... colors) {
+		mHelper.drawEnd(colors);
 	}
 
 	@Override
-	public void drawLeft(final int color) {
-		drawLabel(color, mPaintRight.getColor(), mPaintBackground.getColor());
+	public void drawLabel(final int[] start, final int[] end, final int background) {
+		mHelper.drawLabel(start, end, background);
 	}
 
 	@Override
-	public void drawRight(final int color) {
-		drawLabel(mPaintLeft.getColor(), color, mPaintBackground.getColor());
+	public void drawStart(final int... colors) {
+		mHelper.drawStart(colors);
+	}
+
+	@Override
+	public boolean isPaddingsIgnored() {
+		return mHelper.isPaddingsIgnored();
+	}
+
+	@Override
+	public void setIgnorePaddings(final boolean ignorePaddings) {
+		mHelper.setIgnorePaddings(ignorePaddings);
 	}
 
 	@Override
 	protected void dispatchDraw(final Canvas canvas) {
-		canvas.drawRect(mRectBackground, mPaintBackground);
-		canvas.drawRect(mRectLeft, mPaintLeft);
-		canvas.drawRect(mRectRight, mPaintRight);
+		mHelper.dispatchDrawBackground(canvas);
 		super.dispatchDraw(canvas);
+		mHelper.dispatchDrawLabels(canvas);
 	}
 
-	@Override
-	protected void onSizeChanged(final int w, final int h, final int oldw, final int oldh) {
-		mRectBackground.set(0, 0, w, h);
-		if (mIsRTL) {
-			mRectRight.set(0, 0, (int) (LABEL_WIDTH * mDensity), h);
-			mRectLeft.set(w - (int) (LABEL_WIDTH * mDensity), 0, w, h);
-		} else {
-			mRectLeft.set(0, 0, (int) (LABEL_WIDTH * mDensity), h);
-			mRectRight.set(w - (int) (LABEL_WIDTH * mDensity), 0, w, h);
-		}
-		super.onSizeChanged(w, h, oldw, oldh);
-	}
 }

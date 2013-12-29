@@ -19,17 +19,17 @@
 
 package org.mariotaku.twidere.util;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.activity.BaseActivity;
-import org.mariotaku.twidere.activity.HomeActivity;
-
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+
+import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.activity.support.BaseSupportActivity;
+import org.mariotaku.twidere.activity.support.HomeActivity;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class MessagesManager implements Constants {
 
@@ -150,8 +150,8 @@ public final class MessagesManager implements Constants {
 
 	private Activity getBestActivity() {
 		for (final Activity activity : mMessageCallbacks) {
-			if (activity instanceof BaseActivity) {
-				final BaseActivity base = (BaseActivity) activity;
+			if (activity instanceof BaseSupportActivity) {
+				final BaseSupportActivity base = (BaseSupportActivity) activity;
 				if (base.isOnTop()) return base;
 			}
 		}
@@ -162,7 +162,7 @@ public final class MessagesManager implements Constants {
 			}
 		}
 		for (final Activity activity : mMessageCallbacks)
-			return activity;
+			if (ThemeUtils.isFloatingWindow(activity)) return activity;
 		return null;
 	}
 

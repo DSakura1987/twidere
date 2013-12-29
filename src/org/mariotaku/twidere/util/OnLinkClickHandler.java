@@ -25,27 +25,30 @@ import static org.mariotaku.twidere.util.Utils.openTweetSearch;
 import static org.mariotaku.twidere.util.Utils.openUserListDetails;
 import static org.mariotaku.twidere.util.Utils.openUserProfile;
 
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.util.TwidereLinkify.OnLinkClickListener;
-
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+
 import edu.ucdavis.earlybird.ProfilingUtil;
+
+import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.util.TwidereLinkify.OnLinkClickListener;
 
 public class OnLinkClickHandler implements OnLinkClickListener, Constants {
 
 	protected final Activity activity;
+	protected final MultiSelectManager manager;
 
-	public OnLinkClickHandler(final Context context) {
+	public OnLinkClickHandler(final Context context, final MultiSelectManager manager) {
 		activity = context instanceof Activity ? (Activity) context : null;
+		this.manager = manager;
 	}
 
 	@Override
 	public void onLinkClick(final String link, final String orig, final long account_id, final int type,
 			final boolean sensitive) {
-		if (activity == null) return;
+		if (activity == null || manager.isActive()) return;
 		// UCD
 		ProfilingUtil.profile(activity, account_id, "Click, " + link + ", " + type);
 
@@ -60,7 +63,7 @@ public class OnLinkClickHandler implements OnLinkClickListener, Constants {
 				break;
 			}
 			case TwidereLinkify.LINK_TYPE_LINK_WITH_IMAGE_EXTENSION: {
-				openImage(activity, link, orig, sensitive);
+				openImage(activity, link, sensitive);
 				break;
 			}
 			case TwidereLinkify.LINK_TYPE_LINK: {
@@ -91,6 +94,7 @@ public class OnLinkClickHandler implements OnLinkClickListener, Constants {
 	}
 
 	protected void openLink(final String link) {
+		if (activity == null || manager.isActive()) return;
 		final Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(link));
 		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 		activity.startActivity(intent);

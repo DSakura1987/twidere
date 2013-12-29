@@ -19,27 +19,26 @@
 
 package org.mariotaku.twidere.adapter;
 
+import static org.mariotaku.twidere.util.CustomTabUtils.getTabIconDrawable;
 import static org.mariotaku.twidere.util.Utils.announceForAccessibilityCompat;
-import static org.mariotaku.twidere.util.Utils.getTabIconDrawable;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import android.app.Fragment;
+import android.app.FragmentManager;
+import android.content.Context;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.support.v13.app.FragmentStatePagerAdapter;
 
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.model.TabSpec;
 import org.mariotaku.twidere.view.TabPageIndicator;
-import org.mariotaku.twidere.view.TabPageIndicator.TitleProvider;
+import org.mariotaku.twidere.view.TabPageIndicator.TabListener;
+import org.mariotaku.twidere.view.TabPageIndicator.TabProvider;
 
-import android.content.Context;
-import android.content.Intent;
-import android.graphics.drawable.Drawable;
-import android.os.Build;
-import android.os.Bundle;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentStatePagerAdapter;
+import java.util.ArrayList;
+import java.util.Collection;
 
-public class TabsAdapter extends FragmentStatePagerAdapter implements TitleProvider, Constants {
+public class TabsAdapter extends FragmentStatePagerAdapter implements TabProvider, TabListener, Constants {
 
 	private final ArrayList<TabSpec> mTabs = new ArrayList<TabSpec>();
 
@@ -53,9 +52,9 @@ public class TabsAdapter extends FragmentStatePagerAdapter implements TitleProvi
 		clear();
 	}
 
-	public void addTab(final Class<? extends Fragment> cls, final Bundle args, final String name, final Integer icon,
-			final int position) {
-		addTab(new TabSpec(name, icon, cls, args, position));
+	public void addTab(final Class<? extends Fragment> cls, final Bundle args, final CharSequence title,
+			final Integer icon, final int position) {
+		addTab(new TabSpec(title, icon, cls, args, position));
 	}
 
 	public void addTab(final TabSpec spec) {
@@ -109,24 +108,16 @@ public class TabsAdapter extends FragmentStatePagerAdapter implements TitleProvi
 
 	@Override
 	public void onPageReselected(final int position) {
-		final String action = mTabs.get(position).cls.getName() + SHUFFIX_SCROLL_TO_TOP;
-		final Intent intent = new Intent(action);
-		intent.setPackage(mContext.getPackageName());
-		mContext.sendBroadcast(intent);
 	}
 
 	@Override
 	public void onPageSelected(final int position) {
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.DONUT) return;
+		if (mIndicator == null) return;
 		announceForAccessibilityCompat(mContext, mIndicator, getPageTitle(position), getClass());
 	}
 
 	@Override
 	public boolean onTabLongClick(final int position) {
-		final String action = mTabs.get(position).cls.getName() + SHUFFIX_REFRESH_TAB;
-		final Intent intent = new Intent(action);
-		intent.setPackage(mContext.getPackageName());
-		mContext.sendBroadcast(intent);
 		return true;
 	}
 

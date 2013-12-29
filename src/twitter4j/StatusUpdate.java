@@ -16,13 +16,13 @@
 
 package twitter4j;
 
+import twitter4j.http.HttpParameter;
+
 import java.io.File;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-
-import twitter4j.http.HttpParameter;
 
 /**
  * @author Yusuke Yamamoto - yusuke at mac.com
@@ -238,6 +238,6 @@ public final class StatusUpdate implements Serializable {
 	}
 
 	/* package */boolean isWithMedia() {
-		return mediaFile != null || mediaName != null;
+		return mediaFile != null || mediaName != null && mediaBody != null;
 	}
 }

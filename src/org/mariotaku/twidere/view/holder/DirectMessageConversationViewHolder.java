@@ -19,37 +19,44 @@
 
 package org.mariotaku.twidere.view.holder;
 
-import org.mariotaku.twidere.R;
-
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
-public class DirectMessageConversationViewHolder {
+import org.mariotaku.twidere.R;
 
-	public final ImageView profile_image_left, profile_image_right;
-	public final TextView name, screen_name, text, time;
-	public final LinearLayout name_container;
+public class DirectMessageConversationViewHolder extends CardViewHolder {
+
+	public final ImageView incoming_profile_image, outgoing_profile_image;
+	public final View incoming_message_container, outgoing_message_container, incoming_profile_image_container,
+			outgoing_profile_image_container;
+	public final TextView incoming_text, incoming_time, outgoing_text, outgoing_time;
+	public final View incoming_item_menu, outgoing_item_menu;
 	private float text_size;
 
 	public DirectMessageConversationViewHolder(final View view) {
-		profile_image_left = (ImageView) view.findViewById(R.id.profile_image_left);
-		profile_image_right = (ImageView) view.findViewById(R.id.profile_image_right);
-		name = (TextView) view.findViewById(R.id.name);
-		screen_name = (TextView) view.findViewById(R.id.screen_name);
-		text = (TextView) view.findViewById(R.id.text);
-		time = (TextView) view.findViewById(R.id.time);
-		name_container = (LinearLayout) view.findViewById(R.id.name_container);
+		super(view);
+		incoming_message_container = findViewById(R.id.incoming_message_container);
+		outgoing_message_container = findViewById(R.id.outgoing_message_container);
+		incoming_profile_image_container = findViewById(R.id.incoming_profile_image_container);
+		outgoing_profile_image_container = findViewById(R.id.outgoing_profile_image_container);
+		incoming_profile_image = (ImageView) findViewById(R.id.incoming_profile_image);
+		outgoing_profile_image = (ImageView) findViewById(R.id.outgoing_profile_image);
+		incoming_text = (TextView) findViewById(R.id.incoming_text);
+		incoming_time = (TextView) findViewById(R.id.incoming_time);
+		outgoing_text = (TextView) findViewById(R.id.outgoing_text);
+		outgoing_time = (TextView) findViewById(R.id.outgoing_time);
+		incoming_item_menu = findViewById(R.id.incoming_item_menu);
+		outgoing_item_menu = findViewById(R.id.outgoing_item_menu);
 	}
 
 	public void setTextSize(final float text_size) {
 		if (this.text_size != text_size) {
 			this.text_size = text_size;
-			text.setTextSize(text_size);
-			name.setTextSize(text_size);
-			screen_name.setTextSize(text_size * 0.75f);
-			time.setTextSize(text_size * 0.75f);
+			incoming_text.setTextSize(text_size);
+			incoming_time.setTextSize(text_size * 0.75f);
+			outgoing_text.setTextSize(text_size);
+			outgoing_time.setTextSize(text_size * 0.75f);
 		}
 	}
 }

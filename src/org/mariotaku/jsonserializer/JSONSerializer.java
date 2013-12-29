@@ -1,5 +1,13 @@
 package org.mariotaku.jsonserializer;
 
+import android.content.Context;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.mariotaku.twidere.util.ArrayUtils;
+import org.mariotaku.twidere.util.Utils;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -10,21 +18,24 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.mariotaku.twidere.BuildConfig;
-import org.mariotaku.twidere.util.ArrayUtils;
-import org.mariotaku.twidere.util.Utils;
-
-import android.content.Context;
-
 public class JSONSerializer {
 
 	public static final String JSON_CACHE_DIR = "json_cache";
 
 	private static final String KEY_OBJECT = "object";
 	private static final String KEY_CLASS = "class";
+
+	public static <T extends JSONParcelable> T[] arrayFromJSON(final JSONParcelable.Creator<T> creator,
+			final JSONArray json) {
+		if (creator == null) throw new NullPointerException("JSON_CREATOR must not be null!");
+		if (json == null) return null;
+		final int size = json.length();
+		final T[] list = creator.newArray(size);
+		for (int i = 0; i < size; i++) {
+			list[i] = creator.createFromParcel(new JSONParcel(json.optJSONObject(i)));
+		}
+		return list;
+	}
 
 	public static <T extends JSONParcelable> T fromFile(final File file) throws IOException {
 		if (file == null) throw new FileNotFoundException();
@@ -47,6 +58,7 @@ public class JSONSerializer {
 	}
 
 	public static <T extends JSONParcelable> T[] fromJSON(final JSONParcelable.Creator<T> creator, final JSONArray json) {
+		if (creator == null) throw new NullPointerException("JSON_CREATOR must not be null!");
 		if (json == null) return null;
 		final int size = json.length();
 		final T[] array = creator.newArray(size);
@@ -57,6 +69,7 @@ public class JSONSerializer {
 	}
 
 	public static <T extends JSONParcelable> T fromJSON(final JSONParcelable.Creator<T> creator, final JSONObject json) {
+		if (creator == null) throw new NullPointerException("JSON_CREATOR must not be null!");
 		if (json == null) return null;
 		return creator.createFromParcel(new JSONParcel(json));
 	}
@@ -76,17 +89,16 @@ public class JSONSerializer {
 		if (file == null) throw new FileNotFoundException();
 		final BufferedReader reader = new BufferedReader(new FileReader(file));
 		final StringBuffer buf = new StringBuffer();
-		String line = reader.readLine();
-		while (line != null) {
+		String line = null;
+		while ((line = reader.readLine()) != null) {
 			buf.append(line);
 			buf.append('\n');
-			line = reader.readLine();
 		}
 		reader.close();
 		try {
 			final JSONObject json = new JSONObject(buf.toString());
-			final JSONParcelable.Creator<T> creator = getCreator(json.optString(KEY_CLASS));
-			return listFromJSON(creator, json.optJSONArray(KEY_OBJECT));
+			final JSONParcelable.Creator<T> creator = getCreator(json.getString(KEY_CLASS));
+			return listFromJSON(creator, json.getJSONArray(KEY_OBJECT));
 		} catch (final JSONException e) {
 			throw new IOException();
 		}
@@ -94,6 +106,7 @@ public class JSONSerializer {
 
 	public static <T extends JSONParcelable> List<T> listFromJSON(final JSONParcelable.Creator<T> creator,
 			final JSONArray json) {
+		if (creator == null) throw new NullPointerException("JSON_CREATOR must not be null!");
 		if (json == null) return null;
 		final int size = json.length();
 		final List<T> list = new ArrayList<T>(size);
@@ -125,7 +138,7 @@ public class JSONSerializer {
 		try {
 			json.put(KEY_CLASS, array.getClass().getComponentType().getName());
 			json.put(KEY_OBJECT, toJSONArray(array));
-			if (BuildConfig.DEBUG) {
+			if (Utils.isDebugBuild()) {
 				writer.write(json.toString(4));
 			} else {
 				writer.write(json.toString());

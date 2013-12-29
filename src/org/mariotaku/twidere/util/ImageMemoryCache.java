@@ -19,18 +19,18 @@
 
 package org.mariotaku.twidere.util;
 
+import android.graphics.Bitmap;
+import android.os.Handler;
+import android.util.Log;
+
+import com.nostra13.universalimageloader.cache.memory.MemoryCacheAware;
+
 import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
-import android.graphics.Bitmap;
-import android.os.Handler;
-import android.util.Log;
-
-import com.nostra13.universalimageloader.cache.memory.MemoryCacheAware;
 
 public class ImageMemoryCache implements MemoryCacheAware<String, Bitmap> {
 
@@ -67,7 +67,7 @@ public class ImageMemoryCache implements MemoryCacheAware<String, Bitmap> {
 		try {
 			synchronized (mHardCache) {
 				final Bitmap bitmap = mHardCache.get(key);
-				if (bitmap != null && key != null) {
+				if (bitmap != null) {
 					// Put bitmap on top of cache so it's purged last.
 					mHardCache.remove(key);
 					mHardCache.put(key, bitmap);

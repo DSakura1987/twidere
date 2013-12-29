@@ -19,13 +19,13 @@
 
 package org.mariotaku.twidere.view.holder;
 
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.view.ColorLabelRelativeLayout;
-
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.view.ColorLabelRelativeLayout;
 
 public class AccountViewHolder {
 
@@ -41,11 +41,11 @@ public class AccountViewHolder {
 		screen_name = (TextView) view.findViewById(android.R.id.text2);
 		profile_image = (ImageView) view.findViewById(android.R.id.icon);
 		default_indicator = view.findViewById(R.id.default_indicator);
-		checkbox = (CheckBox) view.findViewById(R.id.checkbox);
+		checkbox = (CheckBox) view.findViewById(android.R.id.checkbox);
 	}
 
 	public void setAccountColor(final int color) {
-		content.drawRight(color);
+		content.drawEnd(color);
 	}
 
 	public void setIsDefault(final boolean is_default) {

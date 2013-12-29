@@ -19,37 +19,48 @@
 
 package org.mariotaku.twidere.fragment;
 
-import static org.mariotaku.twidere.util.Utils.showInfoMessage;
+import static org.mariotaku.twidere.util.Utils.getDisplayName;
 
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.provider.TweetStore.Filters;
-
+import android.app.LoaderManager.LoaderCallbacks;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.Loader;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.v4.app.LoaderManager.LoaderCallbacks;
-import android.support.v4.content.CursorLoader;
-import android.support.v4.content.Loader;
-import android.support.v4.widget.SimpleCursorAdapter;
+import android.view.ActionMode;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemLongClickListener;
+import android.widget.AbsListView.MultiChoiceModeListener;
 import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
+import android.widget.TextView;
+
+import org.mariotaku.querybuilder.Columns.Column;
+import org.mariotaku.querybuilder.RawItemArray;
+import org.mariotaku.querybuilder.Where;
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.provider.TweetStore.Filters;
 
 public abstract class BaseFiltersFragment extends BaseListFragment implements LoaderCallbacks<Cursor>,
-		OnItemLongClickListener {
+		MultiChoiceModeListener {
 
-	private FilterListAdapter mAdapter;
+	private ListView mListView;
+
+	private SimpleCursorAdapter mAdapter;
 
 	private ContentResolver mResolver;
+
+	private ActionMode mActionMode;
 
 	private final BroadcastReceiver mStateReceiver = new BroadcastReceiver() {
 
@@ -64,21 +75,48 @@ public abstract class BaseFiltersFragment extends BaseListFragment implements Lo
 
 	};
 
+	public abstract Uri getContentUri();
+
+	@Override
+	public boolean onActionItemClicked(final ActionMode mode, final MenuItem item) {
+		switch (item.getItemId()) {
+			case MENU_DELETE: {
+				final Where where = Where.in(new Column(Filters._ID), new RawItemArray(mListView.getCheckedItemIds()));
+				mResolver.delete(getContentUri(), where.getSQL(), null);
+				break;
+			}
+			default: {
+				return false;
+			}
+		}
+		mode.finish();
+		return true;
+	}
+
 	@Override
 	public void onActivityCreated(final Bundle savedInstanceState) {
 		mResolver = getContentResolver();
 		super.onActivityCreated(savedInstanceState);
-		mAdapter = new FilterListAdapter(getActivity());
+		mAdapter = createListAdapter();
 		setListAdapter(mAdapter);
-		getListView().setOnItemLongClickListener(this);
+		mListView = getListView();
+		mListView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE_MODAL);
+		mListView.setMultiChoiceModeListener(this);
+		setEmptyText(getString(R.string.no_rule));
 		getLoaderManager().initLoader(0, null, this);
+		setListShown(false);
+	}
+
+	@Override
+	public boolean onCreateActionMode(final ActionMode mode, final Menu menu) {
+		mActionMode = mode;
+		getActivity().getMenuInflater().inflate(R.menu.action_multi_select_items, menu);
+		return true;
 	}
 
 	@Override
 	public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
-		final String[] cols = getContentColumns();
-		final Uri uri = getContentUri();
-		return new CursorLoader(getActivity(), uri, cols, null, null, null);
+		return new CursorLoader(getActivity(), getContentUri(), getContentColumns(), null, null, null);
 	}
 
 	@Override
@@ -94,17 +132,14 @@ public abstract class BaseFiltersFragment extends BaseListFragment implements Lo
 	}
 
 	@Override
-	public boolean onItemLongClick(final AdapterView<?> adapter, final View view, final int position, final long id) {
-		final String where = Filters._ID + " = " + id;
-		mResolver.delete(getContentUri(), where, null);
-		getLoaderManager().restartLoader(0, null, this);
-		return true;
+	public void onDestroyActionMode(final ActionMode mode) {
+
 	}
 
 	@Override
-	public void onListItemClick(final ListView l, final View v, final int position, final long id) {
-		showInfoMessage(getActivity(), R.string.longclick_to_delete, false);
-		super.onListItemClick(l, v, position, id);
+	public void onItemCheckedStateChanged(final ActionMode mode, final int position, final long id,
+			final boolean checked) {
+		updateTitle(mode);
 	}
 
 	@Override
@@ -115,6 +150,13 @@ public abstract class BaseFiltersFragment extends BaseListFragment implements Lo
 	@Override
 	public void onLoadFinished(final Loader<Cursor> loader, final Cursor data) {
 		mAdapter.swapCursor(data);
+		setListShown(true);
+	}
+
+	@Override
+	public boolean onPrepareActionMode(final ActionMode mode, final Menu menu) {
+		updateTitle(mode);
+		return true;
 	}
 
 	@Override
@@ -130,9 +172,25 @@ public abstract class BaseFiltersFragment extends BaseListFragment implements Lo
 		super.onStop();
 	}
 
+	@Override
+	public void setUserVisibleHint(final boolean isVisibleToUser) {
+		super.setUserVisibleHint(isVisibleToUser);
+		if (!isVisibleToUser && mActionMode != null) {
+			mActionMode.finish();
+		}
+	}
+
+	protected SimpleCursorAdapter createListAdapter() {
+		return new FilterListAdapter(getActivity());
+	}
+
 	protected abstract String[] getContentColumns();
 
-	protected abstract Uri getContentUri();
+	private void updateTitle(final ActionMode mode) {
+		if (mListView == null || mode == null || getActivity() == null) return;
+		final int count = mListView.getCheckedItemCount();
+		mode.setTitle(getResources().getQuantityString(R.plurals.Nitems_selected, count, count));
+	}
 
 	public static final class FilteredKeywordsFragment extends BaseFiltersFragment {
 
@@ -188,16 +246,59 @@ public abstract class BaseFiltersFragment extends BaseListFragment implements Lo
 			return Filters.Users.CONTENT_URI;
 		}
 
+		@Override
+		protected SimpleCursorAdapter createListAdapter() {
+			return new FilterUsersListAdapter(getActivity());
+		}
+
+		private static final class FilterUsersListAdapter extends SimpleCursorAdapter {
+
+			private int mUserIdIdx, mNameIdx, mScreenNameIdx;
+
+			private final boolean mNameFirst, mNicknameOnly;
+
+			public FilterUsersListAdapter(final Context context) {
+				super(context, android.R.layout.simple_list_item_activated_1, null, new String[0], new int[0], 0);
+				final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME,
+						Context.MODE_PRIVATE);
+				mNameFirst = prefs.getBoolean(PREFERENCE_KEY_NAME_FIRST, true);
+				mNicknameOnly = prefs.getBoolean(PREFERENCE_KEY_NICKNAME_ONLY, false);
+			}
+
+			@Override
+			public void bindView(final View view, final Context context, final Cursor cursor) {
+				super.bindView(view, context, cursor);
+				final TextView text1 = (TextView) view.findViewById(android.R.id.text1);
+				final long user_id = cursor.getLong(mUserIdIdx);
+				final String name = cursor.getString(mNameIdx);
+				final String screen_name = cursor.getString(mScreenNameIdx);
+				final String display_name = getDisplayName(context, user_id, name, screen_name, mNameFirst,
+						mNicknameOnly);
+				text1.setText(display_name);
+			}
+
+			@Override
+			public Cursor swapCursor(final Cursor c) {
+				final Cursor old = super.swapCursor(c);
+				if (c != null) {
+					mUserIdIdx = c.getColumnIndex(Filters.Users.USER_ID);
+					mNameIdx = c.getColumnIndex(Filters.Users.NAME);
+					mScreenNameIdx = c.getColumnIndex(Filters.Users.SCREEN_NAME);
+				}
+				return old;
+			}
+
+		}
 	}
 
-	public static final class FilterListAdapter extends SimpleCursorAdapter {
+	private static final class FilterListAdapter extends SimpleCursorAdapter {
 
 		private static final String[] from = new String[] { Filters.VALUE };
 
 		private static final int[] to = new int[] { android.R.id.text1 };
 
 		public FilterListAdapter(final Context context) {
-			super(context, android.R.layout.simple_list_item_1, null, from, to, 0);
+			super(context, android.R.layout.simple_list_item_activated_1, null, from, to, 0);
 		}
 
 	}

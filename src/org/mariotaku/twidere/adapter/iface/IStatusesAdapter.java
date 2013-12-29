@@ -21,40 +21,41 @@ package org.mariotaku.twidere.adapter.iface;
 
 import org.mariotaku.twidere.model.ParcelableStatus;
 
-public interface IStatusesAdapter<Data> extends IBaseAdapter {
+public interface IStatusesAdapter<Data> extends IBaseCardAdapter {
 
-	public long findItemIdByPosition(final int position);
+	public int findPositionByStatusId(final long status_id);
 
-	public int findItemPositionByStatusId(final long status_id);
+	public long getAccountId(final int position);
+
+	public int getActualCount();
 
 	public ParcelableStatus getLastStatus();
 
+	public long getLastStatusId();
+
 	public ParcelableStatus getStatus(int position);
+
+	public long getStatusId(final int position);
 
 	public boolean isLastItemFiltered();
 
 	public void setData(Data data);
 
+	public void setDisplayImagePreview(boolean display);
+
 	public void setDisplaySensitiveContents(boolean display);
+
+	public void setFavoritesHightlightDisabled(boolean disable);
 
 	public void setFiltersEnabled(boolean enabled);
 
 	public void setGapDisallowed(boolean disallowed);
 
-	public void setIgnoredFilterFields(boolean text_plain, boolean text_html, boolean screen_name, boolean source);
-
-	public void setImagePreviewDisplayOption(String option);
+	public void setIgnoredFilterFields(boolean user, boolean text_plain, boolean text_html, boolean source,
+			final boolean retweeted_by_id);
 
 	public void setIndicateMyStatusDisabled(boolean disable);
 
-	public void setLinkHightlightingEnabled(boolean enable);
-
-	public void setLinkUnderlineOnly(boolean underline_only);
-
 	public void setMentionsHightlightDisabled(boolean disable);
-
-	public void setShowAbsoluteTime(boolean show);
-
-	public void setShowAccountColor(boolean show);
 
 }

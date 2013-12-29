@@ -19,109 +19,82 @@
 
 package org.mariotaku.twidere.view.holder;
 
+import static org.mariotaku.twidere.util.Utils.getDisplayName;
 import static org.mariotaku.twidere.util.Utils.getStatusTypeIconRes;
-import static org.mariotaku.twidere.util.Utils.getThemeColor;
 import static org.mariotaku.twidere.util.Utils.getUserTypeIconRes;
 
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.util.Utils;
-import org.mariotaku.twidere.view.ColorLabelRelativeLayout;
-
 import android.content.Context;
-import android.content.res.Resources;
 import android.graphics.Color;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-public class StatusViewHolder implements Constants {
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.util.Utils;
+import org.mariotaku.twidere.view.ProfileImageView;
+import org.mariotaku.twidere.view.ShortTimeView;
 
-	public final ImageView my_profile_image, profile_image, image_preview;
-	public final TextView name, screen_name, text, time, reply_retweet_status;
-	public final View name_container, image_preview_container;
+public class StatusViewHolder extends CardViewHolder {
+
+	public final ProfileImageView my_profile_image, profile_image;
+	public final ImageView image_preview;
+	public final TextView name, screen_name, reply_retweet_status;
+	public final ShortTimeView time;
+	public final TextView text;
+	public final ViewGroup image_preview_container;
 	public final ProgressBar image_preview_progress;
-	private final View gap_indicator;
-	private final ColorLabelRelativeLayout content;
-	private final Resources res;
-	private final int theme_color, image_preview_small_width;
+
 	private final float density;
 	private final boolean is_rtl;
 	public boolean show_as_gap;
+	public int position;
 	private boolean account_color_enabled;
 	private float text_size;
-	private int name_display_option;
+	private boolean nickname_only, name_first;
+	private boolean display_profile_image;
 
 	public StatusViewHolder(final View view) {
-		final Context context = view.getContext();
-		content = (ColorLabelRelativeLayout) view;
-		res = context.getResources();
-		gap_indicator = view.findViewById(R.id.list_gap_text);
-		image_preview_container = view.findViewById(R.id.image_preview_container);
-		profile_image = (ImageView) view.findViewById(R.id.profile_image);
-		my_profile_image = (ImageView) view.findViewById(R.id.my_profile_image);
-		image_preview = (ImageView) view.findViewById(R.id.image_preview);
-		image_preview_progress = (ProgressBar) view.findViewById(R.id.image_preview_progress);
-		name_container = view.findViewById(R.id.name_container);
-		name = (TextView) view.findViewById(R.id.name);
-		screen_name = (TextView) view.findViewById(R.id.screen_name);
-		text = (TextView) view.findViewById(R.id.text);
-		time = (TextView) view.findViewById(R.id.time);
-		reply_retweet_status = (TextView) view.findViewById(R.id.reply_retweet_status);
-		show_as_gap = gap_indicator.isShown();
-		final int color = getThemeColor(context);
-		theme_color = Color.argb(0x60, Color.red(color), Color.green(color), Color.blue(color));
-		image_preview_small_width = res.getDimensionPixelSize(R.dimen.image_preview_width);
+		super(view);
+		final Context context = getContext();
+		image_preview_container = (ViewGroup) findViewById(R.id.image_preview_container);
+		profile_image = (ProfileImageView) findViewById(R.id.profile_image);
+		my_profile_image = (ProfileImageView) findViewById(R.id.my_profile_image);
+		image_preview = (ImageView) findViewById(R.id.image_preview);
+		image_preview_progress = (ProgressBar) findViewById(R.id.image_preview_progress);
+		name = (TextView) findViewById(R.id.name);
+		screen_name = (TextView) findViewById(R.id.screen_name);
+		text = (TextView) findViewById(R.id.text);
+		time = (ShortTimeView) findViewById(R.id.time);
+		reply_retweet_status = (TextView) findViewById(R.id.reply_retweet_status);
+		show_as_gap = content.isGap();
 		is_rtl = Utils.isRTL(context);
-		density = res.getDisplayMetrics().density;
+		density = context.getResources().getDisplayMetrics().density;
 	}
 
 	public void setAccountColor(final int color) {
-		content.drawRight(account_color_enabled && !show_as_gap ? color : Color.TRANSPARENT);
+		content.drawEnd(account_color_enabled && !show_as_gap ? color : Color.TRANSPARENT);
 	}
 
 	public void setAccountColorEnabled(final boolean enabled) {
 		account_color_enabled = enabled && !show_as_gap;
 		if (!account_color_enabled) {
-			content.drawRight(Color.TRANSPARENT);
+			content.drawEnd(Color.TRANSPARENT);
 		}
+	}
+
+	public void setDisplayNameFirst(final boolean name_first) {
+		this.name_first = name_first;
+	}
+
+	public void setDisplayProfileImage(final boolean display) {
+		display_profile_image = display;
 	}
 
 	public void setHighlightColor(final int color) {
 		content.drawBackground(show_as_gap ? Color.TRANSPARENT : color);
-	}
-
-	public void setImagePreviewDisplayOption(final int option) {
-		final RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) image_preview_container.getLayoutParams();
-		if (option == IMAGE_PREVIEW_DISPLAY_OPTION_CODE_LARGE) {
-			lp.width = RelativeLayout.LayoutParams.MATCH_PARENT;
-			lp.rightMargin = 0;
-			lp.leftMargin = 0;
-			if (is_rtl) {
-				lp.addRule(RelativeLayout.LEFT_OF, R.id.profile_image);
-				lp.addRule(RelativeLayout.RIGHT_OF, R.id.my_profile_image);
-			} else {
-				lp.addRule(RelativeLayout.RIGHT_OF, R.id.profile_image);
-				lp.addRule(RelativeLayout.LEFT_OF, R.id.my_profile_image);
-			}
-		} else if (option == IMAGE_PREVIEW_DISPLAY_OPTION_CODE_SMALL) {
-			lp.width = image_preview_small_width;
-			if (is_rtl) {
-				lp.leftMargin = 0;
-				lp.rightMargin = (int) (density * 16);
-				lp.addRule(RelativeLayout.LEFT_OF, R.id.profile_image);
-				lp.addRule(RelativeLayout.RIGHT_OF, 0);
-			} else {
-				lp.leftMargin = (int) (density * 16);
-				lp.rightMargin = 0;
-				lp.addRule(RelativeLayout.RIGHT_OF, R.id.profile_image);
-				lp.addRule(RelativeLayout.LEFT_OF, 0);
-			}
-		}
-		image_preview_container.setLayoutParams(lp);
 	}
 
 	public void setIsMyStatus(final boolean my_status) {
@@ -139,70 +112,33 @@ public class StatusViewHolder implements Constants {
 		reply_retweet_status.setVisibility(is_retweet || is_reply ? View.VISIBLE : View.GONE);
 	}
 
-	public void setName(final String name, final String screen_name) {
-		switch (name_display_option) {
-			case NAME_DISPLAY_OPTION_CODE_NAME: {
-				this.name.setText(name);
-				this.screen_name.setText(null);
-				this.screen_name.setVisibility(View.GONE);
-				break;
-			}
-			case NAME_DISPLAY_OPTION_CODE_SCREEN_NAME: {
-				this.name.setText("@" + screen_name);
-				this.screen_name.setText(null);
-				this.screen_name.setVisibility(View.GONE);
-				break;
-			}
-			default: {
-				this.name.setText(name);
-				this.screen_name.setText("@" + screen_name);
-				this.screen_name.setVisibility(View.VISIBLE);
-				break;
-			}
-		}
+	public void setNicknameOnly(final boolean nickname_only) {
+		this.nickname_only = nickname_only;
 	}
 
-	public void setNameDisplayOption(final int option) {
-		name_display_option = option;
+	public void setReplyTo(final long user_id, final String name, final String screen_name) {
+		final String display_name = getDisplayName(getContext(), user_id, name, screen_name, name_first, nickname_only,
+				false);
+		reply_retweet_status.setText(getString(R.string.in_reply_to, display_name));
+		reply_retweet_status.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_indicator_conversation, 0, 0, 0);
 	}
 
-	public void setReplyTo(final String in_reply_to_screen_name) {
-		reply_retweet_status.setText(res.getString(R.string.in_reply_to, in_reply_to_screen_name));
-		reply_retweet_status.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_indicator_reply, 0, 0, 0);
-	}
-
-	public void setRetweetedBy(final long retweet_count, final String retweeted_by_name,
-			final String retweeted_by_screen_name) {
-		if (name_display_option == NAME_DISPLAY_OPTION_CODE_SCREEN_NAME) {
-			reply_retweet_status.setText(retweet_count > 1 ? res.getString(R.string.retweeted_by_with_count,
-					retweeted_by_screen_name, retweet_count - 1) : res.getString(R.string.retweeted_by,
-					retweeted_by_screen_name));
-		} else {
-			reply_retweet_status.setText(retweet_count > 1 ? res.getString(R.string.retweeted_by_with_count,
-					retweeted_by_name, retweet_count - 1) : res.getString(R.string.retweeted_by, retweeted_by_name));
-		}
+	public void setRetweetedBy(final long count, final long user_id, final String name, final String screen_name) {
+		final String display_name = getDisplayName(getContext(), user_id, name, screen_name, name_first, nickname_only,
+				false);
+		reply_retweet_status.setText(count > 1 ? getString(R.string.retweeted_by_with_count, display_name, count - 1)
+				: getString(R.string.retweeted_by, display_name));
 		reply_retweet_status.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_indicator_retweet, 0, 0, 0);
-	}
-
-	public void setSelected(final boolean selected) {
-		content.setBackgroundColor(selected && !show_as_gap ? theme_color : Color.TRANSPARENT);
 	}
 
 	public void setShowAsGap(final boolean show_gap) {
 		show_as_gap = show_gap;
-		if (show_as_gap) {
-			content.setBackgroundResource(0);
-			content.drawLabel(Color.TRANSPARENT, Color.TRANSPARENT, Color.TRANSPARENT);
+		if (content != null) {
+			content.setIsGap(show_gap);
 		}
-		profile_image.setVisibility(show_gap ? View.GONE : View.VISIBLE);
-		my_profile_image.setVisibility(show_gap ? View.GONE : View.VISIBLE);
-		image_preview_container.setVisibility(show_gap ? View.GONE : View.VISIBLE);
-		name.setVisibility(show_gap ? View.GONE : View.VISIBLE);
-		screen_name.setVisibility(show_gap ? View.GONE : View.VISIBLE);
-		text.setVisibility(show_gap ? View.GONE : View.VISIBLE);
-		time.setVisibility(show_gap ? View.GONE : View.VISIBLE);
-		reply_retweet_status.setVisibility(show_gap ? View.GONE : View.VISIBLE);
-		gap_indicator.setVisibility(!show_gap ? View.GONE : View.VISIBLE);
+		// if (item_menu != null) {
+		// item_menu.setVisibility(show_gap ? View.GONE : View.VISIBLE);
+		// }
 	}
 
 	public void setStatusType(final boolean is_favorite, final boolean has_location, final boolean has_media,
@@ -211,22 +147,30 @@ public class StatusViewHolder implements Constants {
 		time.setCompoundDrawablesWithIntrinsicBounds(0, 0, res, 0);
 	}
 
-	public void setTextSize(final float text_size) {
-		if (this.text_size == text_size) return;
+	public boolean setTextSize(final float text_size) {
+		if (this.text_size == text_size) return false;
 		this.text_size = text_size;
 		text.setTextSize(text_size);
 		name.setTextSize(text_size);
 		screen_name.setTextSize(text_size * 0.75f);
 		time.setTextSize(text_size * 0.65f);
 		reply_retweet_status.setTextSize(text_size * 0.65f);
+		return true;
 	}
 
 	public void setUserColor(final int color) {
-		content.drawLeft(show_as_gap ? Color.TRANSPARENT : color);
+		content.drawStart(show_as_gap ? Color.TRANSPARENT : color);
 	}
 
-	public void setUserType(final boolean is_verified, final boolean is_protected) {
-		final int res = getUserTypeIconRes(is_verified, is_protected);
-		name.setCompoundDrawablesWithIntrinsicBounds(0, 0, res, 0);
+	public void setUserType(final boolean isVerified, final boolean isProtected) {
+		// if (display_profile_image) {
+		// profile_image.setUserType(isVerified, isProtected);
+		// my_profile_image.setUserType(isVerified, isProtected);
+		// name.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
+		// } else {
+		// profile_image.setUserType(false, false);
+		// my_profile_image.setUserType(false, false);
+		name.setCompoundDrawablesWithIntrinsicBounds(0, 0, getUserTypeIconRes(isVerified, isProtected), 0);
+		// }
 	}
 }

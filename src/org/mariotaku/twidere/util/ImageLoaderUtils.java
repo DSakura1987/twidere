@@ -16,8 +16,6 @@
 
 package org.mariotaku.twidere.util;
 
-import java.io.File;
-
 import android.annotation.TargetApi;
 import android.app.ActivityManager;
 import android.content.Context;
@@ -25,6 +23,8 @@ import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Debug;
 import android.os.StatFs;
+
+import java.io.File;
 
 /**
  * Class containing some static utility methods.
@@ -61,6 +61,7 @@ public class ImageLoaderUtils {
 	 * @param path The path to check
 	 * @return The space available in bytes
 	 */
+	@SuppressWarnings("deprecation")
 	public static long getUsableSpace(final File path) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD)
 			return GetUsableSpaceAccessor.getUsableSpace(path);
@@ -101,6 +102,7 @@ public class ImageLoaderUtils {
 
 	static class GetUsableSpaceAccessor {
 
+		@SuppressWarnings("deprecation")
 		@TargetApi(Build.VERSION_CODES.GINGERBREAD)
 		public static long getUsableSpace(final File path) {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) return path.getUsableSpace();

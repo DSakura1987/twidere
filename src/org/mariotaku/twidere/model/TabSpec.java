@@ -22,18 +22,19 @@ package org.mariotaku.twidere.model;
 import static org.mariotaku.twidere.util.CompareUtils.bundleEquals;
 import static org.mariotaku.twidere.util.CompareUtils.classEquals;
 import static org.mariotaku.twidere.util.CompareUtils.objectEquals;
+
+import android.app.Fragment;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 
 public class TabSpec {
 
-	public final String name;
+	public final CharSequence name;
 	public final Object icon;
 	public final Class<? extends Fragment> cls;
 	public final Bundle args;
 	public final int position;
 
-	public TabSpec(final String name, final Object icon, final Class<? extends Fragment> cls, final Bundle args,
+	public TabSpec(final CharSequence name, final Object icon, final Class<? extends Fragment> cls, final Bundle args,
 			final int position) {
 		if (cls == null) throw new IllegalArgumentException("Fragment cannot be null!");
 		if (name == null && icon == null)

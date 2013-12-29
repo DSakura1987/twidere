@@ -19,31 +19,23 @@
 
 package org.mariotaku.twidere.fragment;
 
-import org.mariotaku.actionbarcompat.ActionBarFragmentActivity;
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.activity.BaseActivity;
-import org.mariotaku.twidere.app.TwidereApplication;
-import org.mariotaku.twidere.util.AsyncTwitterWrapper;
-import org.mariotaku.twidere.util.MultiSelectManager;
-
 import android.app.Activity;
+import android.app.Fragment;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
+
+import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.activity.support.BaseSupportActivity;
+import org.mariotaku.twidere.app.TwidereApplication;
+import org.mariotaku.twidere.util.AsyncTwitterWrapper;
+import org.mariotaku.twidere.util.MultiSelectManager;
 
 public class BaseFragment extends Fragment implements Constants {
 
 	public BaseFragment() {
 
-	}
-
-	public ActionBarFragmentActivity getActionBarActivity() {
-		final Activity activity = getActivity();
-		if (activity instanceof ActionBarFragmentActivity) return (ActionBarFragmentActivity) activity;
-		return null;
 	}
 
 	public TwidereApplication getApplication() {
@@ -59,7 +51,8 @@ public class BaseFragment extends Fragment implements Constants {
 	}
 
 	public MultiSelectManager getMultiSelectManager() {
-		return getApplication() != null ? getApplication().getMultiSelectManager() : null;
+		final TwidereApplication app = getApplication();
+		return app != null ? app.getMultiSelectManager() : null;
 	}
 
 	public SharedPreferences getSharedPreferences(final String name, final int mode) {
@@ -75,17 +68,14 @@ public class BaseFragment extends Fragment implements Constants {
 	}
 
 	public AsyncTwitterWrapper getTwitterWrapper() {
-		return getApplication() != null ? getApplication().getTwitterWrapper() : null;
+		final TwidereApplication app = getApplication();
+		return app != null ? app.getTwitterWrapper() : null;
 	}
 
 	public void invalidateOptionsMenu() {
-		final FragmentActivity activity = getActivity();
+		final Activity activity = getActivity();
 		if (activity == null) return;
-		if (activity instanceof BaseActivity) {
-			((BaseActivity) activity).invalidateSupportOptionsMenu();
-		} else {
-			activity.supportInvalidateOptionsMenu();
-		}
+		activity.invalidateOptionsMenu();
 	}
 
 	public void registerReceiver(final BroadcastReceiver receiver, final IntentFilter filter) {
@@ -96,8 +86,8 @@ public class BaseFragment extends Fragment implements Constants {
 
 	public void setProgressBarIndeterminateVisibility(final boolean visible) {
 		final Activity activity = getActivity();
-		if (activity instanceof BaseActivity) {
-			((BaseActivity) activity).setSupportProgressBarIndeterminateVisibility(visible);
+		if (activity instanceof BaseSupportActivity) {
+			((BaseSupportActivity) activity).setProgressBarIndeterminateVisibility(visible);
 		}
 	}
 

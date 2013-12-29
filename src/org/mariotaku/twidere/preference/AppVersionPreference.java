@@ -19,8 +19,6 @@
 
 package org.mariotaku.twidere.preference;
 
-import org.mariotaku.twidere.activity.NyanActivity;
-
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -28,6 +26,8 @@ import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.preference.Preference;
 import android.util.AttributeSet;
+
+import org.mariotaku.twidere.activity.NyanActivity;
 
 public class AppVersionPreference extends Preference {
 
@@ -69,6 +69,7 @@ public class AppVersionPreference extends Preference {
 		if (mClickCount >= 7) {
 			final Context context = getContext();
 			if (context != null) {
+				mClickCount = 0;
 				context.startActivity(new Intent(context, NyanActivity.class));
 			}
 		}

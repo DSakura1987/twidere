@@ -19,19 +19,17 @@
 
 package org.mariotaku.twidere.view;
 
-import org.mariotaku.twidere.view.iface.IExtendedViewGroup;
-
 import android.content.Context;
-import android.graphics.Canvas;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.widget.FrameLayout;
+
+import org.mariotaku.twidere.view.iface.IExtendedViewGroup;
 
 public class ExtendedFrameLayout extends FrameLayout implements IExtendedViewGroup {
 
 	private TouchInterceptor mTouchInterceptor;
 	private OnSizeChangedListener mOnSizeChangedListener;
-	private int mAlpha = 0xFF;
 
 	public ExtendedFrameLayout(final Context context) {
 		super(context);
@@ -72,12 +70,6 @@ public class ExtendedFrameLayout extends FrameLayout implements IExtendedViewGro
 	}
 
 	@Override
-	public void setAlpha(final int alpha) {
-		mAlpha = alpha;
-		invalidate();
-	}
-
-	@Override
 	public final void setOnSizeChangedListener(final OnSizeChangedListener listener) {
 		mOnSizeChangedListener = listener;
 	}
@@ -85,17 +77,6 @@ public class ExtendedFrameLayout extends FrameLayout implements IExtendedViewGro
 	@Override
 	public final void setTouchInterceptor(final TouchInterceptor listener) {
 		mTouchInterceptor = listener;
-	}
-
-	@Override
-	protected void dispatchDraw(final Canvas canvas) {
-		try {
-			canvas.saveLayerAlpha(null, mAlpha, Canvas.ALL_SAVE_FLAG);
-			super.dispatchDraw(canvas);
-			canvas.restore();
-		} catch (final NullPointerException e) {
-			super.dispatchDraw(canvas);
-		}
 	}
 
 	@Override

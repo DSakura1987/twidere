@@ -19,53 +19,56 @@
 
 package org.mariotaku.twidere.view.holder;
 
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.util.Utils;
-import org.mariotaku.twidere.view.ColorLabelRelativeLayout;
-
 import android.content.Context;
 import android.graphics.Color;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-public class DirectMessageEntryViewHolder {
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.util.Utils;
+import org.mariotaku.twidere.view.ShortTimeView;
+import org.mariotaku.twidere.view.iface.IColorLabelView;
+
+public class DirectMessageEntryViewHolder extends CardViewHolder {
 
 	public final ImageView profile_image;
-	public final TextView name, screen_name, text, time;
-	private final ColorLabelRelativeLayout content;
+	public final TextView name, screen_name, text;
+	public final ShortTimeView time;
+	private final IColorLabelView content;
 	private float text_size;
 	private boolean account_color_enabled;
 	private final boolean is_rtl;
 
 	public DirectMessageEntryViewHolder(final View view) {
+		super(view);
 		final Context context = view.getContext();
-		content = (ColorLabelRelativeLayout) view;
-		profile_image = (ImageView) view.findViewById(R.id.profile_image);
-		name = (TextView) view.findViewById(R.id.name);
-		screen_name = (TextView) view.findViewById(R.id.screen_name);
-		text = (TextView) view.findViewById(R.id.text);
-		time = (TextView) view.findViewById(R.id.time);
+		content = (IColorLabelView) findViewById(R.id.content);
+		profile_image = (ImageView) findViewById(R.id.profile_image);
+		name = (TextView) findViewById(R.id.name);
+		screen_name = (TextView) findViewById(R.id.screen_name);
+		text = (TextView) findViewById(R.id.text);
+		time = (ShortTimeView) findViewById(R.id.time);
 		is_rtl = Utils.isRTL(context);
 	}
 
 	public void setAccountColor(final int color) {
-		content.drawRight(account_color_enabled ? color : Color.TRANSPARENT);
+		content.drawEnd(account_color_enabled ? color : Color.TRANSPARENT);
 	}
 
 	public void setAccountColorEnabled(final boolean enabled) {
 		if (account_color_enabled == enabled) return;
 		account_color_enabled = enabled;
 		if (!account_color_enabled) {
-			content.drawRight(Color.TRANSPARENT);
+			content.drawEnd(Color.TRANSPARENT);
 		}
 	}
 
 	public void setIsOutgoing(final boolean is_outgoing) {
 		if (is_rtl) {
-			text.setCompoundDrawablesWithIntrinsicBounds(0, 0, is_outgoing ? R.drawable.ic_indicator_outgoing : 0, 0);
+			time.setCompoundDrawablesWithIntrinsicBounds(is_outgoing ? R.drawable.ic_indicator_sent : 0, 0, 0, 0);
 		} else {
-			text.setCompoundDrawablesWithIntrinsicBounds(is_outgoing ? R.drawable.ic_indicator_outgoing : 0, 0, 0, 0);
+			time.setCompoundDrawablesWithIntrinsicBounds(0, 0, is_outgoing ? R.drawable.ic_indicator_sent : 0, 0);
 		}
 	}
 
@@ -73,12 +76,12 @@ public class DirectMessageEntryViewHolder {
 		if (this.text_size == text_size) return;
 		this.text_size = text_size;
 		text.setTextSize(text_size);
-		name.setTextSize(text_size * 1.25f);
-		screen_name.setTextSize(text_size);
+		name.setTextSize(text_size);
+		screen_name.setTextSize(text_size * 0.75f);
 		time.setTextSize(text_size * 0.65f);
 	}
 
 	public void setUserColor(final int color) {
-		content.drawLeft(color);
+		content.drawStart(color);
 	}
 }

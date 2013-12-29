@@ -19,48 +19,39 @@
 
 package org.mariotaku.twidere.util;
 
-import java.io.File;
-
-import org.mariotaku.twidere.Constants;
+import static org.mariotaku.twidere.util.Utils.isOnWifi;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Handler;
-import android.widget.GridView;
-import android.widget.ListView;
+import android.text.TextUtils;
 
 import com.nostra13.universalimageloader.cache.disc.DiscCacheAware;
 import com.nostra13.universalimageloader.core.ImageLoader;
 
+import org.mariotaku.twidere.Constants;
+
+import java.io.File;
+
 /**
- * Lazy image loader for {@link ListView} and {@link GridView} etc.</br> </br>
- * Inspired by <a href="https://github.com/thest1/LazyList">LazyList</a>, this
- * class has extra features like image loading/caching image to
- * /mnt/sdcard/Android/data/[package name]/cache features.</br> </br> Requires
- * Android 2.2, you can modify {@link Context#getExternalCacheDir()} to other to
- * support Android 2.1 and below.
- * 
  * @author mariotaku
- * 
  */
 public class ImagePreloader implements Constants {
 
+	public static final String LOGTAG = "ImagePreloader";
+
+	private final Context mContext;
+	private final SharedPreferences mPreferences;
 	private final Handler mHandler;
 	private final DiscCacheAware mDiscCache;
 	private final ImageLoader mImageLoader;
 
-	public ImagePreloader(final ImageLoader loader) {
+	public ImagePreloader(final Context context, final ImageLoader loader) {
+		mContext = context;
+		mPreferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		mImageLoader = loader;
 		mDiscCache = loader.getDiscCache();
 		mHandler = new Handler();
-		reloadConnectivitySettings();
-	}
-
-	/**
-	 * Cancels any downloads, shuts down the executor pool, and then purges the
-	 * caches.
-	 */
-	public void cancel() {
-		mImageLoader.destroy();
 	}
 
 	public File getCachedImageFile(final String url) {
@@ -75,6 +66,8 @@ public class ImagePreloader implements Constants {
 	}
 
 	public void preloadImage(final String url) {
+		if (TextUtils.isEmpty(url)) return;
+		if (!isOnWifi(mContext) && mPreferences.getBoolean(PREFERENCE_KEY_PRELOAD_WIFI_ONLY, true)) return;
 		mHandler.post(new Runnable() {
 
 			@Override
@@ -83,9 +76,6 @@ public class ImagePreloader implements Constants {
 			}
 
 		});
-	}
-
-	public void reloadConnectivitySettings() {
 	}
 
 }

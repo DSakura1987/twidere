@@ -19,102 +19,56 @@
 
 package org.mariotaku.twidere.activity;
 
-import static org.mariotaku.twidere.util.Utils.getThemeColor;
 import static org.mariotaku.twidere.util.Utils.restartActivity;
 
-import org.mariotaku.actionbarcompat.ActionBar;
-import org.mariotaku.actionbarcompat.ActionBarPreferenceActivity;
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.activity.iface.IThemedActivity;
-import org.mariotaku.twidere.app.TwidereApplication;
-
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.content.res.TypedArray;
-import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.LayerDrawable;
-import android.os.Build;
 import android.os.Bundle;
-import android.view.Window;
-import android.view.WindowManager;
+import android.preference.PreferenceActivity;
+import android.support.v4.app.NavUtils;
 
-class BasePreferenceActivity extends ActionBarPreferenceActivity implements Constants, IThemedActivity {
+import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.util.ThemeUtils;
 
-	private boolean mIsDarkTheme, mIsSolidColorBackground, mHardwareAccelerated;
+public abstract class BasePreferenceActivity extends PreferenceActivity implements Constants {
 
-	public TwidereApplication getTwidereApplication() {
-		return (TwidereApplication) getApplication();
+	private int mCurrentThemeResource;
+
+	@Override
+	public void finish() {
+		super.finish();
+		overrideCloseAnimationIfNeeded();
 	}
 
-	public boolean isDarkTheme() {
-		return mIsDarkTheme;
+	public int getThemeResourceId() {
+		return ThemeUtils.getSettingsThemeResource(this);
 	}
 
-	public boolean isHardwareAccelerationChanged() {
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) return false;
-		final SharedPreferences preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final boolean hardware_acceleration = preferences.getBoolean(PREFERENCE_KEY_HARDWARE_ACCELERATION,
-				PREFERENCE_DEFAULT_HARDWARE_ACCELERATION);
-		return mHardwareAccelerated != hardware_acceleration;
+	public void navigateUpFromSameTask() {
+		NavUtils.navigateUpFromSameTask(this);
+		overrideCloseAnimationIfNeeded();
 	}
 
-	public boolean isSolidColorBackground() {
-		return mIsSolidColorBackground;
-	}
-
-	public boolean isThemeChanged() {
-		final SharedPreferences preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final boolean is_dark_theme = preferences.getBoolean(PREFERENCE_KEY_DARK_THEME, false);
-		final boolean solid_color_background = preferences.getBoolean(PREFERENCE_KEY_SOLID_COLOR_BACKGROUND, false);
-		return is_dark_theme != mIsDarkTheme || solid_color_background != mIsSolidColorBackground;
-	}
-
-	public void restart() {
-		restartActivity(this);
-	}
-
-	public void setActionBarBackground() {
-		final ActionBar ab = getSupportActionBar();
-		final TypedArray a = obtainStyledAttributes(new int[] { R.attr.actionBarBackground });
-		final int color = getThemeColor(this);
-		final Drawable d = a.getDrawable(0);
-		if (d == null) return;
-		if (mIsDarkTheme) {
-			final Drawable mutated = d.mutate();
-			mutated.setColorFilter(color, PorterDuff.Mode.MULTIPLY);
-			ab.setBackgroundDrawable(mutated);
-		} else if (d instanceof LayerDrawable) {
-			final LayerDrawable ld = (LayerDrawable) d.mutate();
-			ld.findDrawableByLayerId(R.id.color_layer).setColorFilter(color, PorterDuff.Mode.MULTIPLY);
-			ab.setBackgroundDrawable(ld);
+	public void overrideCloseAnimationIfNeeded() {
+		if (shouldOverrideActivityAnimation()) {
+			ThemeUtils.overrideActivityCloseAnimation(this);
+		} else {
+			ThemeUtils.overrideNormalActivityCloseAnimation(this);
 		}
 	}
 
-	public void setTheme() {
-		final SharedPreferences preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final boolean is_dark_theme = preferences.getBoolean(PREFERENCE_KEY_DARK_THEME, false);
-		mIsDarkTheme = preferences.getBoolean(PREFERENCE_KEY_DARK_THEME, false);
-		mIsSolidColorBackground = preferences.getBoolean(PREFERENCE_KEY_SOLID_COLOR_BACKGROUND, false);
-		setTheme(is_dark_theme ? getDarkThemeRes() : getLightThemeRes());
-		if (mIsSolidColorBackground && shouldSetBackground()) {
-			getWindow().setBackgroundDrawableResource(is_dark_theme ? android.R.color.black : android.R.color.white);
-		}
+	public boolean shouldOverrideActivityAnimation() {
+		return true;
 	}
 
-	protected int getDarkThemeRes() {
-		return R.style.Theme_Twidere;
-	}
-
-	protected int getLightThemeRes() {
-		return R.style.Theme_Twidere_Light;
+	protected final boolean isThemeChanged() {
+		return getThemeResourceId() != mCurrentThemeResource;
 	}
 
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
-		setHardwareAcceleration();
-		setTheme();
+		if (shouldOverrideActivityAnimation()) {
+			ThemeUtils.overrideActivityOpenAnimation(this);
+		}
+		setTheme(mCurrentThemeResource = getThemeResourceId());
 		super.onCreate(savedInstanceState);
 		setActionBarBackground();
 	}
@@ -122,24 +76,17 @@ class BasePreferenceActivity extends ActionBarPreferenceActivity implements Cons
 	@Override
 	protected void onResume() {
 		super.onResume();
-		if (isThemeChanged() || isHardwareAccelerationChanged()) {
+		if (isThemeChanged()) {
 			restart();
 		}
 	}
 
-	protected boolean shouldSetBackground() {
-		return true;
+	protected final void restart() {
+		restartActivity(this);
 	}
 
-	private void setHardwareAcceleration() {
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) return;
-		final SharedPreferences preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		mHardwareAccelerated = preferences.getBoolean(PREFERENCE_KEY_HARDWARE_ACCELERATION,
-				PREFERENCE_DEFAULT_HARDWARE_ACCELERATION);
-		final Window w = getWindow();
-		if (mHardwareAccelerated) {
-			w.setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-					WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
-		}
+	private final void setActionBarBackground() {
+		ThemeUtils.applyActionBarBackground(getActionBar(), this);
 	}
+
 }

@@ -4,6 +4,4 @@
   <string name="pull_to_refresh_pull_label">ลากเพื่อโหลดใหม่</string>
   <string name="pull_to_refresh_release_label">ปล่อยเพื่อโหลดใหม่</string>
   <string name="pull_to_refresh_refreshing_label">กำลังโหลด</string>
-  <string name="pull_to_refresh_from_bottom_pull_label">ลากเพื่อโหลดเพิ่ม</string>
-  <string name="pull_to_refresh_from_bottom_release_label">ปล่อยเพื่อโหลดเพิ่ม</string>
 </resources>

@@ -19,29 +19,31 @@
 
 package org.mariotaku.twidere.model;
 
-import static org.mariotaku.twidere.Constants.IMAGE_PREVIEW_DISPLAY_OPTION_CODE_LARGE;
-import static org.mariotaku.twidere.Constants.IMAGE_PREVIEW_DISPLAY_OPTION_CODE_SMALL;
 import static org.mariotaku.twidere.util.HtmlEscapeHelper.toPlainText;
 import static org.mariotaku.twidere.util.Utils.formatStatusText;
-import static org.mariotaku.twidere.util.Utils.getAsBoolean;
-import static org.mariotaku.twidere.util.Utils.getAsInteger;
-import static org.mariotaku.twidere.util.Utils.getAsLong;
 import static org.mariotaku.twidere.util.Utils.getBiggerTwitterProfileImage;
+import static org.mariotaku.twidere.util.Utils.getInReplyToName;
+import static org.mariotaku.twidere.util.content.ContentValuesUtils.getAsBoolean;
+import static org.mariotaku.twidere.util.content.ContentValuesUtils.getAsInteger;
+import static org.mariotaku.twidere.util.content.ContentValuesUtils.getAsLong;
 
-import java.util.Comparator;
-import java.util.Date;
-
-import org.mariotaku.jsonserializer.JSONParcel;
-import org.mariotaku.jsonserializer.JSONParcelable;
-import org.mariotaku.twidere.provider.TweetStore.Statuses;
-import org.mariotaku.twidere.util.ParseUtils;
-
-import twitter4j.Status;
-import twitter4j.User;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.os.Parcel;
 import android.os.Parcelable;
+
+import org.mariotaku.jsonserializer.JSONParcel;
+import org.mariotaku.jsonserializer.JSONParcelable;
+import org.mariotaku.twidere.provider.TweetStore.Statuses;
+import org.mariotaku.twidere.util.MediaPreviewUtils;
+import org.mariotaku.twidere.util.ParseUtils;
+
+import twitter4j.Status;
+import twitter4j.User;
+
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Date;
 
 public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<ParcelableStatus> {
 
@@ -69,19 +71,6 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		}
 	};
 
-	public final long retweet_id, retweeted_by_id, id, account_id, user_id, timestamp, retweet_count,
-			in_reply_to_status_id, my_retweet_id;
-
-	public final boolean is_gap, is_retweet, is_favorite, has_media, is_possibly_sensitive, user_is_following,
-			user_is_protected, user_is_verified;
-
-	public final String retweeted_by_name, retweeted_by_screen_name, text_html, text_plain, user_name,
-			user_screen_name, in_reply_to_screen_name, source, user_profile_image_url, image_preview_url,
-			image_original_url, text_unescaped;
-	public final ParcelableLocation location;
-
-	// public final Spanned text;
-
 	public static final Comparator<ParcelableStatus> TIMESTAMP_COMPARATOR = new Comparator<ParcelableStatus>() {
 
 		@Override
@@ -104,15 +93,29 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		}
 	};
 
+	public final long retweet_id, retweeted_by_id, id, account_id, user_id, timestamp, retweet_count,
+			in_reply_to_status_id, in_reply_to_user_id, my_retweet_id;
+
+	public final boolean is_gap, is_retweet, is_favorite, has_media, is_possibly_sensitive, user_is_following,
+			user_is_protected, user_is_verified;
+
+	public final String retweeted_by_name, retweeted_by_screen_name, text_html, text_plain, user_name,
+			user_screen_name, in_reply_to_name, in_reply_to_screen_name, source, user_profile_image_url, media_link,
+			text_unescaped;
+
+	public final ParcelableLocation location;
+
+	public final ParcelableUserMention[] mentions;
+
 	public ParcelableStatus(final ContentValues values) {
 		account_id = getAsLong(values, Statuses.ACCOUNT_ID, -1);
 		id = getAsLong(values, Statuses.STATUS_ID, -1);
 		timestamp = getAsLong(values, Statuses.STATUS_TIMESTAMP, -1);
-		user_name = values.getAsString(Statuses.NAME);
-		user_screen_name = values.getAsString(Statuses.SCREEN_NAME);
+		user_name = values.getAsString(Statuses.USER_NAME);
+		user_screen_name = values.getAsString(Statuses.USER_SCREEN_NAME);
 		text_html = values.getAsString(Statuses.TEXT_HTML);
 		text_plain = values.getAsString(Statuses.TEXT_PLAIN);
-		user_profile_image_url = values.getAsString(Statuses.PROFILE_IMAGE_URL);
+		user_profile_image_url = values.getAsString(Statuses.USER_PROFILE_IMAGE_URL);
 		is_favorite = getAsBoolean(values, Statuses.IS_FAVORITE, false);
 		is_retweet = getAsBoolean(values, Statuses.IS_RETWEET, false);
 		is_gap = getAsBoolean(values, Statuses.IS_GAP, false);
@@ -120,27 +123,28 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		user_is_protected = getAsBoolean(values, Statuses.IS_PROTECTED, false);
 		user_is_verified = getAsBoolean(values, Statuses.IS_VERIFIED, false);
 		in_reply_to_status_id = getAsLong(values, Statuses.IN_REPLY_TO_STATUS_ID, -1);
-		in_reply_to_screen_name = values.getAsString(Statuses.IN_REPLY_TO_SCREEN_NAME);
+		in_reply_to_user_id = getAsLong(values, Statuses.IN_REPLY_TO_USER_ID, -1);
+		in_reply_to_name = values.getAsString(Statuses.IN_REPLY_TO_USER_NAME);
+		in_reply_to_screen_name = values.getAsString(Statuses.IN_REPLY_TO_USER_SCREEN_NAME);
 		my_retweet_id = getAsLong(values, Statuses.MY_RETWEET_ID, -1);
-		retweeted_by_name = values.getAsString(Statuses.RETWEETED_BY_NAME);
-		retweeted_by_screen_name = values.getAsString(Statuses.RETWEETED_BY_SCREEN_NAME);
+		retweeted_by_name = values.getAsString(Statuses.RETWEETED_BY_USER_NAME);
+		retweeted_by_screen_name = values.getAsString(Statuses.RETWEETED_BY_USER_SCREEN_NAME);
 		retweet_id = getAsLong(values, Statuses.RETWEET_ID, -1);
-		retweeted_by_id = getAsLong(values, Statuses.RETWEETED_BY_ID, -1);
+		retweeted_by_id = getAsLong(values, Statuses.RETWEETED_BY_USER_ID, -1);
 		user_id = getAsLong(values, Statuses.USER_ID, -1);
 		source = values.getAsString(Statuses.SOURCE);
 		retweet_count = getAsInteger(values, Statuses.RETWEET_COUNT, 0);
 		text_unescaped = values.getAsString(Statuses.TEXT_UNESCAPED);
-		final PreviewImage preview = PreviewImage.getPreviewImage(text_html, IMAGE_PREVIEW_DISPLAY_OPTION_CODE_LARGE);
-		has_media = preview != null;
-		image_preview_url = preview != null ? preview.image_preview_url : null;
-		image_original_url = preview != null ? preview.image_original_url : null;
+		media_link = values.getAsString(Statuses.MEDIA_LINK);
+		has_media = media_link != null;
 		is_possibly_sensitive = getAsBoolean(values, Statuses.IS_POSSIBLY_SENSITIVE, false);
 		user_is_following = getAsBoolean(values, Statuses.IS_FOLLOWING, false);
+		mentions = ParcelableUserMention.fromJSONString(values.getAsString(Statuses.MENTIONS));
 	}
 
-	public ParcelableStatus(final Cursor cursor, final StatusCursorIndices indices) {
+	public ParcelableStatus(final Cursor cursor, final CursorStatusIndices indices) {
 		retweet_id = indices.retweet_id != -1 ? cursor.getLong(indices.retweet_id) : -1;
-		retweeted_by_id = indices.retweeted_by_id != -1 ? cursor.getLong(indices.retweeted_by_id) : -1;
+		retweeted_by_id = indices.retweeted_by_user_id != -1 ? cursor.getLong(indices.retweeted_by_user_id) : -1;
 		id = indices.status_id != -1 ? cursor.getLong(indices.status_id) : -1;
 		account_id = indices.account_id != -1 ? cursor.getLong(indices.account_id) : -1;
 		user_id = indices.user_id != -1 ? cursor.getLong(indices.user_id) : -1;
@@ -148,24 +152,25 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		retweet_count = indices.retweet_count != -1 ? cursor.getLong(indices.retweet_count) : -1;
 		in_reply_to_status_id = indices.in_reply_to_status_id != -1 ? cursor.getLong(indices.in_reply_to_status_id)
 				: -1;
+		in_reply_to_user_id = indices.in_reply_to_user_id != -1 ? cursor.getLong(indices.in_reply_to_user_id) : -1;
 		is_gap = indices.is_gap != -1 ? cursor.getInt(indices.is_gap) == 1 : false;
 		is_retweet = indices.is_retweet != -1 ? cursor.getInt(indices.is_retweet) == 1 : false;
 		is_favorite = indices.is_favorite != -1 ? cursor.getInt(indices.is_favorite) == 1 : false;
 		user_is_protected = indices.is_protected != -1 ? cursor.getInt(indices.is_protected) == 1 : false;
 		user_is_verified = indices.is_verified != -1 ? cursor.getInt(indices.is_verified) == 1 : false;
-		retweeted_by_name = indices.retweeted_by_name != -1 ? cursor.getString(indices.retweeted_by_name) : null;
-		retweeted_by_screen_name = indices.retweeted_by_screen_name != -1 ? cursor
-				.getString(indices.retweeted_by_screen_name) : null;
+		retweeted_by_name = indices.retweeted_by_user_name != -1 ? cursor.getString(indices.retweeted_by_user_name)
+				: null;
+		retweeted_by_screen_name = indices.retweeted_by_user_screen_name != -1 ? cursor
+				.getString(indices.retweeted_by_user_screen_name) : null;
 		text_html = indices.text_html != -1 ? cursor.getString(indices.text_html) : null;
-		final PreviewImage preview = PreviewImage.getPreviewImage(text_html, IMAGE_PREVIEW_DISPLAY_OPTION_CODE_LARGE);
-		has_media = preview != null;
-		image_preview_url = preview != null ? preview.image_preview_url : null;
-		image_original_url = preview != null ? preview.image_original_url : null;
+		media_link = MediaPreviewUtils.getSupportedFirstLink(text_html);
+		has_media = media_link != null;
 		text_plain = indices.text_plain != -1 ? cursor.getString(indices.text_plain) : null;
 		user_name = indices.user_name != -1 ? cursor.getString(indices.user_name) : null;
 		user_screen_name = indices.user_screen_name != -1 ? cursor.getString(indices.user_screen_name) : null;
-		in_reply_to_screen_name = indices.in_reply_to_screen_name != -1 ? cursor
-				.getString(indices.in_reply_to_screen_name) : null;
+		in_reply_to_name = indices.in_reply_to_user_name != -1 ? cursor.getString(indices.in_reply_to_user_name) : null;
+		in_reply_to_screen_name = indices.in_reply_to_user_screen_name != -1 ? cursor
+				.getString(indices.in_reply_to_user_screen_name) : null;
 		source = indices.source != -1 ? cursor.getString(indices.source) : null;
 		location = indices.location != -1 ? new ParcelableLocation(cursor.getString(indices.location)) : null;
 		user_profile_image_url = indices.user_profile_image_url != -1 ? cursor
@@ -175,6 +180,8 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		is_possibly_sensitive = indices.is_possibly_sensitive != -1 ? cursor.getInt(indices.is_possibly_sensitive) == 1
 				: false;
 		user_is_following = indices.is_following != -1 ? cursor.getInt(indices.is_following) == 1 : false;
+		mentions = indices.mentions != -1 ? ParcelableUserMention.fromJSONString(cursor.getString(indices.mentions))
+				: null;
 	}
 
 	public ParcelableStatus(final JSONParcel in) {
@@ -186,6 +193,7 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		timestamp = in.readLong("status_timestamp");
 		retweet_count = in.readLong("retweet_count");
 		in_reply_to_status_id = in.readLong("in_reply_to_status_id");
+		in_reply_to_user_id = in.readLong("in_reply_to_user_id");
 		is_gap = in.readBoolean("is_gap");
 		is_retweet = in.readBoolean("is_retweet");
 		is_favorite = in.readBoolean("is_favorite");
@@ -198,16 +206,17 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		text_plain = in.readString("text_plain");
 		user_name = in.readString("name");
 		user_screen_name = in.readString("scrren_name");
+		in_reply_to_name = in.readString("in_reply_to_name");
 		in_reply_to_screen_name = in.readString("in_reply_to_screen_name");
 		source = in.readString("source");
 		user_profile_image_url = in.readString("profile_image_url");
-		image_preview_url = in.readString("image_preview_url");
-		image_original_url = in.readString("image_orig_url");
+		media_link = in.readString("media_link");
 		location = in.readParcelable("location", ParcelableLocation.JSON_CREATOR);
 		my_retweet_id = in.readLong("my_retweet_id");
 		is_possibly_sensitive = in.readBoolean("is_possibly_sensitive");
 		text_unescaped = in.readString("text_unescaped");
 		user_is_following = in.readBoolean("is_following");
+		mentions = in.readParcelableArray("mentions", ParcelableUserMention.JSON_CREATOR);
 	}
 
 	public ParcelableStatus(final Parcel in) {
@@ -234,38 +243,38 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		in_reply_to_screen_name = in.readString();
 		source = in.readString();
 		user_profile_image_url = in.readString();
-		image_preview_url = in.readString();
-		image_original_url = in.readString();
+		media_link = in.readString();
 		location = in.readParcelable(ParcelableLocation.class.getClassLoader());
 		my_retweet_id = in.readLong();
 		is_possibly_sensitive = in.readInt() == 1;
 		user_is_following = in.readInt() == 1;
 		text_unescaped = in.readString();
+		in_reply_to_user_id = in.readLong();
+		in_reply_to_name = in.readString();
+		final Parcelable[] mentions_parcelable = in.readParcelableArray(ParcelableUserMention.class.getClassLoader());
+		mentions = mentions_parcelable != null ? ParcelableUserMention.CREATOR.newArray(mentions_parcelable.length)
+				: null;
+		if (mentions_parcelable != null) {
+			for (int i = 0, j = mentions_parcelable.length; i < j; i++) {
+				mentions[i] = (ParcelableUserMention) mentions_parcelable[i];
+			}
+		}
 	}
 
-	public ParcelableStatus(final Status status, final long account_id, final boolean is_gap,
+	public ParcelableStatus(final Status orig, final long account_id, final boolean is_gap,
 			final boolean large_profile_image) {
-		this(status, account_id, is_gap, large_profile_image, true);
-	}
-
-	public ParcelableStatus(Status status, final long account_id, final boolean is_gap,
-			final boolean large_profile_image, final boolean large_image_preview) {
 		this.is_gap = is_gap;
 		this.account_id = account_id;
-		id = status.getId();
-		is_retweet = status.isRetweet();
-		User user = status.getUser();
-		user_is_following = user != null ? user.isFollowing() : false;
-		final Status retweeted_status = is_retweet ? status.getRetweetedStatus() : null;
-		final User retweet_user = retweeted_status != null ? status.getUser() : null;
+		id = orig.getId();
+		is_retweet = orig.isRetweet();
+		final Status retweeted_status = is_retweet ? orig.getRetweetedStatus() : null;
+		final User retweet_user = retweeted_status != null ? orig.getUser() : null;
 		retweet_id = retweeted_status != null ? retweeted_status.getId() : -1;
 		retweeted_by_id = retweet_user != null ? retweet_user.getId() : -1;
 		retweeted_by_name = retweet_user != null ? retweet_user.getName() : null;
 		retweeted_by_screen_name = retweet_user != null ? retweet_user.getScreenName() : null;
-		if (retweeted_status != null) {
-			status = retweeted_status;
-			user = retweeted_status.getUser();
-		}
+		final Status status = retweeted_status != null ? retweeted_status : orig;
+		final User user = status.getUser();
 		user_id = user != null ? user.getId() : -1;
 		user_name = user != null ? user.getName() : null;
 		user_screen_name = user != null ? user.getScreenName() : null;
@@ -275,24 +284,24 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 				: profile_image_url_orig;
 		user_is_protected = user != null ? user.isProtected() : false;
 		user_is_verified = user != null ? user.isVerified() : false;
+		user_is_following = user != null ? user.isFollowing() : false;
 		timestamp = getTime(status.getCreatedAt());
 		text_html = formatStatusText(status);
-		final PreviewImage preview = PreviewImage
-				.getPreviewImage(text_html, large_image_preview ? IMAGE_PREVIEW_DISPLAY_OPTION_CODE_LARGE
-						: IMAGE_PREVIEW_DISPLAY_OPTION_CODE_SMALL);
-		has_media = preview != null;
-		image_preview_url = preview != null ? preview.image_preview_url : null;
-		image_original_url = preview != null ? preview.image_original_url : null;
+		media_link = MediaPreviewUtils.getSupportedFirstLink(status);
+		has_media = media_link != null;
 		text_plain = status.getText();
 		retweet_count = status.getRetweetCount();
+		in_reply_to_name = getInReplyToName(status);
 		in_reply_to_screen_name = status.getInReplyToScreenName();
 		in_reply_to_status_id = status.getInReplyToStatusId();
+		in_reply_to_user_id = status.getInReplyToUserId();
 		source = status.getSource();
 		location = new ParcelableLocation(status.getGeoLocation());
 		is_favorite = status.isFavorited();
 		text_unescaped = toPlainText(text_html);
 		my_retweet_id = retweeted_by_id == account_id ? id : -1;
 		is_possibly_sensitive = status.isPossiblySensitive();
+		mentions = ParcelableUserMention.fromUserMentionEntities(status.getUserMentionEntities());
 	}
 
 	@Override
@@ -334,16 +343,17 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		return "ParcelableStatus{retweet_id=" + retweet_id + ", retweeted_by_id=" + retweeted_by_id + ", id=" + id
 				+ ", account_id=" + account_id + ", user_id=" + user_id + ", timestamp=" + timestamp
 				+ ", retweet_count=" + retweet_count + ", in_reply_to_status_id=" + in_reply_to_status_id
-				+ ", my_retweet_id=" + my_retweet_id + ", is_gap=" + is_gap + ", is_retweet=" + is_retweet
-				+ ", is_favorite=" + is_favorite + ", has_media=" + has_media + ", is_possibly_sensitive="
-				+ is_possibly_sensitive + ", user_is_following=" + user_is_following + ", user_is_protected="
-				+ user_is_protected + ", user_is_verified=" + user_is_verified + ", retweeted_by_name="
-				+ retweeted_by_name + ", retweeted_by_screen_name=" + retweeted_by_screen_name + ", text_html="
-				+ text_html + ", text_plain=" + text_plain + ", user_name=" + user_name + ", user_screen_name="
-				+ user_screen_name + ", in_reply_to_screen_name=" + in_reply_to_screen_name + ", source=" + source
-				+ ", user_profile_image_url=" + user_profile_image_url + ", image_preview_url=" + image_preview_url
-				+ ", image_original_url=" + image_original_url + ", text_unescaped=" + text_unescaped + ", location="
-				+ location + "}";
+				+ ", in_reply_to_user_id=" + in_reply_to_user_id + ", my_retweet_id=" + my_retweet_id + ", is_gap="
+				+ is_gap + ", is_retweet=" + is_retweet + ", is_favorite=" + is_favorite + ", has_media=" + has_media
+				+ ", is_possibly_sensitive=" + is_possibly_sensitive + ", user_is_following=" + user_is_following
+				+ ", user_is_protected=" + user_is_protected + ", user_is_verified=" + user_is_verified
+				+ ", retweeted_by_name=" + retweeted_by_name + ", retweeted_by_screen_name=" + retweeted_by_screen_name
+				+ ", text_html=" + text_html + ", text_plain=" + text_plain + ", user_name=" + user_name
+				+ ", user_screen_name=" + user_screen_name + ", in_reply_to_name=" + in_reply_to_name
+				+ ", in_reply_to_screen_name=" + in_reply_to_screen_name + ", source=" + source
+				+ ", user_profile_image_url=" + user_profile_image_url + ", media_link=" + media_link
+				+ ", text_unescaped=" + text_unescaped + ", location=" + location + ", mentions="
+				+ Arrays.toString(mentions) + "}";
 	}
 
 	@Override
@@ -356,6 +366,7 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		out.writeLong("status_timestamp", timestamp);
 		out.writeLong("retweet_count", retweet_count);
 		out.writeLong("in_reply_to_status_id", in_reply_to_status_id);
+		out.writeLong("in_reply_to_user_id", in_reply_to_user_id);
 		out.writeBoolean("is_gap", is_gap);
 		out.writeBoolean("is_retweet", is_retweet);
 		out.writeBoolean("is_favorite", is_favorite);
@@ -369,15 +380,16 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		out.writeString("text_unescaped", text_unescaped);
 		out.writeString("name", user_name);
 		out.writeString("scrren_name", user_screen_name);
+		out.writeString("in_reply_to_name", in_reply_to_name);
 		out.writeString("in_reply_to_screen_name", in_reply_to_screen_name);
 		out.writeString("source", source);
 		out.writeString("profile_image_url", user_profile_image_url);
-		out.writeString("image_preview_url", image_preview_url);
-		out.writeString("image_orig_url", image_original_url);
+		out.writeString("media_link", media_link);
 		out.writeParcelable("location", location);
 		out.writeLong("my_retweet_id", my_retweet_id);
 		out.writeBoolean("is_possibly_sensitive", is_possibly_sensitive);
 		out.writeBoolean("is_following", user_is_following);
+		out.writeParcelableArray("mentions", mentions);
 	}
 
 	@Override
@@ -405,13 +417,15 @@ public class ParcelableStatus implements Parcelable, JSONParcelable, Comparable<
 		out.writeString(in_reply_to_screen_name);
 		out.writeString(source);
 		out.writeString(user_profile_image_url);
-		out.writeString(image_preview_url);
-		out.writeString(image_original_url);
+		out.writeString(media_link);
 		out.writeParcelable(location, flags);
 		out.writeLong(my_retweet_id);
 		out.writeInt(is_possibly_sensitive ? 1 : 0);
 		out.writeInt(user_is_following ? 1 : 0);
 		out.writeString(text_unescaped);
+		out.writeLong(in_reply_to_user_id);
+		out.writeString(in_reply_to_name);
+		out.writeParcelableArray(mentions, flags);
 	}
 
 	private static long getTime(final Date date) {

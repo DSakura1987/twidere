@@ -19,13 +19,13 @@
 
 package org.mariotaku.twidere.loader;
 
-import java.util.Collections;
-import java.util.List;
+import android.content.Context;
+import android.os.Bundle;
 
 import org.mariotaku.twidere.model.ParcelableUser;
 
-import android.content.Context;
-import android.os.Bundle;
+import java.util.Collections;
+import java.util.List;
 
 public class IntentExtrasUsersLoader extends ParcelableUsersLoader {
 
@@ -40,7 +40,7 @@ public class IntentExtrasUsersLoader extends ParcelableUsersLoader {
 	public List<ParcelableUser> loadInBackground() {
 		final List<ParcelableUser> data = getData();
 		if (mExtras != null) {
-			final List<ParcelableUser> users = mExtras.getParcelableArrayList(INTENT_KEY_USERS);
+			final List<ParcelableUser> users = mExtras.getParcelableArrayList(EXTRA_USERS);
 			if (users != null) {
 				data.addAll(users);
 				Collections.sort(data);

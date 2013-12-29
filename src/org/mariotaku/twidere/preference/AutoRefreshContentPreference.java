@@ -19,11 +19,11 @@
 
 package org.mariotaku.twidere.preference;
 
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.R;
-
 import android.content.Context;
 import android.util.AttributeSet;
+
+import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.R;
 
 public class AutoRefreshContentPreference extends MultiSelectListPreference implements Constants {
 
@@ -52,8 +52,8 @@ public class AutoRefreshContentPreference extends MultiSelectListPreference impl
 
 	@Override
 	protected String[] getKeys() {
-		return new String[] { PREFERENCE_KEY_REFRESH_ENABLE_HOME_TIMELINE, PREFERENCE_KEY_REFRESH_ENABLE_MENTIONS,
-				PREFERENCE_KEY_REFRESH_ENABLE_DIRECT_MESSAGES, PREFERENCE_KEY_REFRESH_ENABLE_TRENDS };
+		return new String[] { PREFERENCE_KEY_AUTO_REFRESH_HOME_TIMELINE, PREFERENCE_KEY_AUTO_REFRESH_MENTIONS,
+				PREFERENCE_KEY_AUTO_REFRESH_DIRECT_MESSAGES, PREFERENCE_KEY_AUTO_REFRESH_TRENDS };
 	}
 
 	@Override

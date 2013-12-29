@@ -16,14 +16,6 @@
 
 package twitter4j.http;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.List;
-import java.util.Map;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,6 +23,14 @@ import org.json.JSONObject;
 import twitter4j.TwitterException;
 import twitter4j.conf.ConfigurationContext;
 import twitter4j.internal.logging.Logger;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A data class representing HTTP Response
@@ -67,7 +67,6 @@ public abstract class HttpResponse {
 	 */
 	public JSONArray asJSONArray() throws TwitterException {
 		if (jsonArray == null) {
-			final Reader reader = null;
 			try {
 				if (responseAsString == null) {
 					responseAsString = asString();
@@ -84,12 +83,6 @@ public abstract class HttpResponse {
 				else
 					throw new TwitterException(jsone.getMessage(), jsone);
 			} finally {
-				if (reader != null) {
-					try {
-						reader.close();
-					} catch (final IOException ignore) {
-					}
-				}
 				disconnectForcibly();
 			}
 		}
@@ -105,7 +98,6 @@ public abstract class HttpResponse {
 	 */
 	public JSONObject asJSONObject() throws TwitterException {
 		if (json == null) {
-			final Reader reader = null;
 			try {
 				if (responseAsString == null) {
 					responseAsString = asString();
@@ -122,12 +114,6 @@ public abstract class HttpResponse {
 				else
 					throw new TwitterException(jsone.getMessage() + ":" + responseAsString, jsone);
 			} finally {
-				if (reader != null) {
-					try {
-						reader.close();
-					} catch (final IOException ignore) {
-					}
-				}
 				disconnectForcibly();
 			}
 		}

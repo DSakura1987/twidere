@@ -19,23 +19,22 @@
 
 package org.mariotaku.twidere.view;
 
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.view.iface.IExtendedView;
-
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Shader;
-import android.os.Build;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
 
-public class ProfileBannerImageView extends ClickableImageView implements IExtendedView, Constants {
+import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.util.ThemeUtils;
+import org.mariotaku.twidere.view.iface.IExtendedView;
+
+public class ProfileBannerImageView extends ForegroundImageView implements IExtendedView, Constants {
 
 	private static final int[] COLORS = new int[] { 0xFFFFFFFF, 0x00FFFFFF };
 	private static final int[] COLORS_REVERSED = new int[] { 0x00FFFFFF, 0xFFFFFFFF };
@@ -56,10 +55,11 @@ public class ProfileBannerImageView extends ClickableImageView implements IExten
 
 	public ProfileBannerImageView(final Context context, final AttributeSet attrs, final int defStyle) {
 		super(context, attrs, defStyle);
+		if (isInEditMode()) return;
 		ViewCompat.setLayerType(this, LAYER_TYPE_SOFTWARE, null);
-		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final boolean is_dark_theme = prefs != null ? prefs.getBoolean(PREFERENCE_KEY_DARK_THEME, false) : false;
+		final boolean is_dark_theme = ThemeUtils.isDarkTheme(context);
 		COLORS_REVERSED[1] = is_dark_theme ? 0xFF000000 : 0xFFFFFFFF;
+		setForeground(ThemeUtils.getImageHighlightDrawable(context));
 	}
 
 	@Override
@@ -69,13 +69,12 @@ public class ProfileBannerImageView extends ClickableImageView implements IExten
 
 	@Override
 	protected void onDraw(final Canvas canvas) {
+		if (isInEditMode()) return;
 		final int width = getWidth(), height = getHeight();
 		if (mShader == null) return;
 		super.onDraw(canvas);
 		mPaint.setShader(mShader);
-		if (supportXfermode()) {
-			mPaint.setXfermode(DST_IN);
-		}
+		mPaint.setXfermode(DST_IN);
 		canvas.drawRect(0, 0, width, height, mPaint);
 	}
 
@@ -85,8 +84,7 @@ public class ProfileBannerImageView extends ClickableImageView implements IExten
 		final int width = MeasureSpec.getSize(widthMeasureSpec), height = width / 2;
 		setMeasuredDimension(width, height);
 		if (width > 0) {
-			final int[] colors = supportXfermode() ? COLORS : COLORS_REVERSED;
-			mShader = new LinearGradient(width / 2, 0, width / 2, height, colors, POSITIONS, Shader.TileMode.CLAMP);
+			mShader = new LinearGradient(width / 2, 0, width / 2, height, COLORS, POSITIONS, Shader.TileMode.CLAMP);
 		}
 		super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
 	}
@@ -99,7 +97,4 @@ public class ProfileBannerImageView extends ClickableImageView implements IExten
 		}
 	}
 
-	private static boolean supportXfermode() {
-		return Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH;
-	}
 }

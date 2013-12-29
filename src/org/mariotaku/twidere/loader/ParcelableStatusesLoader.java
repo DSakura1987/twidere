@@ -19,22 +19,18 @@
 
 package org.mariotaku.twidere.loader;
 
-import java.util.Collections;
-import java.util.ConcurrentModificationException;
-import java.util.List;
+import android.content.Context;
+import android.support.v4.content.AsyncTaskLoader;
 
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.model.ParcelableStatus;
-import org.mariotaku.twidere.util.NoDuplicatesArrayList;
 
-import android.content.Context;
-import android.support.v4.content.AsyncTaskLoader;
-import android.util.Log;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class ParcelableStatusesLoader extends AsyncTaskLoader<List<ParcelableStatus>> implements Constants {
 
-	private final List<ParcelableStatus> mData = Collections
-			.synchronizedList(new NoDuplicatesArrayList<ParcelableStatus>());
+	private final List<ParcelableStatus> mData = new ArrayList<ParcelableStatus>();
 	private final boolean mFirstLoad;
 	private final int mTabPosition;
 
@@ -42,7 +38,6 @@ public abstract class ParcelableStatusesLoader extends AsyncTaskLoader<List<Parc
 
 	public ParcelableStatusesLoader(final Context context, final List<ParcelableStatus> data, final int tab_position) {
 		super(context);
-		Log.w(LOGTAG, new Exception("has data: " + (data != null)));
 		mFirstLoad = data == null;
 		if (data != null) {
 			mData.addAll(data);
@@ -61,19 +56,15 @@ public abstract class ParcelableStatusesLoader extends AsyncTaskLoader<List<Parc
 		return false;
 	}
 
-	protected boolean deleteStatus(final long status_id) {
-		try {
-			final NoDuplicatesArrayList<ParcelableStatus> data_to_remove = new NoDuplicatesArrayList<ParcelableStatus>();
-			for (final ParcelableStatus status : mData) {
-				if (status.id == status_id) {
-					data_to_remove.add(status);
-				}
+	protected boolean deleteStatus(final List<ParcelableStatus> statuses, final long status_id) {
+		if (statuses == null || statuses.isEmpty()) return false;
+		boolean result = false;
+		for (final ParcelableStatus status : statuses.toArray(new ParcelableStatus[statuses.size()])) {
+			if (status.id == status_id) {
+				result |= statuses.remove(status);
 			}
-			return mData.removeAll(data_to_remove);
-		} catch (final ConcurrentModificationException e) {
-			// This shouldn't happen.
 		}
-		return false;
+		return result;
 	}
 
 	protected List<ParcelableStatus> getData() {

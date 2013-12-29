@@ -19,15 +19,12 @@
 
 package org.mariotaku.twidere.view;
 
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.activity.DualPaneActivity;
-import org.mariotaku.twidere.view.iface.IExtendedViewGroup.TouchInterceptor;
-
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
-import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.Rect;
+import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.AttributeSet;
@@ -39,6 +36,12 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Scroller;
+
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.activity.support.DualPaneActivity;
+import org.mariotaku.twidere.util.MathUtils;
+import org.mariotaku.twidere.util.accessor.ViewAccessor;
+import org.mariotaku.twidere.view.iface.IExtendedViewGroup.TouchInterceptor;
 
 public class SlidingPaneView extends ViewGroup {
 
@@ -117,7 +120,6 @@ public class SlidingPaneView extends ViewGroup {
 
 	public SlidingPaneView(final Context context, final AttributeSet attrs, final int defStyle) {
 		super(context, attrs, defStyle);
-
 		final Resources res = getResources();
 
 		setClipChildren(false);
@@ -125,30 +127,31 @@ public class SlidingPaneView extends ViewGroup {
 
 		// reading attributes
 		final TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.SlidingPaneView);
-		final int spacingLeftDefault = res.getDimensionPixelSize(R.dimen.default_slidepane_spacing_left);
-		mLeftSpacing = a.getDimensionPixelSize(R.styleable.SlidingPaneView_spacingLeft, spacingLeftDefault);
-		final int spacingRightDefault = res.getDimensionPixelSize(R.dimen.default_slidepane_spacing_right);
-		mRightSpacing = a.getDimensionPixelSize(R.styleable.SlidingPaneView_spacingRight, spacingRightDefault);
+		final int spacingLeftDefault = res.getDimensionPixelSize(R.dimen.default_dualpane_spacing_left);
+		mLeftSpacing = a.getDimensionPixelSize(R.styleable.SlidingPaneView_paneSpacingLeft, spacingLeftDefault);
+		final int spacingRightDefault = res.getDimensionPixelSize(R.dimen.default_dualpane_spacing_right);
+		mRightSpacing = a.getDimensionPixelSize(R.styleable.SlidingPaneView_paneSpacingRight, spacingRightDefault);
 
-		final int leftPaneLayout = a.getResourceId(R.styleable.SlidingPaneView_layoutLeft, 0);
+		final int leftPaneLayout = a.getResourceId(R.styleable.SlidingPaneView_paneLayoutLeft, 0);
 		if (leftPaneLayout == 0) throw new IllegalArgumentException("The layoutLeft attribute is required");
 
-		final int rightPaneLayout = a.getResourceId(R.styleable.SlidingPaneView_layoutRight, 0);
+		final int rightPaneLayout = a.getResourceId(R.styleable.SlidingPaneView_paneLayoutRight, 0);
 		if (rightPaneLayout == leftPaneLayout || rightPaneLayout == 0)
 			throw new IllegalArgumentException("The layoutRight attribute is required");
 
 		final boolean shadowSlidableDefault = res.getBoolean(R.bool.default_shadow_slidable);
-		final boolean shadowSlidable = a.getBoolean(R.styleable.SlidingPaneView_shadowSlidable, shadowSlidableDefault);
+		final boolean shadowSlidable = a.getBoolean(R.styleable.SlidingPaneView_paneShadowSlidable,
+				shadowSlidableDefault);
 
-		mShadowWidth = a.getDimensionPixelSize(R.styleable.SlidingPaneView_shadowWidth, 0);
-		final int shadowDrawableRes = a.getResourceId(R.styleable.SlidingPaneView_shadowDrawable, 0);
+		mShadowWidth = a.getDimensionPixelSize(R.styleable.SlidingPaneView_paneShadowWidth, 0);
+		final int shadowDrawableRes = a.getResourceId(R.styleable.SlidingPaneView_paneShadowDrawable, 0);
 
-		mFadeType = a.getInteger(R.styleable.SlidingPaneView_fadeType, FADE_NONE);
+		mFadeType = a.getInteger(R.styleable.SlidingPaneView_paneFadeType, FADE_NONE);
 		final int fadeValueDefault = res.getInteger(R.integer.default_sliding_pane_fade_max);
-		mFadeMax = a.getDimensionPixelSize(R.styleable.SlidingPaneView_fadeMax, fadeValueDefault);
+		mFadeMax = a.getDimensionPixelSize(R.styleable.SlidingPaneView_paneFadeMax, fadeValueDefault);
 
 		final int flingDurationDefault = res.getInteger(R.integer.default_sliding_pane_fling_duration);
-		mFlingDuration = a.getInteger(R.styleable.SlidingPaneView_flingDuration, flingDurationDefault);
+		mFlingDuration = a.getInteger(R.styleable.SlidingPaneView_paneFlingDuration, flingDurationDefault);
 
 		a.recycle();
 
@@ -171,7 +174,7 @@ public class SlidingPaneView extends ViewGroup {
 		if (rightPaneLayout == 0) throw new IllegalArgumentException();
 		mRightPaneView = inflater.inflate(rightPaneLayout, mFadingRightPaneContainer, true);
 
-		addView(mLeftPaneLayout, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+		addView(mLeftPaneLayout, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
 		addView(mRightPaneLayout, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
 
 		mViewShadow.setBackgroundResource(shadowDrawableRes);
@@ -187,18 +190,6 @@ public class SlidingPaneView extends ViewGroup {
 		mRightPaneLayout.setOnSwipeListener(new SwipeFadeListener());
 		mViewShadow.setOnTouchListener(mShadowTouchListener);
 		setShadowSlidable(shadowSlidable);
-	}
-
-	public void animateClose() {
-		mController.hideRightPane(mFlingDuration);
-	}
-
-	public void animateOpen() {
-		mController.showRightPane(mFlingDuration);
-	}
-
-	public void close() {
-		mController.hideRightPane(0);
 	}
 
 	public int getFadeType() {
@@ -241,12 +232,16 @@ public class SlidingPaneView extends ViewGroup {
 		return mShadowWidth;
 	}
 
-	public boolean isContentShown() {
-		return mController.isContentShown();
+	public void hideRightPane() {
+		mController.hideRightPane(mFlingDuration);
 	}
 
-	public boolean isOpened() {
-		return !mController.isContentShown();
+	public void hideRightPaneNoAnimation() {
+		mController.hideRightPane(0);
+	}
+
+	public boolean isRightPaneOpened() {
+		return mController.isContentShown();
 	}
 
 	public boolean isShadowSlidable() {
@@ -283,17 +278,13 @@ public class SlidingPaneView extends ViewGroup {
 	public Parcelable onSaveInstanceState() {
 		final Parcelable superState = super.onSaveInstanceState();
 		final SavedState ss = new SavedState(superState);
-		ss.mIsRightPaneShown = isContentShown();
+		ss.mIsRightPaneShown = isRightPaneOpened();
 		ss.mIsShadowVisible = isShadowVisible();
 		ss.mShadowWidth = getShadowWidth();
 		ss.mFlingDuration = getFlingDuration();
 		ss.mFadeType = getFadeType();
 		ss.mFadeValue = getFadeValue();
 		return ss;
-	}
-
-	public void open() {
-		mController.showRightPane(0);
 	}
 
 	public void setActionsSpacingWidth(final int width) {
@@ -316,6 +307,13 @@ public class SlidingPaneView extends ViewGroup {
 
 	public void setFlingDuration(final int duration) {
 		mFlingDuration = duration;
+	}
+
+	@Override
+	public void setLayerType(final int layerType, final Paint paint) {
+		final int currLayerType = getLayerType();
+		if (layerType == currLayerType) return;
+		super.setLayerType(layerType, paint);
 	}
 
 	public void setRightPaneBackground(final int resId) {
@@ -349,11 +347,19 @@ public class SlidingPaneView extends ViewGroup {
 		requestLayout();
 	}
 
+	public void showRightPane() {
+		mController.showRightPane(mFlingDuration);
+	}
+
+	public void showRightPaneNoAnimation() {
+		mController.showRightPane(0);
+	}
+
 	public void toggle() {
-		if (isOpened()) {
-			animateOpen();
+		if (isRightPaneOpened()) {
+			hideRightPane();
 		} else {
-			animateClose();
+			showRightPane();
 		}
 	}
 
@@ -479,28 +485,28 @@ public class SlidingPaneView extends ViewGroup {
 
 		public LeftPaneLayout(final SlidingPaneView parent) {
 			super(parent.getContext());
+			ViewAccessor.enableHwAccelIfNecessary(this);
 			this.parent = parent;
 		}
 
 		@Override
 		public boolean onInterceptTouchEvent(final MotionEvent ev) {
 			if (ev.getAction() == MotionEvent.ACTION_DOWN) {
-				parent.animateClose();
+				parent.hideRightPane();
 			}
 			return super.onInterceptTouchEvent(ev);
 		}
 
 		public void setFadeFactor(final int fadeFactor) {
 			mFadeFactor = fadeFactor;
-			invalidate();
+			final float alpha = (float) mFadeFactor / 0xFF;
+			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+				setAlpha(alpha);
+			} else {
+				setAlpha(MathUtils.clamp(alpha, 0.99999f, 0));
+			}
 		}
 
-		@Override
-		protected void dispatchDraw(final Canvas canvas) {
-			canvas.saveLayerAlpha(null, mFadeFactor, Canvas.ALL_SAVE_FLAG);
-			super.dispatchDraw(canvas);
-			canvas.restore();
-		}
 	}
 
 	public static class SavedState extends BaseSavedState {
@@ -578,7 +584,6 @@ public class SlidingPaneView extends ViewGroup {
 	 * actions one.
 	 * 
 	 * @author steven
-	 * 
 	 */
 	private class ContentScrollController implements Runnable {
 
@@ -766,14 +771,12 @@ public class SlidingPaneView extends ViewGroup {
 
 		public void setFadeFactor(final int fadeFactor) {
 			mFadeFactor = fadeFactor;
-			invalidate();
-		}
-
-		@Override
-		protected void dispatchDraw(final Canvas canvas) {
-			canvas.saveLayerAlpha(null, mFadeFactor, Canvas.ALL_SAVE_FLAG);
-			super.dispatchDraw(canvas);
-			canvas.restore();
+			final float alpha = (float) mFadeFactor / 0xFF;
+			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+				setAlpha(alpha);
+			} else {
+				setAlpha(MathUtils.clamp(alpha, 0.99999f, 0));
+			}
 		}
 	}
 
@@ -795,7 +798,15 @@ public class SlidingPaneView extends ViewGroup {
 
 		public RightPaneLayout(final SlidingPaneView parent) {
 			super(parent.getContext());
+			ViewAccessor.enableHwAccelIfNecessary(this);
 			setOrientation(LinearLayout.HORIZONTAL);
+		}
+
+		@Override
+		public void getHitRect(final Rect r) {
+			final int scrollX = getScrollX(), scrollY = getScrollY();
+			super.getHitRect(r);
+			r.set(r.left - scrollX, r.top - scrollY, r.right - scrollX, r.bottom - scrollY);
 		}
 
 		public void setOnSwipeListener(final OnSwipeListener listener) {
@@ -840,7 +851,7 @@ public class SlidingPaneView extends ViewGroup {
 				if (mActualMoveX != 0 && !mIsVerticalScrolling) {
 					mController.release(mIsVerticalScrolling ? 0 : -mTempDeltaX, -mActualMoveX);
 				} else {
-					mParent.animateOpen();
+					mParent.showRightPane();
 				}
 			}
 			mTempDeltaX = 0;

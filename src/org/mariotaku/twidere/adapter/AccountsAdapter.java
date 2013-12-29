@@ -21,6 +21,14 @@ package org.mariotaku.twidere.adapter;
 
 import static org.mariotaku.twidere.util.Utils.getBiggerTwitterProfileImage;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.support.v4.widget.SimpleCursorAdapter;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ListView;
+
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.app.TwidereApplication;
@@ -28,34 +36,23 @@ import org.mariotaku.twidere.provider.TweetStore.Accounts;
 import org.mariotaku.twidere.util.ImageLoaderWrapper;
 import org.mariotaku.twidere.view.holder.AccountViewHolder;
 
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.database.Cursor;
-import android.support.v4.widget.SimpleCursorAdapter;
-import android.util.SparseBooleanArray;
-import android.view.View;
-import android.view.ViewGroup;
-
 public class AccountsAdapter extends SimpleCursorAdapter implements Constants {
 
-	private boolean mDisplayProfileImage;
-
-	private final ImageLoaderWrapper mLazyImageLoader;
-
+	private final ImageLoaderWrapper mImageLoader;
 	private final SharedPreferences mPreferences;
-	private int mUserColorIdx, mProfileImageIdx, mScreenNameIdx;
-	private long mDefaultAccountId;
-	private final boolean mDisplayHiResProfileImage;
-	private int mAccountIdIdx;
-	private final boolean mMultiSelectEnabled;
-	private final SparseBooleanArray mCheckedItems = new SparseBooleanArray();
 
-	public AccountsAdapter(final Context context, final boolean multi_select) {
+	private final boolean mDisplayHiResProfileImage;
+	private int mUserColorIdx, mProfileImageIdx, mScreenNameIdx, mAccountIdIdx;
+	private long mDefaultAccountId;
+
+	private boolean mDisplayProfileImage;
+	private int mChoiceMode;
+
+	public AccountsAdapter(final Context context) {
 		super(context, R.layout.account_list_item, null, new String[] { Accounts.NAME },
 				new int[] { android.R.id.text1 }, 0);
 		final TwidereApplication application = TwidereApplication.getInstance(context);
-		mMultiSelectEnabled = multi_select;
-		mLazyImageLoader = application.getImageLoaderWrapper();
+		mImageLoader = application.getImageLoaderWrapper();
 		mPreferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		mDisplayHiResProfileImage = context.getResources().getBoolean(R.bool.hires_profile_image);
 	}
@@ -63,33 +60,37 @@ public class AccountsAdapter extends SimpleCursorAdapter implements Constants {
 	@Override
 	public void bindView(final View view, final Context context, final Cursor cursor) {
 		final int color = cursor.getInt(mUserColorIdx);
-		final int position = cursor.getPosition();
 		final AccountViewHolder holder = (AccountViewHolder) view.getTag();
 		holder.screen_name.setText("@" + cursor.getString(mScreenNameIdx));
-		holder.checkbox.setVisibility(mMultiSelectEnabled ? View.VISIBLE : View.GONE);
-		holder.checkbox.setChecked(mCheckedItems.get(position));
 		holder.setAccountColor(color);
 		holder.setIsDefault(mDefaultAccountId != -1 && mDefaultAccountId == cursor.getLong(mAccountIdIdx));
 		if (mDisplayProfileImage) {
-			final String profile_image_url_string = cursor.getString(mProfileImageIdx);
+			final String profile_image_url = cursor.getString(mProfileImageIdx);
 			if (mDisplayHiResProfileImage) {
-				mLazyImageLoader.displayProfileImage(holder.profile_image,
-						getBiggerTwitterProfileImage(profile_image_url_string));
+				mImageLoader.displayProfileImage(holder.profile_image, getBiggerTwitterProfileImage(profile_image_url));
 			} else {
-				mLazyImageLoader.displayProfileImage(holder.profile_image, profile_image_url_string);
+				mImageLoader.displayProfileImage(holder.profile_image, profile_image_url);
 			}
 		} else {
 			holder.profile_image.setImageResource(R.drawable.ic_profile_image_default);
 		}
+		final boolean is_multiple_choice = mChoiceMode == ListView.CHOICE_MODE_MULTIPLE
+				|| mChoiceMode == ListView.CHOICE_MODE_MULTIPLE_MODAL;
+		holder.checkbox.setVisibility(is_multiple_choice ? View.VISIBLE : View.GONE);
 		super.bindView(view, context, cursor);
 	}
 
-	public long getAccountIdAt(final int position) {
-		return ((Cursor) getItem(position)).getLong(mAccountIdIdx);
+	@Override
+	public long getItemId(final int position) {
+		final Cursor c = getCursor();
+		if (c == null || c.isClosed()) return -1;
+		c.moveToPosition(position);
+		return c.getLong(mAccountIdIdx);
 	}
 
-	public boolean isChecked(final int position) {
-		return mCheckedItems.get(position);
+	@Override
+	public boolean hasStableIds() {
+		return true;
 	}
 
 	@Override
@@ -107,22 +108,22 @@ public class AccountsAdapter extends SimpleCursorAdapter implements Constants {
 		super.notifyDataSetChanged();
 	}
 
+	public void setChoiceMode(final int mode) {
+		if (mChoiceMode == mode) return;
+		mChoiceMode = mode;
+		notifyDataSetChanged();
+	}
+
 	public void setDisplayProfileImage(final boolean display) {
 		mDisplayProfileImage = display;
 		notifyDataSetChanged();
 	}
 
-	public void setItemChecked(final int position, final boolean checked) {
-		mCheckedItems.put(position, checked);
-		notifyDataSetChanged();
-	}
-
 	@Override
 	public Cursor swapCursor(final Cursor cursor) {
-		mCheckedItems.clear();
 		if (cursor != null) {
 			mAccountIdIdx = cursor.getColumnIndex(Accounts.ACCOUNT_ID);
-			mUserColorIdx = cursor.getColumnIndex(Accounts.USER_COLOR);
+			mUserColorIdx = cursor.getColumnIndex(Accounts.COLOR);
 			mProfileImageIdx = cursor.getColumnIndex(Accounts.PROFILE_IMAGE_URL);
 			mScreenNameIdx = cursor.getColumnIndex(Accounts.SCREEN_NAME);
 		}

@@ -19,27 +19,35 @@
 
 package org.mariotaku.twidere.adapter;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+
 public class ArrayAdapter<T> extends BaseAdapter {
 
 	private final LayoutInflater mInflater;
 	private final int mLayoutRes;
+	private int mDropDownLayoutRes;
 
 	private final ArrayList<T> mData = new ArrayList<T>();
 
 	public ArrayAdapter(final Context context, final int layoutRes) {
+		this(context, layoutRes, null);
+	}
+
+	public ArrayAdapter(final Context context, final int layoutRes, final Collection<? extends T> collection) {
 		mInflater = LayoutInflater.from(context);
 		mLayoutRes = layoutRes;
+		if (collection != null) {
+			addAll(collection);
+		}
 	}
 
 	public final void add(final T item) {
@@ -59,16 +67,14 @@ public class ArrayAdapter<T> extends BaseAdapter {
 	}
 
 	public final T findItem(final long id) {
-		final int count = getCount();
-		for (int i = 0; i < count; i++) {
+		for (int i = 0, count = getCount(); i < count; i++) {
 			if (getItemId(i) == id) return getItem(i);
 		}
 		return null;
 	}
 
 	public final int findItemPosition(final long id) {
-		final int count = getCount();
-		for (int i = 0; i < count; i++) {
+		for (int i = 0, count = getCount(); i < count; i++) {
 			if (getItemId(i) == id) return i;
 		}
 		return -1;
@@ -77,6 +83,12 @@ public class ArrayAdapter<T> extends BaseAdapter {
 	@Override
 	public int getCount() {
 		return mData.size();
+	}
+
+	@Override
+	public View getDropDownView(final int position, final View convertView, final ViewGroup parent) {
+		final int layoutRes = mDropDownLayoutRes > 0 ? mDropDownLayoutRes : mLayoutRes;
+		return convertView != null ? convertView : mInflater.inflate(layoutRes, parent, false);
 	}
 
 	@Override
@@ -98,6 +110,10 @@ public class ArrayAdapter<T> extends BaseAdapter {
 		final boolean ret = mData.remove(position) != null;
 		notifyDataSetChanged();
 		return ret;
+	}
+
+	public void setDropDownViewResource(final int layoutRes) {
+		mDropDownLayoutRes = layoutRes;
 	}
 
 	public final void sort(final Comparator<? super T> comparator) {

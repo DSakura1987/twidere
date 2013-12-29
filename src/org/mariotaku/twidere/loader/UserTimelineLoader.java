@@ -22,7 +22,8 @@ package org.mariotaku.twidere.loader;
 import static org.mariotaku.twidere.util.Utils.getAccountId;
 import static org.mariotaku.twidere.util.Utils.isFiltered;
 
-import java.util.List;
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
 
 import org.mariotaku.twidere.model.ParcelableStatus;
 
@@ -32,8 +33,8 @@ import twitter4j.Status;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.User;
-import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
+
+import java.util.List;
 
 public class UserTimelineLoader extends Twitter4JStatusesLoader {
 
@@ -76,6 +77,6 @@ public class UserTimelineLoader extends Twitter4JStatusesLoader {
 
 	@Override
 	protected boolean shouldFilterStatus(final SQLiteDatabase database, final ParcelableStatus status) {
-		return !mIsMyTimeline && isFiltered(database, status.text_plain, status.text_html, null, status.source);
+		return !mIsMyTimeline && isFiltered(database, -1, status.text_plain, status.text_html, status.source, -1);
 	}
 }

@@ -16,19 +16,6 @@
 
 package twitter4j.auth;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-
 import twitter4j.TwitterException;
 import twitter4j.conf.Configuration;
 import twitter4j.http.BASE64Encoder;
@@ -37,6 +24,20 @@ import twitter4j.http.HttpParameter;
 import twitter4j.http.HttpRequest;
 import twitter4j.internal.logging.Logger;
 import twitter4j.internal.util.InternalStringUtil;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Random;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * @author Yusuke Yamamoto - yusuke at mac.com
@@ -454,7 +455,7 @@ public class OAuthAuthorization implements Authorization, OAuthSupport {
 			url = url.substring(0, index);
 		}
 		final int slashIndex = url.indexOf("/", 8);
-		String baseURL = url.substring(0, slashIndex).toLowerCase();
+		String baseURL = url.substring(0, slashIndex).toLowerCase(Locale.US);
 		final int colonIndex = baseURL.indexOf(":", 8);
 		if (-1 != colonIndex) {
 			// url contains port number

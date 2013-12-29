@@ -19,8 +19,15 @@
 
 package org.mariotaku.twidere.loader;
 
+import static org.mariotaku.twidere.util.ContentValuesCreator.makeCachedUserContentValues;
 import static org.mariotaku.twidere.util.Utils.getTwitterInstance;
-import static org.mariotaku.twidere.util.Utils.makeCachedUserContentValues;
+
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.support.v4.content.AsyncTaskLoader;
 
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
@@ -31,12 +38,6 @@ import org.mariotaku.twidere.provider.TweetStore.CachedUsers;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.User;
-import android.content.ContentResolver;
-import android.content.ContentValues;
-import android.content.Context;
-import android.database.Cursor;
-import android.os.Bundle;
-import android.support.v4.content.AsyncTaskLoader;
 
 public final class ParcelableUserLoader extends AsyncTaskLoader<SingleResponse<ParcelableUser>> implements Constants {
 
@@ -63,7 +64,7 @@ public final class ParcelableUserLoader extends AsyncTaskLoader<SingleResponse<P
 	@Override
 	public SingleResponse<ParcelableUser> loadInBackground() {
 		if (!omit_intent_extra && extras != null) {
-			final ParcelableUser user = extras.getParcelable(INTENT_KEY_USER);
+			final ParcelableUser user = extras.getParcelable(EXTRA_USER);
 			if (user != null) {
 				final ContentValues values = ParcelableUser.makeCachedUserContentValues(user);
 				resolver.delete(CachedUsers.CONTENT_URI, CachedUsers.USER_ID + " = " + user.id, null);

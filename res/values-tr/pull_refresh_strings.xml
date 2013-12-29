@@ -4,6 +4,4 @@
   <string name="pull_to_refresh_pull_label">yenilemek için Çekin…</string>
   <string name="pull_to_refresh_release_label">yenilemek için Bırakın…</string>
   <string name="pull_to_refresh_refreshing_label">Yükleniyor…</string>
-  <string name="pull_to_refresh_from_bottom_pull_label">daha fazlasını yüklemek için Çekin…</string>
-  <string name="pull_to_refresh_from_bottom_release_label">daha fazlasını yüklemek için Bırakın…</string>
 </resources>

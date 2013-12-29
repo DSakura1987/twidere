@@ -19,90 +19,88 @@
 
 package org.mariotaku.twidere.adapter;
 
-import static android.text.format.DateUtils.getRelativeTimeSpanString;
 import static org.mariotaku.twidere.model.ParcelableLocation.isValidLocation;
-import static org.mariotaku.twidere.util.Utils.configBaseAdapter;
-import static org.mariotaku.twidere.util.Utils.formatSameDayTime;
+import static org.mariotaku.twidere.util.UserColorNicknameUtils.getUserColor;
+import static org.mariotaku.twidere.util.UserColorNicknameUtils.getUserNickname;
+import static org.mariotaku.twidere.util.Utils.configBaseCardAdapter;
 import static org.mariotaku.twidere.util.Utils.getAccountColor;
-import static org.mariotaku.twidere.util.Utils.getAccountScreenName;
-import static org.mariotaku.twidere.util.Utils.getImagePreviewDisplayOptionInt;
-import static org.mariotaku.twidere.util.Utils.getNameDisplayOptionInt;
 import static org.mariotaku.twidere.util.Utils.getStatusBackground;
-import static org.mariotaku.twidere.util.Utils.getUserColor;
 import static org.mariotaku.twidere.util.Utils.isFiltered;
 import static org.mariotaku.twidere.util.Utils.openImage;
 import static org.mariotaku.twidere.util.Utils.openUserProfile;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.adapter.iface.IStatusesAdapter;
-import org.mariotaku.twidere.app.TwidereApplication;
-import org.mariotaku.twidere.model.ParcelableStatus;
-import org.mariotaku.twidere.model.PreviewImage;
-import org.mariotaku.twidere.util.ImageLoaderWrapper;
-import org.mariotaku.twidere.util.MultiSelectManager;
-import org.mariotaku.twidere.util.OnLinkClickHandler;
-import org.mariotaku.twidere.util.TwidereLinkify;
-import org.mariotaku.twidere.view.holder.StatusViewHolder;
-
 import android.app.Activity;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Bitmap;
 import android.text.Html;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.widget.ProgressBar;
 
-import com.nostra13.universalimageloader.core.assist.FailReason;
-import com.nostra13.universalimageloader.core.assist.ImageLoadingListener;
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.adapter.iface.IStatusesAdapter;
+import org.mariotaku.twidere.app.TwidereApplication;
+import org.mariotaku.twidere.model.ParcelableStatus;
+import org.mariotaku.twidere.model.ParcelableUserMention;
+import org.mariotaku.twidere.util.ImageLoaderWrapper;
+import org.mariotaku.twidere.util.ImageLoadingHandler;
+import org.mariotaku.twidere.util.MultiSelectManager;
+import org.mariotaku.twidere.util.TwidereLinkify;
+import org.mariotaku.twidere.util.Utils;
+import org.mariotaku.twidere.view.holder.StatusViewHolder;
+import org.mariotaku.twidere.view.iface.ICardItemView.OnOverflowIconClickListener;
 
-public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> implements
-		IStatusesAdapter<List<ParcelableStatus>>, OnClickListener, ImageLoadingListener {
+import java.util.List;
+
+public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus> implements
+		IStatusesAdapter<List<ParcelableStatus>>, OnClickListener, OnOverflowIconClickListener {
 
 	private final Context mContext;
-	private final ImageLoaderWrapper mImageLoader;
 	private final MultiSelectManager mMultiSelectManager;
-	private final TwidereLinkify mLinkify;
 	private final SQLiteDatabase mDatabase;
-	private final Map<View, String> mLoadingViewsMap = new HashMap<View, String>();
+	private final ImageLoadingHandler mImageLoadingHandler;
+	private MenuButtonClickListener mListener;
 
-	private boolean mDisplayProfileImage, mShowAccountColor, mShowAbsoluteTime, mGapDisallowed, mMultiSelectEnabled,
-			mMentionsHighlightDisabled, mDisplaySensitiveContents, mIndicateMyStatusDisabled, mLinkHighlightingEnabled,
-			mIsLastItemFiltered, mFiltersEnabled;
-	private float mTextSize;
-	private int mNameDisplayOption, mImagePreviewDisplayOption, mLinkHighlightStyle;
-	private boolean mFilterIgnoreSource, mFilterIgnoreScreenName, mFilterIgnoreTextHtml, mFilterIgnoreTextPlain;
+	private boolean mDisplayImagePreview, mGapDisallowed, mMentionsHighlightDisabled, mFavoritesHighlightDisabled,
+			mDisplaySensitiveContents, mIndicateMyStatusDisabled, mIsLastItemFiltered, mFiltersEnabled,
+			mAnimationEnabled;
+	private boolean mFilterIgnoreUser, mFilterIgnoreSource, mFilterIgnoreTextHtml, mFilterIgnoreTextPlain,
+			mFilterRetweetedById;
+	private int mMaxAnimationPosition;
 
 	public ParcelableStatusesAdapter(final Context context) {
-		super(context, R.layout.status_list_item);
+		this(context, Utils.isCompactCards(context));
+	}
+
+	public ParcelableStatusesAdapter(final Context context, final boolean compactCards) {
+		super(context, getItemResource(compactCards));
 		mContext = context;
-		final TwidereApplication application = TwidereApplication.getInstance(context);
-		mMultiSelectManager = application.getMultiSelectManager();
-		mImageLoader = application.getImageLoaderWrapper();
-		mDatabase = application.getSQLiteDatabase();
-		mLinkify = new TwidereLinkify(new OnLinkClickHandler(mContext));
-		configBaseAdapter(context, this);
+		final TwidereApplication app = TwidereApplication.getInstance(context);
+		mMultiSelectManager = app.getMultiSelectManager();
+		mDatabase = app.getSQLiteDatabase();
+		mImageLoadingHandler = new ImageLoadingHandler();
+		configBaseCardAdapter(context, this);
+		setMaxAnimationPosition(-1);
 	}
 
 	@Override
-	public long findItemIdByPosition(final int position) {
-		if (position >= 0 && position < getCount()) return getItem(position).id;
-		return -1;
-	}
-
-	@Override
-	public int findItemPositionByStatusId(final long status_id) {
-		final int count = getCount();
-		for (int i = 0; i < count; i++) {
+	public int findPositionByStatusId(final long status_id) {
+		for (int i = 0, count = getCount(); i < count; i++) {
 			if (getItem(i).id == status_id) return i;
 		}
 		return -1;
+	}
+
+	@Override
+	public long getAccountId(final int position) {
+		if (position >= 0 && position < getCount()) return getItem(position).account_id;
+		return -1;
+	}
+
+	@Override
+	public int getActualCount() {
+		return super.getCount();
 	}
 
 	@Override
@@ -124,8 +122,20 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 	}
 
 	@Override
+	public long getLastStatusId() {
+		if (super.getCount() == 0) return -1;
+		return getItem(super.getCount() - 1).id;
+	}
+
+	@Override
 	public ParcelableStatus getStatus(final int position) {
 		return getItem(position);
+	}
+
+	@Override
+	public long getStatusId(final int position) {
+		if (position >= 0 && position < getCount()) return getItem(position).id;
+		return -1;
 	}
 
 	@Override
@@ -138,101 +148,109 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 			holder = (StatusViewHolder) tag;
 		} else {
 			holder = new StatusViewHolder(view);
+			holder.profile_image.setOnClickListener(this);
+			holder.my_profile_image.setOnClickListener(this);
+			holder.image_preview.setOnClickListener(this);
+			holder.content.setOnOverflowIconClickListener(this);
 			view.setTag(holder);
 		}
 
-		// Clear images in prder to prevent images in recycled view shown.
-		// holder.profile_image.setImageDrawable(null);
-		// holder.my_profile_image.setImageDrawable(null);
-		// holder.image_preview.setImageDrawable(null);
-
 		final ParcelableStatus status = getItem(position);
 
-		final boolean show_gap = status.is_gap && !mGapDisallowed && position != getCount() - 1;
+		final boolean showGap = status.is_gap && !mGapDisallowed && position != getCount() - 1;
 
-		holder.setShowAsGap(show_gap);
+		holder.setShowAsGap(showGap);
+		holder.setDisplayProfileImage(isDisplayProfileImage());
 
-		if (!show_gap) {
+		if (!showGap) {
+			final TwidereLinkify linkify = getLinkify();
+			final ImageLoaderWrapper loader = getImageLoader();
+			final int highlightOption = getLinkHighlightOption();
+			final boolean mShowAccountColor = isShowAccountColor();
+
+			// Clear images in prder to prevent images in recycled view shown.
+			holder.profile_image.setImageDrawable(null);
+			holder.my_profile_image.setImageDrawable(null);
+			holder.image_preview.setImageDrawable(null);
 
 			holder.setAccountColorEnabled(mShowAccountColor);
 
-			if (mLinkHighlightingEnabled) {
+			if (highlightOption != LINK_HIGHLIGHT_OPTION_CODE_NONE) {
 				holder.text.setText(Html.fromHtml(status.text_html));
-				mLinkify.applyAllLinks(holder.text, status.account_id, status.is_possibly_sensitive);
+				linkify.applyAllLinks(holder.text, status.account_id, status.is_possibly_sensitive);
+				holder.text.setMovementMethod(null);
 			} else {
 				holder.text.setText(status.text_unescaped);
 			}
-			holder.text.setMovementMethod(null);
 
 			if (mShowAccountColor) {
 				holder.setAccountColor(getAccountColor(mContext, status.account_id));
 			}
 
-			if (mMultiSelectEnabled) {
-				holder.setSelected(mMultiSelectManager.isStatusSelected(status.id));
-			} else {
-				holder.setSelected(false);
-			}
-			final String account_screen_name = getAccountScreenName(mContext, status.account_id);
-			final boolean is_mention = !TextUtils.isEmpty(status.text_plain)
-					&& status.text_plain.toLowerCase().contains('@' + account_screen_name.toLowerCase());
-			final boolean is_my_status = status.account_id == status.user_id;
+			final boolean isMention = ParcelableUserMention.hasMention(status.mentions, status.account_id);
+			final boolean isMyStatus = status.account_id == status.user_id;
 			holder.setUserColor(getUserColor(mContext, status.user_id));
-			holder.setHighlightColor(getStatusBackground(mMentionsHighlightDisabled ? false : is_mention,
-					status.is_favorite, status.is_retweet));
-			holder.setTextSize(mTextSize);
+			holder.setHighlightColor(getStatusBackground(!mMentionsHighlightDisabled && isMention,
+					!mFavoritesHighlightDisabled && status.is_favorite, status.is_retweet));
+			holder.setTextSize(getTextSize());
 
-			holder.setIsMyStatus(is_my_status && !mIndicateMyStatusDisabled);
+			holder.setIsMyStatus(isMyStatus && !mIndicateMyStatusDisabled);
 
 			holder.setUserType(status.user_is_verified, status.user_is_protected);
-			holder.setNameDisplayOption(mNameDisplayOption);
-			holder.setName(status.user_name, status.user_screen_name);
-			if (mLinkHighlightingEnabled) {
-				mLinkify.applyUserProfileLink(holder.name, status.account_id, status.user_id, status.user_screen_name);
-				mLinkify.applyUserProfileLink(holder.screen_name, status.account_id, status.user_id,
+			holder.setDisplayNameFirst(isDisplayNameFirst());
+			holder.setNicknameOnly(isNicknameOnly());
+			final String nick = getUserNickname(mContext, status.user_id);
+			holder.name.setText(TextUtils.isEmpty(nick) ? status.user_name : isNicknameOnly() ? nick : mContext
+					.getString(R.string.name_with_nickname, status.user_name, nick));
+			holder.screen_name.setText("@" + status.user_screen_name);
+			if (highlightOption != LINK_HIGHLIGHT_OPTION_CODE_NONE) {
+				linkify.applyUserProfileLinkNoHighlight(holder.name, status.account_id, status.user_id,
+						status.user_screen_name);
+				linkify.applyUserProfileLinkNoHighlight(holder.screen_name, status.account_id, status.user_id,
 						status.user_screen_name);
 				holder.name.setMovementMethod(null);
 				holder.screen_name.setMovementMethod(null);
 			}
-			if (mShowAbsoluteTime) {
-				holder.time.setText(formatSameDayTime(mContext, status.timestamp));
-			} else {
-				holder.time.setText(getRelativeTimeSpanString(status.timestamp));
-			}
-			holder.setStatusType(status.is_favorite, isValidLocation(status.location), status.has_media,
-					status.is_possibly_sensitive);
+			holder.time.setTime(status.timestamp);
+			holder.setStatusType(!mFavoritesHighlightDisabled && status.is_favorite, isValidLocation(status.location),
+					status.has_media, status.is_possibly_sensitive);
 			holder.setIsReplyRetweet(status.in_reply_to_status_id > 0, status.is_retweet);
 			if (status.is_retweet) {
-				holder.setRetweetedBy(status.retweet_count, status.retweeted_by_name, status.retweeted_by_screen_name);
+				holder.setRetweetedBy(status.retweet_count, status.retweeted_by_id, status.retweeted_by_name,
+						status.retweeted_by_screen_name);
 			} else if (status.in_reply_to_status_id > 0) {
-				holder.setReplyTo(status.in_reply_to_screen_name);
+				holder.setReplyTo(status.in_reply_to_user_id, status.in_reply_to_name, status.in_reply_to_screen_name);
 			}
-			if (mDisplayProfileImage) {
-				mImageLoader.displayProfileImage(holder.my_profile_image, status.user_profile_image_url);
-				mImageLoader.displayProfileImage(holder.profile_image, status.user_profile_image_url);
+			if (isDisplayProfileImage()) {
+				loader.displayProfileImage(holder.my_profile_image, status.user_profile_image_url);
+				loader.displayProfileImage(holder.profile_image, status.user_profile_image_url);
 				holder.profile_image.setTag(position);
 				holder.my_profile_image.setTag(position);
 			} else {
 				holder.profile_image.setVisibility(View.GONE);
 				holder.my_profile_image.setVisibility(View.GONE);
 			}
-			final boolean has_preview = mImagePreviewDisplayOption != IMAGE_PREVIEW_DISPLAY_OPTION_CODE_NONE
-					&& status.has_media && status.image_preview_url != null;
-			holder.image_preview_container.setVisibility(has_preview ? View.VISIBLE : View.GONE);
-			if (has_preview) {
-				holder.setImagePreviewDisplayOption(mImagePreviewDisplayOption);
+			final boolean hasPreview = mDisplayImagePreview && status.has_media && status.media_link != null;
+			holder.image_preview_container.setVisibility(hasPreview ? View.VISIBLE : View.GONE);
+			if (hasPreview) {
 				if (status.is_possibly_sensitive && !mDisplaySensitiveContents) {
-					holder.image_preview.setImageResource(R.drawable.image_preview_nsfw);
+					holder.image_preview.setImageDrawable(null);
+					holder.image_preview.setBackgroundResource(R.drawable.image_preview_nsfw);
 					holder.image_preview_progress.setVisibility(View.GONE);
-				} else if (!status.image_preview_url.equals(mLoadingViewsMap.get(holder.image_preview))) {
-					mImageLoader.displayPreviewImage(holder.image_preview, status.image_preview_url, this);
+				} else if (!status.media_link.equals(mImageLoadingHandler.getLoadingUri(holder.image_preview))) {
+					holder.image_preview.setBackgroundResource(0);
+					loader.displayPreviewImage(holder.image_preview, status.media_link, mImageLoadingHandler);
 				}
 				holder.image_preview.setTag(position);
 			}
+			// holder.item_menu.setTag(position);
 		}
-		holder.profile_image.setOnClickListener(mMultiSelectEnabled ? null : this);
-		holder.my_profile_image.setOnClickListener(mMultiSelectEnabled ? null : this);
-		holder.image_preview.setOnClickListener(mMultiSelectEnabled ? null : this);
+		if (position > mMaxAnimationPosition) {
+			if (mAnimationEnabled) {
+				view.startAnimation(holder.item_animation);
+			}
+			mMaxAnimationPosition = position;
+		}
 		return view;
 	}
 
@@ -243,22 +261,21 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 
 	@Override
 	public void onClick(final View view) {
-		if (mMultiSelectEnabled) return;
+		if (mMultiSelectManager.isActive()) return;
 		final Object tag = view.getTag();
-		final ParcelableStatus status = tag instanceof Integer ? getStatus((Integer) tag) : null;
-		if (status == null) return;
+		final int position = tag instanceof Integer ? (Integer) tag : -1;
+		if (position == -1) return;
 		switch (view.getId()) {
 			case R.id.image_preview: {
-				final PreviewImage spec = PreviewImage.getAllAvailableImage(status.image_original_url, true);
-				if (spec != null) {
-					openImage(mContext, spec.image_full_url, spec.image_original_url, status.is_possibly_sensitive);
-				} else {
-					openImage(mContext, status.image_original_url, null, status.is_possibly_sensitive);
-				}
+				final ParcelableStatus status = getStatus(position);
+				if (status == null || status.media_link == null) return;
+				openImage(mContext, status.media_link, status.is_possibly_sensitive);
 				break;
 			}
 			case R.id.my_profile_image:
 			case R.id.profile_image: {
+				final ParcelableStatus status = getStatus(position);
+				if (status == null) return;
 				if (mContext instanceof Activity) {
 					openUserProfile((Activity) mContext, status.account_id, status.user_id, status.user_screen_name);
 				}
@@ -268,60 +285,20 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 	}
 
 	@Override
-	public void onLoadingCancelled(final String url, final View view) {
-		if (view == null || url == null || url.equals(mLoadingViewsMap.get(view))) return;
-		mLoadingViewsMap.remove(view);
-		final View parent = (View) view.getParent();
-		final View progress = parent.findViewById(R.id.image_preview_progress);
-		if (progress != null) {
-			progress.setVisibility(View.GONE);
+	public void onOverflowIconClick(final View view) {
+		final Object tag = view.getTag();
+		if (tag instanceof StatusViewHolder) {
+			final StatusViewHolder holder = (StatusViewHolder) tag;
+			final int position = holder.position;
+			if (position == -1 || mListener == null) return;
+			mListener.onMenuButtonClick(view, position, getItemId(position));
 		}
 	}
 
 	@Override
-	public void onLoadingComplete(final String url, final View view, final Bitmap bitmap) {
-		if (view == null) return;
-		mLoadingViewsMap.remove(view);
-		final View parent = (View) view.getParent();
-		final View progress = parent.findViewById(R.id.image_preview_progress);
-		if (progress != null) {
-			progress.setVisibility(View.GONE);
-		}
-	}
-
-	@Override
-	public void onLoadingFailed(final String url, final View view, final FailReason reason) {
-		if (view == null) return;
-		mLoadingViewsMap.remove(view);
-		final View parent = (View) view.getParent();
-		final View progress = parent.findViewById(R.id.image_preview_progress);
-		if (progress != null) {
-			progress.setVisibility(View.GONE);
-		}
-	}
-
-	@Override
-	public void onLoadingProgressChanged(final String imageUri, final View view, final int current, final int total) {
-		if (total == 0) return;
-		final View parent = (View) view.getParent();
-		final ProgressBar progress = (ProgressBar) parent.findViewById(R.id.image_preview_progress);
-		if (progress != null) {
-			progress.setIndeterminate(false);
-			progress.setProgress(100 * current / total);
-		}
-	}
-
-	@Override
-	public void onLoadingStarted(final String url, final View view) {
-		if (view == null || url == null || url.equals(mLoadingViewsMap.get(view))) return;
-		mLoadingViewsMap.put(view, url);
-		final View parent = (View) view.getParent();
-		final ProgressBar progress = (ProgressBar) parent.findViewById(R.id.image_preview_progress);
-		if (progress != null) {
-			progress.setVisibility(View.VISIBLE);
-			progress.setIndeterminate(true);
-			progress.setMax(100);
-		}
+	public void setAnimationEnabled(final boolean anim) {
+		if (mAnimationEnabled == anim) return;
+		mAnimationEnabled = anim;
 	}
 
 	@Override
@@ -329,15 +306,14 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 		clear();
 		if (data != null && !data.isEmpty()) {
 			addAll(data);
-			notifyDataSetChanged();
 		}
 		rebuildFilterInfo();
 	}
 
 	@Override
-	public void setDisplayProfileImage(final boolean display) {
-		if (display == mDisplayProfileImage) return;
-		mDisplayProfileImage = display;
+	public void setDisplayImagePreview(final boolean display) {
+		if (display == mDisplayImagePreview) return;
+		mDisplayImagePreview = display;
 		notifyDataSetChanged();
 	}
 
@@ -349,11 +325,17 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 	}
 
 	@Override
+	public void setFavoritesHightlightDisabled(final boolean disable) {
+		if (disable == mFavoritesHighlightDisabled) return;
+		mFavoritesHighlightDisabled = disable;
+		notifyDataSetChanged();
+	}
+
+	@Override
 	public void setFiltersEnabled(final boolean enabled) {
 		if (mFiltersEnabled == enabled) return;
 		mFiltersEnabled = enabled;
 		rebuildFilterInfo();
-		notifyDataSetChanged();
 	}
 
 	@Override
@@ -364,22 +346,14 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 	}
 
 	@Override
-	public void setIgnoredFilterFields(final boolean text_plain, final boolean text_html, final boolean screen_name,
-			final boolean source) {
+	public void setIgnoredFilterFields(final boolean user, final boolean text_plain, final boolean text_html,
+			final boolean source, final boolean retweeted_by_id) {
 		mFilterIgnoreTextPlain = text_plain;
 		mFilterIgnoreTextHtml = text_html;
-		mFilterIgnoreScreenName = screen_name;
+		mFilterIgnoreUser = user;
 		mFilterIgnoreSource = source;
+		mFilterRetweetedById = retweeted_by_id;
 		rebuildFilterInfo();
-		notifyDataSetChanged();
-	}
-
-	@Override
-	public void setImagePreviewDisplayOption(final String option) {
-		final int option_int = getImagePreviewDisplayOptionInt(option);
-		if (option_int == mImagePreviewDisplayOption) return;
-		mImagePreviewDisplayOption = option_int;
-		notifyDataSetChanged();
 	}
 
 	@Override
@@ -390,20 +364,8 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 	}
 
 	@Override
-	public void setLinkHightlightingEnabled(final boolean enable) {
-		if (mLinkHighlightingEnabled == enable) return;
-		mLinkHighlightingEnabled = enable;
-		notifyDataSetChanged();
-	}
-
-	@Override
-	public void setLinkUnderlineOnly(final boolean underline_only) {
-		final int style = underline_only ? TwidereLinkify.HIGHLIGHT_STYLE_UNDERLINE
-				: TwidereLinkify.HIGHLIGHT_STYLE_COLOR;
-		if (mLinkHighlightStyle == style) return;
-		mLinkify.setHighlightStyle(style);
-		mLinkHighlightStyle = style;
-		notifyDataSetChanged();
+	public void setMaxAnimationPosition(final int position) {
+		mMaxAnimationPosition = position;
 	}
 
 	@Override
@@ -414,51 +376,26 @@ public class ParcelableStatusesAdapter extends ArrayAdapter<ParcelableStatus> im
 	}
 
 	@Override
-	public void setMultiSelectEnabled(final boolean multi) {
-		if (mMultiSelectEnabled == multi) return;
-		mMultiSelectEnabled = multi;
-		notifyDataSetChanged();
-	}
-
-	@Override
-	public void setNameDisplayOption(final String option) {
-		final int option_int = getNameDisplayOptionInt(option);
-		if (option_int == mNameDisplayOption) return;
-		mNameDisplayOption = option_int;
-		notifyDataSetChanged();
-	}
-
-	@Override
-	public void setShowAbsoluteTime(final boolean show) {
-		if (show == mShowAbsoluteTime) return;
-		mShowAbsoluteTime = show;
-		notifyDataSetChanged();
-	}
-
-	@Override
-	public void setShowAccountColor(final boolean show) {
-		if (show == mShowAccountColor) return;
-		mShowAccountColor = show;
-		notifyDataSetChanged();
-	}
-
-	@Override
-	public void setTextSize(final float text_size) {
-		if (text_size == mTextSize) return;
-		mTextSize = text_size;
-		notifyDataSetChanged();
+	public void setMenuButtonClickListener(final MenuButtonClickListener listener) {
+		mListener = listener;
 	}
 
 	private void rebuildFilterInfo() {
 		if (!isEmpty()) {
 			final ParcelableStatus last = getItem(super.getCount() - 1);
+			final long user_id = mFilterIgnoreUser ? -1 : last.user_id;
 			final String text_plain = mFilterIgnoreTextPlain ? null : last.text_plain;
 			final String text_html = mFilterIgnoreTextHtml ? null : last.text_html;
-			final String screen_name = mFilterIgnoreScreenName ? null : last.user_screen_name;
 			final String source = mFilterIgnoreSource ? null : last.source;
-			mIsLastItemFiltered = isFiltered(mDatabase, text_plain, text_html, screen_name, source);
+			final long retweeted_by_id = mFilterRetweetedById ? -1 : last.retweeted_by_id;
+			mIsLastItemFiltered = isFiltered(mDatabase, user_id, text_plain, text_html, source, retweeted_by_id);
 		} else {
 			mIsLastItemFiltered = false;
 		}
+		notifyDataSetChanged();
+	}
+
+	private static int getItemResource(final boolean compactCards) {
+		return compactCards ? R.layout.card_item_status_compact : R.layout.card_item_status;
 	}
 }

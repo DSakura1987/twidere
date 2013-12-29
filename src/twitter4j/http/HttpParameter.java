@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * A data class representing HTTP Post parameter
@@ -30,6 +31,7 @@ import java.util.List;
 public final class HttpParameter implements Comparable<HttpParameter> {
 	private String name = null;
 	private String value = null;
+	private String fileName = null;
 	private File file = null;
 	private InputStream fileBody = null;
 
@@ -54,6 +56,7 @@ public final class HttpParameter implements Comparable<HttpParameter> {
 	public HttpParameter(final String name, final File file) {
 		this.name = name;
 		this.file = file;
+		fileName = file != null ? file.getName() : null;
 	}
 
 	public HttpParameter(final String name, final int value) {
@@ -73,7 +76,7 @@ public final class HttpParameter implements Comparable<HttpParameter> {
 
 	public HttpParameter(final String name, final String fileName, final InputStream fileBody) {
 		this.name = name;
-		file = new File(fileName);
+		this.fileName = fileName;
 		this.fileBody = fileBody;
 	}
 
@@ -109,13 +112,13 @@ public final class HttpParameter implements Comparable<HttpParameter> {
 	public String getContentType() {
 		if (!isFile()) throw new IllegalStateException("not a file");
 		String contentType;
-		String extensions = file.getName();
+		String extensions = fileName;
 		final int index = extensions.lastIndexOf(".");
 		if (-1 == index) {
 			// no extension
 			contentType = OCTET;
 		} else {
-			extensions = extensions.substring(extensions.lastIndexOf(".") + 1).toLowerCase();
+			extensions = extensions.substring(extensions.lastIndexOf(".") + 1).toLowerCase(Locale.US);
 			if (extensions.length() == 3) {
 				if ("gif".equals(extensions)) {
 					contentType = GIF;
@@ -147,6 +150,10 @@ public final class HttpParameter implements Comparable<HttpParameter> {
 		return fileBody;
 	}
 
+	public String getFileName() {
+		return fileName;
+	}
+
 	public String getName() {
 		return name;
 	}
@@ -169,7 +176,7 @@ public final class HttpParameter implements Comparable<HttpParameter> {
 	}
 
 	public boolean isFile() {
-		return file != null;
+		return fileName != null;
 	}
 
 	@Override
@@ -206,6 +213,7 @@ public final class HttpParameter implements Comparable<HttpParameter> {
 		try {
 			encoded = URLEncoder.encode(value, "UTF-8");
 		} catch (final UnsupportedEncodingException ignore) {
+			return null;
 		}
 		final StringBuffer buf = new StringBuffer(encoded.length());
 		char focus;

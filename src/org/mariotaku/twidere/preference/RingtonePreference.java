@@ -16,11 +16,6 @@
 
 package org.mariotaku.twidere.preference;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.mariotaku.twidere.util.ArrayUtils;
-
 import android.app.AlertDialog.Builder;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -28,12 +23,15 @@ import android.content.DialogInterface.OnClickListener;
 import android.database.Cursor;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
-import android.preference.ListPreference;
+import android.net.Uri;
 import android.util.AttributeSet;
 
-public class RingtonePreference extends ListPreference {
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.util.ArrayUtils;
 
-	private List<Ringtone> mRingtones;
+public class RingtonePreference extends AutoInvalidateListPreference {
+
+	private Ringtone[] mRingtones;
 	private String[] mEntries, mValues;
 
 	private int mSelectedItem;
@@ -47,7 +45,7 @@ public class RingtonePreference extends ListPreference {
 	}
 
 	public Ringtone getSelectedRingtone() {
-		return mRingtones.get(mSelectedItem);
+		return mRingtones[mSelectedItem];
 	}
 
 	public void setSelectedItem(final int selected) {
@@ -90,14 +88,19 @@ public class RingtonePreference extends ListPreference {
 		final Cursor cur = manager.getCursor();
 		cur.moveToFirst();
 		final int count = cur.getCount();
-		mRingtones = new ArrayList<Ringtone>(count);
-		mEntries = new String[count];
-		mValues = new String[count];
+		mRingtones = new Ringtone[count + 1];
+		mEntries = new String[count + 1];
+		mValues = new String[count + 1];
+		final Uri default_uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+		final Ringtone default_ringtone = RingtoneManager.getRingtone(context, default_uri);
+		mRingtones[0] = default_ringtone;
+		mEntries[0] = context.getString(R.string.default_ringtone);
+		mValues[0] = default_uri.toString();
 		for (int i = 0; i < count; i++) {
 			final Ringtone ringtone = manager.getRingtone(i);
-			mRingtones.add(ringtone);
-			mEntries[i] = ringtone.getTitle(context);
-			mValues[i] = manager.getRingtoneUri(i).toString();
+			mRingtones[i + 1] = ringtone;
+			mEntries[i + 1] = ringtone.getTitle(context);
+			mValues[i + 1] = manager.getRingtoneUri(i).toString();
 		}
 		setEntries(mEntries);
 		setEntryValues(mValues);

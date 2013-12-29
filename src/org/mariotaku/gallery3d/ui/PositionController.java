@@ -16,10 +16,10 @@
 
 package org.mariotaku.gallery3d.ui;
 
+import android.graphics.Rect;
+
 import org.mariotaku.gallery3d.ui.PhotoView.Size;
 import org.mariotaku.gallery3d.util.GalleryUtils;
-
-import android.graphics.Rect;
 
 class PositionController {
 
@@ -581,9 +581,7 @@ class PositionController {
 	// Note we go from center-out because each box's X coordinate
 	// is relative to its anchor box (except the focused box).
 	private void layoutAndSetPosition() {
-		for (int i = 0; i < 2 * 0 + 1; i++) {
-			convertBoxToRect();
-		}
+		convertBoxToRect();
 	}
 
 	// //////////////////////////////////////////////////////////////////////////

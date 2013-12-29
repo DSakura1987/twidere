@@ -19,15 +19,15 @@
 
 package org.mariotaku.twidere.adapter;
 
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.model.ListAction;
-
 import android.content.Context;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
+
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.model.ListAction;
 
 public class ListActionAdapter extends ArrayAdapter<ListAction> {
 
@@ -36,8 +36,7 @@ public class ListActionAdapter extends ArrayAdapter<ListAction> {
 	}
 
 	public ListAction findItem(final long id) {
-		final int count = getCount();
-		for (int i = 0; i < count; i++) {
+		for (int i = 0, count = getCount(); i < count; i++) {
 			if (id == getItemId(i)) return getItem(i);
 		}
 		return null;

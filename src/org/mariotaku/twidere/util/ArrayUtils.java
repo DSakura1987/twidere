@@ -28,6 +28,14 @@ public final class ArrayUtils {
 		throw new AssertionError("You are trying to create an instance for this utility class!");
 	}
 
+	public static boolean contains(final int[] array, final int value) {
+		if (array == null) return false;
+		for (final int item : array) {
+			if (item == value) return true;
+		}
+		return false;
+	}
+
 	public static boolean contains(final long[] array, final long value) {
 		if (array == null) return false;
 		for (final long item : array) {
@@ -36,7 +44,12 @@ public final class ArrayUtils {
 		return false;
 	}
 
-	public static boolean contains(final Object[] array, final Object... values) {
+	public static boolean contains(final Object[] array, final Object value) {
+		if (array == null || value == null) return false;
+		return contains(array, new Object[] { value });
+	}
+
+	public static boolean contains(final Object[] array, final Object[] values) {
 		if (array == null || values == null) return false;
 		for (final Object item : array) {
 			for (final Object value : values) {
@@ -66,25 +79,6 @@ public final class ArrayUtils {
 		final long[] array = new long[count];
 		for (int i = 0; i < count; i++) {
 			array[i] = list.get(i);
-		}
-		return array;
-	}
-
-	public static long[] fromString(final String string, final char token) {
-		if (string == null) return new long[0];
-		final String[] items_string_array = string.split(String.valueOf(token));
-		final ArrayList<Long> items_list = new ArrayList<Long>();
-		for (final String id_string : items_string_array) {
-			try {
-				items_list.add(Long.parseLong(id_string));
-			} catch (final NumberFormatException e) {
-				// Ignore.
-			}
-		}
-		final int list_size = items_list.size();
-		final long[] array = new long[list_size];
-		for (int i = 0; i < list_size; i++) {
-			array[i] = items_list.get(i);
 		}
 		return array;
 	}
@@ -119,6 +113,20 @@ public final class ArrayUtils {
 		return fromList(list1);
 	}
 
+	public static void mergeArray(final Object[] dest, final Object[]... arrays) {
+		if (arrays == null || arrays.length == 0) return;
+		if (arrays.length == 1) {
+			final Object[] array = arrays[0];
+			System.arraycopy(array, 0, dest, 0, array.length);
+			return;
+		}
+		for (int i = 0, j = arrays.length - 1; i < j; i++) {
+			final Object[] array1 = arrays[i], array2 = arrays[i + 1];
+			System.arraycopy(array1, 0, dest, 0, array1.length);
+			System.arraycopy(array2, 0, dest, array1.length, array2.length);
+		}
+	}
+
 	public static String mergeArrayToString(final String[] array) {
 		if (array == null) return null;
 		final StringBuilder builder = new StringBuilder();
@@ -126,6 +134,36 @@ public final class ArrayUtils {
 			builder.append(c);
 		}
 		return builder.toString();
+	}
+
+	public static long min(final long[] array) {
+		if (array == null || array.length == 0) throw new IllegalArgumentException();
+		long min = array[0];
+		for (int i = 1, j = array.length; i < j; i++) {
+			if (min > array[i]) {
+				min = array[i];
+			}
+		}
+		return min;
+	}
+
+	public static long[] parseLongArray(final String string, final char token) {
+		if (string == null) return new long[0];
+		final String[] items_string_array = string.split(String.valueOf(token));
+		final ArrayList<Long> items_list = new ArrayList<Long>();
+		for (final String id_string : items_string_array) {
+			try {
+				items_list.add(Long.parseLong(id_string));
+			} catch (final NumberFormatException e) {
+				// Ignore.
+			}
+		}
+		final int list_size = items_list.size();
+		final long[] array = new long[list_size];
+		for (int i = 0; i < list_size; i++) {
+			array[i] = items_list.get(i);
+		}
+		return array;
 	}
 
 	public static long[] subArray(final long[] array, final int start, final int end) {

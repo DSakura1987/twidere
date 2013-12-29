@@ -19,6 +19,25 @@
 
 package org.mariotaku.twidere.activity.iface;
 
+import android.content.res.Resources;
+
 public interface IThemedActivity {
 
+	public int getCurrentThemeResourceId();
+
+	public Resources getDefaultResources();
+
+	public int getThemeColor();
+
+	public Resources getThemedResources();
+
+	public String getThemeFontFamily();
+
+	public int getThemeResourceId();
+
+	public void navigateUpFromSameTask();
+
+	public void overrideCloseAnimationIfNeeded();
+
+	public boolean shouldOverrideActivityAnimation();
 }

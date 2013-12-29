@@ -19,49 +19,57 @@
 
 package org.mariotaku.twidere.adapter;
 
-import static org.mariotaku.twidere.util.Utils.configBaseAdapter;
+import static org.mariotaku.twidere.util.UserColorNicknameUtils.getUserColor;
+import static org.mariotaku.twidere.util.UserColorNicknameUtils.getUserNickname;
+import static org.mariotaku.twidere.util.Utils.configBaseCardAdapter;
 import static org.mariotaku.twidere.util.Utils.getAccountColor;
 import static org.mariotaku.twidere.util.Utils.getLocalizedNumber;
-import static org.mariotaku.twidere.util.Utils.getUserColor;
 import static org.mariotaku.twidere.util.Utils.getUserTypeIconRes;
-
-import java.util.List;
-import java.util.Locale;
-
-import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.adapter.iface.IBaseAdapter;
-import org.mariotaku.twidere.app.TwidereApplication;
-import org.mariotaku.twidere.model.ParcelableUser;
-import org.mariotaku.twidere.util.ImageLoaderWrapper;
-import org.mariotaku.twidere.util.MultiSelectManager;
-import org.mariotaku.twidere.view.holder.UserViewHolder;
 
 import android.content.Context;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 
-public class ParcelableUsersAdapter extends ArrayAdapter<ParcelableUser> implements IBaseAdapter {
+import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.adapter.iface.IBaseCardAdapter;
+import org.mariotaku.twidere.app.TwidereApplication;
+import org.mariotaku.twidere.model.ParcelableUser;
+import org.mariotaku.twidere.util.ImageLoaderWrapper;
+import org.mariotaku.twidere.util.MultiSelectManager;
+import org.mariotaku.twidere.util.Utils;
+import org.mariotaku.twidere.view.holder.UserViewHolder;
+import org.mariotaku.twidere.view.iface.ICardItemView.OnOverflowIconClickListener;
+
+import java.util.List;
+import java.util.Locale;
+
+public class ParcelableUsersAdapter extends BaseArrayAdapter<ParcelableUser> implements IBaseCardAdapter,
+		OnClickListener, OnOverflowIconClickListener {
 
 	private final ImageLoaderWrapper mProfileImageLoader;
 	private final MultiSelectManager mMultiSelectManager;
 	private final Context mContext;
 	private final Locale mLocale;
 
-	private boolean mDisplayProfileImage, mShowAccountColor, mMultiSelectEnabled;
+	private boolean mAnimationEnabled;
+	private int mMaxAnimationPosition;
 
-	private float mTextSize;
-
-	private int mNameDisplayOption;
+	private MenuButtonClickListener mListener;
 
 	public ParcelableUsersAdapter(final Context context) {
-		super(context, R.layout.user_list_item);
+		this(context, Utils.isCompactCards(context));
+	}
+
+	public ParcelableUsersAdapter(final Context context, final boolean compactCards) {
+		super(context, getItemResource(compactCards));
 		mContext = context;
 		mLocale = context.getResources().getConfiguration().locale;
-		final TwidereApplication application = TwidereApplication.getInstance(context);
-		mProfileImageLoader = application.getImageLoaderWrapper();
-		mMultiSelectManager = application.getMultiSelectManager();
-		configBaseAdapter(context, this);
+		final TwidereApplication app = TwidereApplication.getInstance(context);
+		mProfileImageLoader = app.getImageLoaderWrapper();
+		mMultiSelectManager = app.getMultiSelectManager();
+		configBaseCardAdapter(context, this);
 	}
 
 	@Override
@@ -78,47 +86,32 @@ public class ParcelableUsersAdapter extends ArrayAdapter<ParcelableUser> impleme
 			holder = (UserViewHolder) tag;
 		} else {
 			holder = new UserViewHolder(view);
+			holder.content.setOnOverflowIconClickListener(this);
 			view.setTag(holder);
 		}
+
+		// Clear images in prder to prevent images in recycled view shown.
+		holder.profile_image.setImageDrawable(null);
+
 		final ParcelableUser user = getItem(position);
 
-		if (mMultiSelectEnabled) {
-			holder.setSelected(mMultiSelectManager.isUserSelected(user.id));
-		} else {
-			holder.setSelected(false);
-		}
+		final boolean showAccountColor = isShowAccountColor();
 
-		holder.setAccountColorEnabled(mShowAccountColor);
+		holder.setAccountColorEnabled(showAccountColor);
 
-		if (mShowAccountColor) {
+		if (showAccountColor) {
 			holder.setAccountColor(getAccountColor(mContext, user.account_id));
 		}
 
 		holder.setUserColor(getUserColor(mContext, user.id));
 
-		holder.setTextSize(mTextSize);
+		holder.setTextSize(getTextSize());
 		holder.name.setCompoundDrawablesWithIntrinsicBounds(0, 0,
 				getUserTypeIconRes(user.is_verified, user.is_protected), 0);
-		switch (mNameDisplayOption) {
-			case NAME_DISPLAY_OPTION_CODE_NAME: {
-				holder.name.setText(user.name);
-				holder.screen_name.setText(null);
-				holder.screen_name.setVisibility(View.GONE);
-				break;
-			}
-			case NAME_DISPLAY_OPTION_CODE_SCREEN_NAME: {
-				holder.name.setText("@" + user.screen_name);
-				holder.screen_name.setText(null);
-				holder.screen_name.setVisibility(View.GONE);
-				break;
-			}
-			default: {
-				holder.name.setText(user.name);
-				holder.screen_name.setText("@" + user.screen_name);
-				holder.screen_name.setVisibility(View.VISIBLE);
-				break;
-			}
-		}
+		final String nick = getUserNickname(mContext, user.id);
+		holder.name.setText(TextUtils.isEmpty(nick) ? user.name : isNicknameOnly() ? nick : mContext.getString(
+				R.string.name_with_nickname, user.name, nick));
+		holder.screen_name.setText("@" + user.screen_name);
 		holder.description.setVisibility(TextUtils.isEmpty(user.description_unescaped) ? View.GONE : View.VISIBLE);
 		holder.description.setText(user.description_unescaped);
 		holder.location.setVisibility(TextUtils.isEmpty(user.location) ? View.GONE : View.VISIBLE);
@@ -128,11 +121,50 @@ public class ParcelableUsersAdapter extends ArrayAdapter<ParcelableUser> impleme
 		holder.statuses_count.setText(getLocalizedNumber(mLocale, user.statuses_count));
 		holder.followers_count.setText(getLocalizedNumber(mLocale, user.followers_count));
 		holder.friends_count.setText(getLocalizedNumber(mLocale, user.friends_count));
-		holder.profile_image.setVisibility(mDisplayProfileImage ? View.VISIBLE : View.GONE);
-		if (mDisplayProfileImage) {
+		holder.profile_image.setVisibility(isDisplayProfileImage() ? View.VISIBLE : View.GONE);
+		if (isDisplayProfileImage()) {
 			mProfileImageLoader.displayProfileImage(holder.profile_image, user.profile_image_url);
 		}
+		holder.position = position;
+		if (position > mMaxAnimationPosition) {
+			if (mAnimationEnabled) {
+				view.startAnimation(holder.item_animation);
+			}
+			mMaxAnimationPosition = position;
+		}
 		return view;
+	}
+
+	@Override
+	public void onClick(final View view) {
+		if (mMultiSelectManager.isActive()) return;
+		final Object tag = view.getTag();
+		final int position = tag instanceof Integer ? (Integer) tag : -1;
+		if (position == -1) return;
+		switch (view.getId()) {
+			case R.id.item_menu: {
+				if (position == -1 || mListener == null) return;
+				mListener.onMenuButtonClick(view, position, getItemId(position));
+				break;
+			}
+		}
+	}
+
+	@Override
+	public void onOverflowIconClick(final View view) {
+		final Object tag = view.getTag();
+		if (tag instanceof UserViewHolder) {
+			final UserViewHolder holder = (UserViewHolder) tag;
+			final int position = holder.position;
+			if (position == -1 || mListener == null) return;
+			mListener.onMenuButtonClick(view, position, getItemId(position));
+		}
+	}
+
+	@Override
+	public void setAnimationEnabled(final boolean anim) {
+		if (mAnimationEnabled == anim) return;
+		mAnimationEnabled = anim;
 	}
 
 	public void setData(final List<ParcelableUser> data) {
@@ -152,44 +184,17 @@ public class ParcelableUsersAdapter extends ArrayAdapter<ParcelableUser> impleme
 	}
 
 	@Override
-	public void setDisplayProfileImage(final boolean display) {
-		if (display != mDisplayProfileImage) {
-			mDisplayProfileImage = display;
-			notifyDataSetChanged();
-		}
+	public void setMaxAnimationPosition(final int position) {
+		mMaxAnimationPosition = position;
 	}
 
 	@Override
-	public void setMultiSelectEnabled(final boolean multi) {
-		if (mMultiSelectEnabled != multi) {
-			mMultiSelectEnabled = multi;
-			notifyDataSetChanged();
-		}
+	public void setMenuButtonClickListener(final MenuButtonClickListener listener) {
+		mListener = listener;
 	}
 
-	@Override
-	public void setNameDisplayOption(final String option) {
-		if (NAME_DISPLAY_OPTION_NAME.equals(option)) {
-			mNameDisplayOption = NAME_DISPLAY_OPTION_CODE_NAME;
-		} else if (NAME_DISPLAY_OPTION_SCREEN_NAME.equals(option)) {
-			mNameDisplayOption = NAME_DISPLAY_OPTION_CODE_SCREEN_NAME;
-		} else {
-			mNameDisplayOption = 0;
-		}
+	private static int getItemResource(final boolean compactCards) {
+		return compactCards ? R.layout.card_item_user_compact : R.layout.card_item_user;
 	}
 
-	public void setShowAccountColor(final boolean show) {
-		if (show != mShowAccountColor) {
-			mShowAccountColor = show;
-			notifyDataSetChanged();
-		}
-	}
-
-	@Override
-	public void setTextSize(final float text_size) {
-		if (text_size != mTextSize) {
-			mTextSize = text_size;
-			notifyDataSetChanged();
-		}
-	}
 }

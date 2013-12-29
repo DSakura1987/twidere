@@ -19,53 +19,33 @@
 
 package org.mariotaku.twidere.fragment;
 
-import static org.mariotaku.twidere.util.Utils.scrollListToTop;
-
-import org.mariotaku.actionbarcompat.ActionBarFragmentActivity;
-import org.mariotaku.twidere.Constants;
-import org.mariotaku.twidere.activity.BaseActivity;
-import org.mariotaku.twidere.app.TwidereApplication;
-import org.mariotaku.twidere.util.AsyncTwitterWrapper;
-import org.mariotaku.twidere.util.InvalidateProgressBarRunnable;
-import org.mariotaku.twidere.util.MultiSelectManager;
-
 import android.app.Activity;
+import android.app.ListFragment;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
-import android.content.Context;
-import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.ListFragment;
-import android.support.v4.app.ListFragmentTrojan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AbsListView;
+import android.widget.AbsListView.OnScrollListener;
+import android.widget.ListView;
 
-public class BaseListFragment extends ListFragment implements Constants {
+import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.app.TwidereApplication;
+import org.mariotaku.twidere.fragment.iface.RefreshScrollTopInterface;
+import org.mariotaku.twidere.util.AsyncTwitterWrapper;
+import org.mariotaku.twidere.util.MultiSelectManager;
+import org.mariotaku.twidere.util.Utils;
+
+public class BaseListFragment extends ListFragment implements Constants, OnScrollListener, RefreshScrollTopInterface {
 
 	private boolean mActivityFirstCreated;
 	private boolean mIsInstanceStateSaved;
 
-	private final BroadcastReceiver mStateReceiver = new BroadcastReceiver() {
-
-		@Override
-		public void onReceive(final Context context, final Intent intent) {
-			if (getActivity() == null || !isAdded() || isDetached()) return;
-			final String action = intent.getAction();
-			if ((BaseListFragment.this.getClass().getName() + SHUFFIX_SCROLL_TO_TOP).equals(action)) {
-				scrollListToTop(getListView());
-			}
-		}
-	};
-
-	public final ActionBarFragmentActivity getActionBarActivity() {
-		final Activity activity = getActivity();
-		if (activity instanceof ActionBarFragmentActivity) return (ActionBarFragmentActivity) activity;
-		return null;
-	}
+	private boolean mReachedBottom, mNotReachedBottomBefore = true;
 
 	public final TwidereApplication getApplication() {
 		return TwidereApplication.getInstance(getActivity());
@@ -95,7 +75,7 @@ public class BaseListFragment extends ListFragment implements Constants {
 
 	public final int getTabPosition() {
 		final Bundle args = getArguments();
-		return args != null ? args.getInt(INTENT_KEY_TAB_POSITION, -1) : -1;
+		return args != null ? args.getInt(EXTRA_TAB_POSITION, -1) : -1;
 	}
 
 	public AsyncTwitterWrapper getTwitterWrapper() {
@@ -103,13 +83,9 @@ public class BaseListFragment extends ListFragment implements Constants {
 	}
 
 	public void invalidateOptionsMenu() {
-		final FragmentActivity activity = getActivity();
+		final Activity activity = getActivity();
 		if (activity == null) return;
-		if (activity instanceof BaseActivity) {
-			((BaseActivity) activity).invalidateSupportOptionsMenu();
-		} else {
-			activity.supportInvalidateOptionsMenu();
-		}
+		activity.invalidateOptionsMenu();
 	}
 
 	public boolean isActivityFirstCreated() {
@@ -120,10 +96,21 @@ public class BaseListFragment extends ListFragment implements Constants {
 		return mIsInstanceStateSaved;
 	}
 
+	public boolean isReachedBottom() {
+		return mReachedBottom;
+	}
+
 	@Override
 	public void onActivityCreated(final Bundle savedInstanceState) {
 		super.onActivityCreated(savedInstanceState);
 		mIsInstanceStateSaved = savedInstanceState != null;
+		final ListView lv = getListView();
+		lv.setOnScrollListener(this);
+	}
+
+	@Override
+	public void onAttach(final Activity activity) {
+		super.onAttach(activity);
 	}
 
 	@Override
@@ -134,12 +121,7 @@ public class BaseListFragment extends ListFragment implements Constants {
 
 	@Override
 	public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-		final View view = super.onCreateView(inflater, container, savedInstanceState);
-		final ViewGroup progress_container = (ViewGroup) view
-				.findViewById(ListFragmentTrojan.INTERNAL_PROGRESS_CONTAINER_ID);
-		final View progress = progress_container.getChildAt(0);
-		progress.post(new InvalidateProgressBarRunnable(progress));
-		return view;
+		return super.onCreateView(inflater, container, savedInstanceState);
 	}
 
 	@Override
@@ -152,17 +134,38 @@ public class BaseListFragment extends ListFragment implements Constants {
 	}
 
 	@Override
+	public void onScroll(final AbsListView view, final int firstVisibleItem, final int visibleItemCount,
+			final int totalItemCount) {
+		final boolean reached = firstVisibleItem + visibleItemCount >= totalItemCount
+				&& totalItemCount >= visibleItemCount;
+
+		if (mReachedBottom != reached) {
+			mReachedBottom = reached;
+			if (mReachedBottom && mNotReachedBottomBefore) {
+				mNotReachedBottomBefore = false;
+				return;
+			}
+			if (mReachedBottom && getListAdapter().getCount() > visibleItemCount) {
+				onReachedBottom();
+			}
+		}
+
+	}
+
+	@Override
+	public void onScrollStateChanged(final AbsListView view, final int scrollState) {
+
+	}
+
+	@Override
 	public void onStart() {
 		super.onStart();
-		final IntentFilter filter = new IntentFilter(getClass().getName() + SHUFFIX_SCROLL_TO_TOP);
-		registerReceiver(mStateReceiver, filter);
 		onPostStart();
 	}
 
 	@Override
 	public void onStop() {
 		mActivityFirstCreated = false;
-		unregisterReceiver(mStateReceiver);
 		super.onStop();
 	}
 
@@ -172,16 +175,35 @@ public class BaseListFragment extends ListFragment implements Constants {
 		activity.registerReceiver(receiver, filter);
 	}
 
+	@Override
+	public boolean scrollToStart() {
+		Utils.scrollListToTop(getListView());
+		return true;
+	}
+
 	public void setProgressBarIndeterminateVisibility(final boolean visible) {
 		final Activity activity = getActivity();
-		if (activity instanceof ActionBarFragmentActivity) {
-			((ActionBarFragmentActivity) activity).setSupportProgressBarIndeterminateVisibility(visible);
-		}
+		if (activity == null) return;
+		activity.setProgressBarIndeterminateVisibility(visible);
+	}
+
+	@Override
+	public void setSelection(final int position) {
+		Utils.scrollListToPosition(getListView(), position);
+	}
+
+	@Override
+	public boolean triggerRefresh() {
+		return false;
 	}
 
 	public void unregisterReceiver(final BroadcastReceiver receiver) {
 		final Activity activity = getActivity();
 		if (activity == null) return;
 		activity.unregisterReceiver(receiver);
+	}
+
+	protected void onReachedBottom() {
+
 	}
 }

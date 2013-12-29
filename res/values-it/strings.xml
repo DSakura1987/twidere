@@ -11,7 +11,6 @@
   <string name="remove_location">Rimuovi posizione</string>
   <string name="remove_image">Rimuovi immagine</string>
   <string name="remove_photo">Rimuovi foto</string>
-  <string name="tweet_hint">Che cosa sta succedendo?</string>
   <string name="sign_up">Registrati</string>
   <string name="sign_in">Accedi</string>
   <string name="rest_base_url">REST Base URL</string>
@@ -26,17 +25,14 @@
   <string name="advanced">Avanzate</string>
   <string name="save">Salva</string>
   <string name="edit">Edita</string>
-  <string name="login_to_twitter">Accedi a Twitter</string>
   <string name="edit_api">Edit API</string>
   <string name="home">Home</string>
   <string name="mentions">Menzioni</string>
   <string name="error_occurred">Si è verificato un errore, riprova.</string>
   <string name="error_already_logged_in">Hai già effettuato il login.</string>
-  <string name="no_account_selected">È necessario selezionare almeno un account.</string>
   <string name="error_unknown_error">Errore: Errore sconosciuto, questo è probabilmente un bug.</string>
   <string name="error_message">Errore: <xliff:g id="message">%s</xliff:g></string>
   <string name="error_message_with_action">Errore durante <xliff:g id="action">%1$s</xliff:g>: <xliff:g id="message">%2$s</xliff:g></string>
-  <string name="error_message_rate_limit">Superato limite di Twitter durante <xliff:g id="action">%1$s</xliff:g>, riprova tra <xliff:g id="time">%2$s</xliff:g></string>
   <string name="select_account">Seleziona account</string>
   <string name="username">Username</string>
   <string name="password">Password</string>
@@ -58,13 +54,8 @@
   <string name="view_user_profile">Profilo utente</string>
   <string name="browser">Browser</string>
   <string name="pick_from_gallery">Scegli da galleria</string>
-  <string name="tweets">Tweets</string>
   <string name="followers">Followers</string>
-  <string name="friends">Amici</string>
   <string name="about">Informazioni</string>
-  <string name="about_summary">A proposito di Twidere</string>
-  <string name="license">Licenza open source</string>
-  <string name="license_summary">Twidere è concesso sotto licenza GPLv3.</string>
   <string name="api">API</string>
   <string name="consumer_key">Consumer Key</string>
   <string name="consumer_secret">Consumer secret</string>
@@ -80,12 +71,9 @@
   <string name="clear_databases">Cancella i database</string>
   <string name="clear_databases_summary">Cancella tutti i tweet, profili, messaggi. Le credenziali degli account non saranno perse.</string>
   <string name="look_and_feel">Aspetto e funzionamento</string>
-  <string name="dark_theme">Utilizza il tema scuro</string>
-  <string name="dark_theme_summary">Usa il tema scuro per Twidere.</string>
   <string name="display_profile_image">Mostra immagine profilo</string>
   <string name="image_load_summary">Disabilitando aumenterà la velocità di scroll e diminuirà il traffico dati.</string>
   <string name="in_reply_to">Risposta a <xliff:g id="username">%s</xliff:g></string>
-  <string name="in_reply_to_pull_to_load_conversation">Risposta a <xliff:g id="username">%s</xliff:g>, tirare per caricare la conversazione</string>
   <string name="retweeted_by">Retwittato da <xliff:g id="user_name">%s</xliff:g></string>
   <string name="retweeted_by_with_count">Retwittato da <xliff:g id="user_name">%1$s</xliff:g> e da altri<xliff:g id="retweet_count">%2$d</xliff:g></string>
   <string name="retweeted_by_count">Retwettato da <xliff:g id="retweet_count">%d</xliff:g> persone</string>
@@ -94,7 +82,6 @@
   <string name="quote_user">﻿Citazione di <xliff:g id="user_name">%s</xliff:g></string>
   <string name="time_source"><xliff:g id="time">%1$s</xliff:g>, via <xliff:g id="source">%2$s</xliff:g></string>
   <string name="source">via <xliff:g id="source">%s</xliff:g></string>
-  <string name="filter">Filtro</string>
   <string name="users">Utenti</string>
   <string name="keywords">Keywords</string>
   <string name="sources">Fonti</string>
@@ -116,12 +103,10 @@
   <string name="load_more_automatically_summary">Carica più contenuti (ad esempio foto, mappe, status ecc) automaticamente</string>
   <string name="quote">Cita</string>
   <string name="add_rule">Aggiungi regola</string>
-  <string name="longclick_to_delete">Tieni premuto per cancellare.</string>
   <string name="text_size">Dimensione del testo</string>
   <string name="text_size_summary">Dimensione del testo degli status.</string>
   <string name="cannot_get_location">Non è possibile ottenere la tua posizione.</string>
   <string name="drafts">Bozze</string>
-  <string name="delete_all">Cancella tutto</string>
   <string name="description">Descrizione</string>
   <string name="location">Località</string>
   <string name="url">URL</string>
@@ -132,11 +117,9 @@
   <string name="more">Altro</string>
   <string name="quote_format">Formato citazione</string>
   <string name="quote_format_summary">\"[TEXT]\" = Testo del tweet\n\"[NAME]\" = Twitter username</string>
-  <string name="direct_messages">Messaggi diretti</string>
   <string name="blocked_users">Utenti bloccati</string>
   <string name="set_as_default">Imposta come predefinito</string>
   <string name="search_users">Ricerca utenti</string>
-  <string name="search_tweets">Ricerca tweets</string>
   <string name="created_at">Creato alle</string>
   <string name="search_hint">Cerca tweets o utenti</string>
   <string name="remember_position">Ricorda posizione</string>
@@ -165,35 +148,21 @@
   <string name="inbox">Inbox</string>
   <string name="load_images">Carica immagini</string>
   <string name="other_settings">Altre impostazioni</string>
-  <string name="refresh_and_notifications">Aggiorna &amp; notifiche</string>
   <string name="auto_refresh">Auto refresh</string>
   <string name="refresh_interval">Intervallo di aggiornamento</string>
-  <string name="refresh_interval_summary">Un intervallo di aggiornamento breve consuma più batteria e traffico dati!</string>
   <string name="content_to_refresh">Contenuti da aggiornare</string>
-  <string name="content_to_nofity">Contenuti da notificare</string>
   <string name="notifications_type">Tipo di notifiche</string>
-  <string name="notifications_type_summary">Questa scelta NON sovrascrive le impostazioni di sistema.</string>
   <string name="sound">Suono</string>
   <string name="vibration">Vibrazione</string>
-  <string name="lights">Illumina Led</string>
   <string name="notifications">Notifiche</string>
-  <string name="new_notifications">Nuove notifiche</string>
-  <string name="screen_name">Screen name</string>
-  <string name="sort_timeline_by_time">Timeline in ordine cronologico</string>
-  <string name="sort_timeline_by_time_summary">Può causare un errato posizionamento dei retweet, ma può essere utile nel caso si usino altri servizi come Identi.ca.</string>
   <string name="refresh_on_start">Aggiorna all\'avvio</string>
   <string name="refresh_on_start_summary">Aggiorna timeline e menzioni all\'avvio.</string>
-  <string name="refresh_after_tweet">Aggiorna dopo l\'invio del tweet</string>
-  <string name="refresh_after_tweet_summary">Aggiorna la timeline e le menzioni dopo l\'invio del tweet.</string>
   <string name="list_timeline">Elenco timeline</string>
   <string name="list_members">Elenco iscritti</string>
   <string name="list_subscribers">Elenco abbonati</string>
   <string name="type_to_compose">Digita per comporre</string>
   <string name="users_lists">Liste utente</string>
   <string name="lists_following_user">Questo utente sta seguendo</string>
-  <string name="Ntweets_quantity_one">Hai un nuovo tweet.</string>
-  <string name="Ntweets_quantity_other">Hai <xliff:g id="items">%d</xliff:g> nuovi tweets.</string>
-  <string name="item_1_minute">1 minuto</string>
   <string name="item_3_minutes">3 minuti</string>
   <string name="item_5_minutes">5 minuti</string>
   <string name="item_10_minutes">10 minuti</string>
@@ -202,11 +171,7 @@
   <string name="item_1_hour">1 ora</string>
   <string name="item_2_hours">2 ore</string>
   <string name="item_4_hours">4 ore</string>
-  <string name="image_preview_display_option">Opzione di visualizzazione anteprima immagine</string>
-  <string name="solid_color_background">Sfondo a tinta unita</string>
-  <string name="solid_color_background_summary">Questo può essere utile se lo schermo del dispositivo è AMOLED.</string>
   <string name="following_you">Chi ti segue</string>
-  <string name="user_list">Liste utente</string>
   <string name="trends_location">Località per i Trends</string>
   <string name="trends_location_summary">Scegli la località per i trends.</string>
   <string name="trends">Trends</string>
@@ -216,20 +181,12 @@
   <string name="signing_in_please_wait">Accesso in corso, attendere o premere INDIETRO per chiudere.</string>
   <string name="connectivity">Connettività</string>
   <string name="add_member">Aggiungi iscritto</string>
-  <string name="new_user_list">Nuova lista utente</string>
   <string name="is_public">Pubblico</string>
   <string name="send_direct_message">Invia DM</string>
   <string name="extensions">Estensioni</string>
-  <string name="open_with_extensions">Apri usando l\'estensione</string>
-  <string name="view_user_list">Vedi lista utente</string>
   <string name="uninstall">Disinstalla</string>
   <string name="saved_searches">Ricerche salvate</string>
-  <string name="custom_tabs">Tabs personalizzate</string>
-  <string name="default_tabs">Schede predefinite</string>
   <string name="add_tab">Aggiungi tab</string>
-  <string name="tab_type">Tipo di tab</string>
-  <string name="unused">Inutilizzato</string>
-  <string name="list_name">Nome della lista</string>
   <string name="edit_tab">Modifica tab</string>
   <string name="move_up">Sposta su</string>
   <string name="move_down">Sposta giù</string>
@@ -254,27 +211,22 @@
   <string name="tweet_shortener">Abbreviatore di Tweet</string>
   <string name="tweet_shortener_default">Nessuno (annulla invio)</string>
   <string name="error_message_status_too_long">Tweet troppo lungo.</string>
+  <string name="error_message_no_content">Nessun contenuto</string>
   <string name="error_message_tweet_shorten_failed">Abbreviazione del tweet non riuscita.</string>
   <string name="error_message_tweet_shortener_not_found">Tweet shortener non trovato, forse è stato disinstallato.</string>
   <string name="multimedia_contents">Contenuti multimediali</string>
   <string name="show_absolute_time">Visualizza il tempo assoluto</string>
   <string name="show_absolute_time_summary">Visualizza il tempo assoluto nei tweets</string>
-  <string name="mute_source">Muta sorgente</string>
-  <string name="source_muted">Aggiunto \"<xliff:g id="source">%s</xliff:g>\" all\'elenco dei filtri. Non vedrete i tweets da questa fonte nella timeline o tra le menzioni.</string>
   <string name="user_mentions">Menzioni utente</string>
   <string name="dual_pane_layout">Layout a doppio riquadro</string>
   <string name="landscape">Landscape</string>
   <string name="portrait">Portrait</string>
   <string name="quick_send">Premi \"Invio\" per inviare</string>
   <string name="quick_send_summary">Inviare tweet alla pressione di \"Invio\".</string>
-  <string name="unsaved_tweet">Tweet non ancora salvato o inviato.</string>
   <string name="discard">Scarta</string>
-  <string name="multi_select">Selezione multipla</string>
   <string name="Nitems_selected_quantity_one">Un elemento selezionato</string>
   <string name="Nitems_selected_quantity_other"><xliff:g id="items">%d</xliff:g> elementi selezionati</string>
   <string name="view">Visualizza</string>
-  <string name="hardware_acceleration">Accelerazione hardware</string>
-  <string name="hardware_acceleration_summary">Alcuni dispositivi saranno più fluidi dopo l\'abilitazione, ALTRI NO. Solo per Android 3.0+. NON SOVRASCRIVE LE IMPOSTAZIONI DI SISTEMA!</string>
   <string name="custom_host_mapping">Mappatura host personalizzata</string>
   <string name="custom_host_mapping_summary">Mappa gli host come in /etc/hosts, ma non richiede permessi aggiuntivi.</string>
   <string name="host">Host</string>
@@ -302,57 +254,18 @@
   <string name="activity_by_friends_list_member_added"><xliff:g id="user">%1$s</xliff:g> ha aggiunto <xliff:g id="target">%2$s</xliff:g> ad una lista.</string>
   <string name="activity_by_friends_list_created"><xliff:g id="user">%1$s</xliff:g> ha creato la lista <xliff:g id="target">%2$s</xliff:g>.</string>
   <string name="activity_by_friends_list_created_multi"><xliff:g id="user">%1$s</xliff:g> ha creato la lista  <xliff:g id="target">%2$s</xliff:g> e altre  <xliff:g id="count">%3$d</xliff:g>.</string>
-  <string name="cannot_get_callback_url">Impossibile ottenere callback, per favore controlla la correttezza di user name e password.</string>
-  <string name="tweet_not_sent">Tweet non inviato.</string>
-  <string name="tweet_not_sent_summary">Tweet non inviato, salvato in bozze.</string>
   <string name="incoming_friendships">Richieste di seguirti in attesa</string>
-  <string name="click_to_open_menu">Premere per aprire il menu</string>
-  <string name="click_to_open_menu_summary">Premere per aprire il menu, tenere premuto per selezione multipla.</string>
   <string name="send_follow_request">Invia richiesta di follow</string>
   <string name="follow_request_sent">Richiesta di follow inviata</string>
   <string name="separate_retweet_action">Azione di retweet separata</string>
   <string name="separate_retweet_action_summary">Mostra sia le azioni retweet che quota nel menu del tweet</string>
-  <string name="tweet">Tweet</string>
   <string name="preview">Anteprima</string>
-  <string name="api_upgrade_notice_title">MOLTO IMPORTANTE!</string>
-  <string name="api_upgrade_notice_message">  Twitter ha annunciato la nuova versione (1.1) delle sue API.\n\n Da questa versione, Twidere usa le API in versione 1.1.\n\n è FORTEMENTE RACCOMANDATO ri-loggare, o si avranno parecchi problemi nell\'uso quotidiano.\n\n Cosa è cambiato nelle API versione 1.1?\n *Limiti più ristretti, per esempio, si può aggiornare la timeline solo 15 volte ogni 15 minuti.\n *Non è piu possibile vedere chi ti ha retwittato, ne è possibile vedere i tuoi rewteet.\n *Se usi Twidere come client StatusNet, molte funzioni verranno perse a causa dei cambiamenti delle API.\n\n Spiacente per l\'inconveniente, ma purtroppo Twitter vuole uccidere tutti i client di terze parti, e non posso farci nulla.</string>
   <string name="connection_timeout">Timeout connessione</string>
-  <string name="name_display_option">Impostazioni nome visualizzato</string>
   <string name="both">Entrambi/e</string>
   <string name="browser_sign_in">Accesso via browser</string>
-  <string name="stop_auto_refresh_when_battery_low">Interrompi auto-aggiornamento quando la batteria è scarica</string>
   <string name="notification_mention">Sei stato menzionato da <xliff:g id="user">%s</xliff:g>.</string>
   <string name="notification_direct_message"><xliff:g id="user">%s</xliff:g> ti ha inviato un messaggio diretto.</string>
-  <string name="notification_mention_multiple">Sei stato menzionato da <xliff:g id="user">%s</xliff:g> e da altri <xliff:g id="count">%d</xliff:g>.</string>
-  <string name="notification_direct_message_multiple"><xliff:g id="user">%s</xliff:g> e altri <xliff:g id="count">%d</xliff:g> ti hanno inviato messaggi diretti.</string>
-  <string name="getting_status">recupero tweet</string>
-  <string name="getting_statuses">recupero dei tweets</string>
-  <string name="sending_status">invio tweet in corso</string>
-  <string name="sending_direct_message">invio messaggio diretto in corso</string>
-  <string name="refreshing_timelines">aggiornamento timeline</string>
-  <string name="refreshing_home_timeline">Aggiornamento della timeline</string>
-  <string name="refreshing_mentions">Aggiornamento menzioni</string>
-  <string name="refreshing_direct_messages">aggiornamento messaggi diretti</string>
-  <string name="favoriting">inserimento tra i preferiti</string>
-  <string name="unfavoriting">rimozione dai preferiti</string>
-  <string name="deleting">cancellazione</string>
-  <string name="updating_profile">aggiornamento profilo</string>
-  <string name="updating_profile_image">Aggiornamento immagine del profilo</string>
-  <string name="updating_profile_banner_image">Aggiornamento dell\'immagine intestazione del profilo</string>
-  <string name="removing_profile_banner_image">Rimozione immagine dell\'intestazione profilo</string>
-  <string name="updating_details">aggiornamento dettagli</string>
-  <string name="blocking">blocco</string>
-  <string name="unblocking">sblocco</string>
-  <string name="following">Stai seguendo</string>
-  <string name="unfollowing">Smetti di seguire</string>
   <string name="status_is_duplicate">Tweet doppio.</string>
-  <string name="creating_list">creazione lista</string>
-  <string name="adding_member">aggiunta membro</string>
-  <string name="signing_in">accesso</string>
-  <string name="retweeting">retweet in corso</string>
-  <string name="reporting_for_spam">Segnala per spam</string>
-  <string name="subscribing_to_list">sottoscrizione alla lista</string>
-  <string name="unsubscribing_from_list">Cancellazione dalla lista</string>
   <string name="data_profiling_summary">Twidere ha preso parte a una ricerca iniziata dagli studenti in UC Davis sulla predizione dei comportamenti sociali dell\'utente, per pre-caricare i contenuti.\n\nDi seguito elenchiamo i dati che vorremmo raccogliere e perchè:\nDati raccolti:\n1. ID twitter dell\'utente\n2. Timeline utente (predizione basata sugli interessi dell\'utente e sulle interazioni sociali)\n3. L\'utente preme su un tweet (predizione basata sugli interessi dell\'utente e sulle interazioni sociali)4. Localizzazione generica (serve a prevedere quando l\'utente accederà a twitter)\n\nTwidere eseguirà l\'upload dei dati solo quando il dispositivo è connesso con WiFi e all\'alimentazione, di modo da non comportare consumi di banda e di batteria.</string>
   <string name="data_profiling">Statistiche di utilizzo</string>
   <string name="enable_data_profiling">Abilita reporting</string>
@@ -363,10 +276,7 @@
   <string name="silent_notifications_summary">Disattiva suoneria/vibrazione per le notifiche</string>
   <string name="disable_background_service">Disabilita servizio in backround</string>
   <string name="disable_background_service_summary">Twidere non ha servizi in background, non si aggiornerà quindi se disabili l\'auto-refresh e la raccolta dati, non essere sciocco!</string>
-  <string name="pull_to_load_conversation_label">Tira per caricare la conversazione…</string>
-  <string name="pull_to_load_conversation_release_label">Rilascia per caricare la conversazione…</string>
   <string name="text_copied">Testo copiato negli appunti.</string>
-  <string name="load_from_here">Carica da qui</string>
   <string name="amount_usd">Ammontare (USD)</string>
   <string name="donate">Donazioni</string>
   <string name="hashtag">Hashtag</string>
@@ -377,7 +287,6 @@
   <string name="sensitive_content_warning">Questo tweet può contenere materiale sensibile, continuare?</string>
   <string name="mark_as_sensitive">Indica come sensibile</string>
   <string name="remove_sensitive_mark">Rimuovi indicatore sensibilità</string>
-  <string name="loading">Caricamento…</string>
   <string name="none">Nessuno</string>
   <string name="large">Grande</string>
   <string name="small">Piccolo</string>
@@ -396,9 +305,6 @@
   <string name="no_thanks">No, grazie</string>
   <string name="revoke_permissions">Revoca permessi</string>
   <string name="fast_scroll_thumb">Scroll veloce</string>
-  <string name="link_highlighting">Evidenziazione dei link</string>
-  <string name="fast_timeline_processing">Elaborazione veloce della timeline</string>
-  <string name="fast_timeline_processing_summary">Ignora TUTTI i dettagli nella timeline, abilitalo per ottenere prestazioni migliori.</string>
   <string name="indicate_my_status">Indica i miei tweet</string>
   <string name="default_ringtone">Suoneria predefinita</string>
   <string name="phishing_link_warning">Avviso di rischio phishing</string>
@@ -409,22 +315,18 @@
   <string name="profile_images">Immagini del profilo</string>
   <string name="preview_images">Anteprima immagini</string>
   <string name="preload_wifi_only">Precarica solo se in Wi-Fi</string>
-  <string name="re_sign_in_needed">Dovresti poter riloggare i tuoi account.</string>
   <string name="disable_tab_swipe">Disabilita swipe delle tab</string>
   <string name="sign_in_method_introduction_title">Come funziona?</string>
   <string name="sign_in_method_introduction">Molti clients come twicca aprono una finestra che richiede nome utente e password, per poi riportarti al client. Alcune volte questo può causare inconvenienti.\nTwidere usa dei passaggi semplificati per accedere, senza necessità di aprire il browser. Non preoccuparti per la password, Twidere non la salva, è sicuro al massimo!</string>
-  <string name="quote_protected_tweet_notice">Non è raccomandato quotare un tweet protetto.</string>
   <string name="edit_draft">Modifica bozza</string>
   <string name="profile_image">Immagine del profilo</string>
   <string name="my_profile_image">La mia immagine del profilo</string>
   <string name="mention_user">Menziona <xliff:g id="user">%s</xliff:g></string>
   <string name="theme_color">Colore del tema</string>
-  <string name="link_underline_only">Sottolinea soltanto i links</string>
   <string name="wrong_url_format">Formato URL sbagliato.</string>
   <string name="wrong_username_password">Username/password sbagliati.</string>
   <string name="network_error">Errore di rete.</string>
   <string name="ssl_error">Errore SSL, dovresti poter abilitare l\'opzione \"Ignora errori SSL\".</string>
-  <string name="wrong_api_key">API url o consumer key/secret sbagliate, ricontrollarle.</string>
   <string name="status_updated">Tweet inviato.</string>
   <string name="status_deleted">Tweet eliminato.</string>
   <string name="status_favorited">Tweet inserito tra i preferito.</string>
@@ -434,7 +336,6 @@
   <string name="direct_message_sent">Messaggio diretto inviato.</string>
   <string name="direct_message_deleted">Messaggio diretto cancellato.</string>
   <string name="import_from">Importa da…</string>
-  <string name="link_to_quoted_tweet">Link al tweet citato</string>
   <string name="followed_user">Seguito <xliff:g id="user">%s</xliff:g>.</string>
   <string name="unfollowed_user">Non seguito <xliff:g id="user">%s</xliff:g>.</string>
   <string name="blocked_user">Bloccato <xliff:g id="user">%s</xliff:g>.</string>
@@ -453,11 +354,13 @@
   <string name="background_toast_notification_summary">Mostra le notifiche Toast quando si passa in background</string>
   <string name="original_status">Tweet originale</string>
   <string name="ask">Chiedi</string>
-  <string name="no_close_after_tweet_sent">Mantieni \"Componi\" aperto dopo aver inviato il tweet</string>
-  <string name="no_close_after_tweet_sent_summary">Un piccolo regalo per i chiacchieroni</string>
-  <string name="tweet_saved_to_draft">Tweet salvato in bozze.</string>
-  <string name="default_account">Predefinito</string>
   <string name="daily_statuses_count"><xliff:g id="created_at">%1$s</xliff:g> (<xliff:g id="daily_tweet">%2$d</xliff:g>tweet al giorno)</string>
+  <string name="empty_content">Contenuto vuoto</string>
   <string name="fast_image_loading">Caricamento veloce immagini</string>
   <string name="fast_image_loading_summary">Seleziona per far caricare più velocemente le immagini, disattivalo se alcune immagini non sono mostrate correttamente.</string>
+  <string name="select_user_list">Seleziona lista utenti</string>
+  <string name="created_by">Creato da <xliff:g id="created_by">%s</xliff:g></string>
+  <string name="add_to_list">Aggiungi alla lista</string>
+  <string name="account_delete_confirm_title">Elimina account</string>
+  <string name="account_delete_confirm_message">Questo account verrà eliminato da Twidere.</string>
 </resources>

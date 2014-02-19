@@ -1,20 +1,20 @@
 /*
- *				Twidere - Twitter client for Android
+ * 				Twidere - Twitter client for Android
  * 
- * Copyright (C) 2012 Mariotaku Lee <mariotaku.lee@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  Copyright (C) 2012-2014 Mariotaku Lee <mariotaku.lee@gmail.com>
+ * 
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ * 
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ * 
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.mariotaku.twidere.fragment.support;
@@ -40,6 +40,7 @@ import android.widget.AbsListView;
 import android.widget.ListView;
 
 import org.mariotaku.menucomponent.widget.PopupMenu;
+import org.mariotaku.refreshnow.widget.RefreshMode;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.adapter.ParcelableUserListsAdapter;
 import org.mariotaku.twidere.adapter.iface.IBaseCardAdapter.MenuButtonClickListener;
@@ -127,7 +128,7 @@ abstract class BaseUserListsListFragment extends BasePullToRefreshListFragment i
 		mListView = getListView();
 		mListView.setDivider(null);
 		mListView.setSelector(android.R.color.transparent);
-		mListView.setFastScrollEnabled(mPreferences.getBoolean(PREFERENCE_KEY_FAST_SCROLL_THUMB, false));
+		mListView.setFastScrollEnabled(mPreferences.getBoolean(KEY_FAST_SCROLL_THUMB, false));
 		// final long account_id = args.getLong(EXTRA_ACCOUNT_ID, -1);
 		// if (mAccountId != account_id) {
 		// mAdapter.clear();
@@ -138,7 +139,7 @@ abstract class BaseUserListsListFragment extends BasePullToRefreshListFragment i
 		mAdapter.setMenuButtonClickListener(this);
 		getLoaderManager().initLoader(0, getArguments(), this);
 		setListShown(false);
-		setPullToRefreshEnabled(false);
+		setRefreshMode(RefreshMode.NONE);
 	}
 
 	@Override
@@ -210,14 +211,21 @@ abstract class BaseUserListsListFragment extends BasePullToRefreshListFragment i
 	}
 
 	@Override
-	public void onRefreshStarted() {
+	public void onRefreshFromEnd() {
+		if (mLoadMoreAutomatically) return;
+		loadMoreUserLists();
+	}
+
+	@Override
+	public void onRefreshFromStart() {
+		if (isRefreshing()) return;
 		getLoaderManager().restartLoader(0, getArguments(), this);
 	}
 
 	@Override
 	public void onResume() {
 		super.onResume();
-		mLoadMoreAutomatically = mPreferences.getBoolean(PREFERENCE_KEY_LOAD_MORE_AUTOMATICALLY, false);
+		mLoadMoreAutomatically = mPreferences.getBoolean(KEY_LOAD_MORE_AUTOMATICALLY, false);
 		configBaseCardAdapter(getActivity(), mAdapter);
 	}
 
@@ -231,12 +239,6 @@ abstract class BaseUserListsListFragment extends BasePullToRefreshListFragment i
 			mPopupMenu.dismiss();
 		}
 		super.onStop();
-	}
-
-	@Override
-	protected void onPullUp() {
-		if (mLoadMoreAutomatically) return;
-		loadMoreUserLists();
 	}
 
 	@Override

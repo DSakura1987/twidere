@@ -1,20 +1,20 @@
 /*
- *				Twidere - Twitter client for Android
+ * 				Twidere - Twitter client for Android
  * 
- * Copyright (C) 2012 Mariotaku Lee <mariotaku.lee@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  Copyright (C) 2012-2014 Mariotaku Lee <mariotaku.lee@gmail.com>
+ * 
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ * 
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ * 
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.mariotaku.twidere.fragment;
@@ -37,6 +37,7 @@ import android.content.Intent;
 import android.content.Loader;
 import android.content.res.Resources;
 import android.database.Cursor;
+import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -62,7 +63,6 @@ import org.mariotaku.querybuilder.RawItemArray;
 import org.mariotaku.querybuilder.Where;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.activity.support.CustomTabEditorActivity;
-import org.mariotaku.twidere.graphic.DropShadowDrawable;
 import org.mariotaku.twidere.model.CustomTabConfiguration;
 import org.mariotaku.twidere.model.CustomTabConfiguration.CustomTabConfigurationComparator;
 import org.mariotaku.twidere.model.Panes;
@@ -307,40 +307,43 @@ public class CustomTabsFragment extends BaseListFragment implements LoaderCallba
 
 		private CursorIndices mIndices;
 
+		private final int mActionIconColor;
+
 		public CustomTabsAdapter(final Context context) {
 			super(context, R.layout.list_item_custom_tab, null, new String[0], new int[0], 0);
 			mContext = context;
+			mActionIconColor = ThemeUtils.isDarkTheme(context) ? 0xffffffff : 0xc0333333;
 		}
 
 		@Override
 		public void bindView(final View view, final Context context, final Cursor cursor) {
 			super.bindView(view, context, cursor);
 			final TwoLineWithIconViewHolder holder = (TwoLineWithIconViewHolder) view.getTag();
-			// holder.checkbox.setVisibility(View.VISIBLE);
-			// holder.checkbox.setCompoundDrawablesWithIntrinsicBounds(0, 0,
-			// R.drawable.ic_menu_refresh, 0);
-			// holder.checkbox.setOnClickListener(this);
 			final String type = cursor.getString(mIndices.type);
 			final String name = cursor.getString(mIndices.name);
+			final String iconKey = cursor.getString(mIndices.icon);
 			if (isTabTypeValid(type)) {
-				final String type_name = getTabTypeName(context, type);
-				final String icon = cursor.getString(mIndices.icon);
-				holder.text1.setText(TextUtils.isEmpty(name) ? type_name : name);
+				final String typeName = getTabTypeName(context, type);
+				holder.text1.setText(TextUtils.isEmpty(name) ? typeName : name);
+				holder.text1.setPaintFlags(holder.text1.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
 				holder.text2.setVisibility(View.VISIBLE);
-				holder.text2.setText(type_name);
-				final Drawable d = getTabIconDrawable(mContext, getTabIconObject(icon));
-				holder.icon.setVisibility(View.VISIBLE);
-				if (d != null) {
-					holder.icon.setImageDrawable(new DropShadowDrawable(context.getResources(), d, 2, 0x80000000));
-				} else {
-					holder.icon.setImageDrawable(new DropShadowDrawable(context.getResources(), R.drawable.ic_tab_list,
-							2, 0x80000000));
-				}
+				holder.text2.setText(typeName);
 			} else {
-				holder.icon.setImageDrawable(new DropShadowDrawable(context.getResources(), R.drawable.ic_tab_invalid,
-						2, 0x80000000));
 				holder.text1.setText(name);
+				holder.text1.setPaintFlags(holder.text1.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
 				holder.text2.setText(R.string.invalid_tab);
+			}
+			final Drawable icon = getTabIconDrawable(mContext, getTabIconObject(iconKey));
+			holder.icon.setVisibility(View.VISIBLE);
+			if (icon != null) {
+				icon.mutate();
+				icon.setColorFilter(mActionIconColor, PorterDuff.Mode.MULTIPLY);
+				holder.icon.setImageDrawable(icon);
+			} else {
+				final Drawable fallback = context.getResources().getDrawable(R.drawable.ic_tab_list);
+				fallback.mutate();
+				fallback.setColorFilter(mActionIconColor, PorterDuff.Mode.MULTIPLY);
+				holder.icon.setImageDrawable(fallback);
 			}
 		}
 

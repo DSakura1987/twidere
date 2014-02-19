@@ -1,20 +1,20 @@
 /*
- *				Twidere - Twitter client for Android
+ * 				Twidere - Twitter client for Android
  * 
- * Copyright (C) 2012 Mariotaku Lee <mariotaku.lee@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  Copyright (C) 2012-2014 Mariotaku Lee <mariotaku.lee@gmail.com>
+ * 
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ * 
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ * 
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.mariotaku.twidere.fragment.support;
@@ -162,7 +162,7 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 				TwitterWrapper.removeUnreadCounts(getActivity(), getTabPosition(), status.account_id, status.id);
 			}
 			if (holder.show_as_gap) return false;
-			if (mPreferences.getBoolean(PREFERENCE_KEY_LONG_CLICK_TO_OPEN_MENU, false)) {
+			if (mPreferences.getBoolean(KEY_LONG_CLICK_TO_OPEN_MENU, false)) {
 				openMenu(holder.content.getFakeOverflowButton(), status, position);
 			} else {
 				setItemSelected(status, position, !mMultiSelectManager.isSelected(status));
@@ -225,31 +225,42 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 		setData(data);
 		mFirstVisibleItem = -1;
 		mReadPositions.clear();
-		final int first_visible_position = mListView.getFirstVisiblePosition();
-		if (mListView.getChildCount() > 0) {
-			final View first_child = mListView.getChildAt(0);
-			mListScrollOffset = first_child != null ? first_child.getTop() : 0;
+		final int listVisiblePosition, savedChildIndex;
+		final boolean rememberPosition = mPreferences.getBoolean(KEY_REMEMBER_POSITION, true);
+		if (rememberPosition) {
+			listVisiblePosition = mListView.getLastVisiblePosition();
+			final int childCount = mListView.getChildCount();
+			savedChildIndex = childCount - 1;
+			if (childCount > 0) {
+				final View lastChild = mListView.getChildAt(savedChildIndex);
+				mListScrollOffset = lastChild != null ? lastChild.getTop() : 0;
+			}
+		} else {
+			listVisiblePosition = mListView.getFirstVisiblePosition();
+			savedChildIndex = 0;
+			if (mListView.getChildCount() > 0) {
+				final View firstChild = mListView.getChildAt(savedChildIndex);
+				mListScrollOffset = firstChild != null ? firstChild.getTop() : 0;
+			}
 		}
-		final long last_viewed_id = mAdapter.getStatusId(first_visible_position);
+		final long lastViewedId = mAdapter.getStatusId(listVisiblePosition);
 		mAdapter.setData(data);
 		mAdapter.setShowAccountColor(shouldShowAccountColor());
-		final boolean remember_position = mPreferences.getBoolean(PREFERENCE_KEY_REMEMBER_POSITION, true);
-		final int curr_first_visible_position = mListView.getFirstVisiblePosition();
-		final long curr_viewed_id = mAdapter.getStatusId(curr_first_visible_position);
-		final long status_id;
-		if (last_viewed_id <= 0) {
-			if (!remember_position) return;
-			status_id = mPositionManager.getPosition(getPositionKey());
-		} else if ((first_visible_position > 0 || remember_position) && curr_viewed_id > 0
-				&& last_viewed_id != curr_viewed_id) {
-			status_id = last_viewed_id;
+		final int currFirstVisiblePosition = mListView.getFirstVisiblePosition();
+		final long currViewedId = mAdapter.getStatusId(currFirstVisiblePosition);
+		final long statusId;
+		if (lastViewedId <= 0) {
+			if (!rememberPosition) return;
+			statusId = mPositionManager.getPosition(getPositionKey());
+		} else if ((listVisiblePosition > 0 || rememberPosition) && currViewedId > 0 && lastViewedId != currViewedId) {
+			statusId = lastViewedId;
 		} else {
-			if (first_visible_position == 0 && mAdapter.getStatusId(0) != last_viewed_id) {
+			if (listVisiblePosition == 0 && mAdapter.getStatusId(0) != lastViewedId) {
 				mAdapter.setMaxAnimationPosition(mListView.getLastVisiblePosition());
 			}
 			return;
 		}
-		final int position = mAdapter.findPositionByStatusId(status_id);
+		final int position = mAdapter.findPositionByStatusId(statusId);
 		if (position > -1 && position < mListView.getCount()) {
 			mAdapter.setMaxAnimationPosition(mListView.getLastVisiblePosition());
 			mListView.setSelectionFromTop(position, mListScrollOffset);
@@ -349,18 +360,23 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 	}
 
 	@Override
+	public void onRefreshFromEnd() {
+		if (mLoadMoreAutomatically) return;
+		loadMoreStatuses();
+	}
+
+	@Override
 	public void onResume() {
 		super.onResume();
-		mListView.setFastScrollEnabled(mPreferences.getBoolean(PREFERENCE_KEY_FAST_SCROLL_THUMB, false));
+		mListView.setFastScrollEnabled(mPreferences.getBoolean(KEY_FAST_SCROLL_THUMB, false));
 		configBaseCardAdapter(getActivity(), mAdapter);
-		final boolean display_image_preview = mPreferences.getBoolean(PREFERENCE_KEY_DISPLAY_IMAGE_PREVIEW, false);
-		final boolean display_sensitive_contents = mPreferences.getBoolean(PREFERENCE_KEY_DISPLAY_SENSITIVE_CONTENTS,
-				false);
-		final boolean indicate_my_status = mPreferences.getBoolean(PREFERENCE_KEY_INDICATE_MY_STATUS, true);
+		final boolean display_image_preview = mPreferences.getBoolean(KEY_DISPLAY_IMAGE_PREVIEW, false);
+		final boolean display_sensitive_contents = mPreferences.getBoolean(KEY_DISPLAY_SENSITIVE_CONTENTS, false);
+		final boolean indicate_my_status = mPreferences.getBoolean(KEY_INDICATE_MY_STATUS, true);
 		mAdapter.setDisplayImagePreview(display_image_preview);
 		mAdapter.setDisplaySensitiveContents(display_sensitive_contents);
 		mAdapter.setIndicateMyStatusDisabled(isMyTimeline() || !indicate_my_status);
-		mLoadMoreAutomatically = mPreferences.getBoolean(PREFERENCE_KEY_LOAD_MORE_AUTOMATICALLY, false);
+		mLoadMoreAutomatically = mPreferences.getBoolean(KEY_LOAD_MORE_AUTOMATICALLY, false);
 	}
 
 	@Override
@@ -446,12 +462,6 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 	protected abstract IStatusesAdapter<Data> newAdapterInstance();
 
 	@Override
-	protected void onPullUp() {
-		if (mLoadMoreAutomatically) return;
-		loadMoreStatuses();
-	}
-
-	@Override
 	protected void onReachedBottom() {
 		if (!mLoadMoreAutomatically) return;
 		loadMoreStatuses();
@@ -526,9 +536,9 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 		final int activated_color = ThemeUtils.getUserThemeColor(getActivity());
 		mPopupMenu = PopupMenu.getInstance(getActivity(), view);
 		mPopupMenu.inflate(R.menu.action_status);
-		final boolean separateRetweetAction = mPreferences.getBoolean(PREFERENCE_KEY_SEPARATE_RETWEET_ACTION,
-				PREFERENCE_DEFAULT_SEPARATE_RETWEET_ACTION);
-		final boolean longclickToOpenMenu = mPreferences.getBoolean(PREFERENCE_KEY_LONG_CLICK_TO_OPEN_MENU, false);
+		final boolean separateRetweetAction = mPreferences.getBoolean(KEY_SEPARATE_RETWEET_ACTION,
+				DEFAULT_SEPARATE_RETWEET_ACTION);
+		final boolean longclickToOpenMenu = mPreferences.getBoolean(KEY_LONG_CLICK_TO_OPEN_MENU, false);
 		final Menu menu = mPopupMenu.getMenu();
 		setMenuForStatus(getActivity(), menu, status);
 		Utils.setMenuItemAvailability(menu, R.id.retweet_submenu, !separateRetweetAction);

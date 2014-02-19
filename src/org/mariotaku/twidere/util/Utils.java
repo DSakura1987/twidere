@@ -1,20 +1,20 @@
 /*
- *				Twidere - Twitter client for Android
+ * 				Twidere - Twitter client for Android
  * 
- * Copyright (C) 2012 Mariotaku Lee <mariotaku.lee@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  Copyright (C) 2012-2014 Mariotaku Lee <mariotaku.lee@gmail.com>
+ * 
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ * 
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ * 
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.mariotaku.twidere.util;
@@ -79,16 +79,17 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.MeasureSpec;
+import android.view.Window;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.webkit.MimeTypeMap;
+import android.widget.AbsListView;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.huewu.pla.lib.MultiColumnListView;
-import com.huewu.pla.lib.internal.PLAListView;
+import com.etsy.android.grid.StaggeredGridView;
 
 import de.keyboardsurfer.android.widget.crouton.Crouton;
 import de.keyboardsurfer.android.widget.crouton.CroutonConfiguration;
@@ -107,10 +108,10 @@ import org.mariotaku.querybuilder.Selectable;
 import org.mariotaku.querybuilder.Tables;
 import org.mariotaku.querybuilder.Where;
 import org.mariotaku.querybuilder.query.SQLSelectQuery;
+import org.mariotaku.twidere.BuildConfig;
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.activity.CameraCropActivity;
-import org.mariotaku.twidere.activity.support.DualPaneActivity;
 import org.mariotaku.twidere.activity.support.MapViewerActivity;
 import org.mariotaku.twidere.adapter.iface.IBaseAdapter;
 import org.mariotaku.twidere.adapter.iface.IBaseCardAdapter;
@@ -119,7 +120,6 @@ import org.mariotaku.twidere.fragment.support.DirectMessagesConversationFragment
 import org.mariotaku.twidere.fragment.support.IncomingFriendshipsFragment;
 import org.mariotaku.twidere.fragment.support.SavedSearchesListFragment;
 import org.mariotaku.twidere.fragment.support.SearchFragment;
-import org.mariotaku.twidere.fragment.support.SearchStatusesFragment;
 import org.mariotaku.twidere.fragment.support.SensitiveContentWarningDialogFragment;
 import org.mariotaku.twidere.fragment.support.StatusFragment;
 import org.mariotaku.twidere.fragment.support.StatusRepliesListFragment;
@@ -139,7 +139,9 @@ import org.mariotaku.twidere.fragment.support.UserMentionsFragment;
 import org.mariotaku.twidere.fragment.support.UserProfileFragment;
 import org.mariotaku.twidere.fragment.support.UserTimelineFragment;
 import org.mariotaku.twidere.fragment.support.UsersListFragment;
+import org.mariotaku.twidere.graphic.PaddingDrawable;
 import org.mariotaku.twidere.model.Account;
+import org.mariotaku.twidere.model.Account.AccountWithCredentials;
 import org.mariotaku.twidere.model.AccountPreferences;
 import org.mariotaku.twidere.model.CursorStatusIndices;
 import org.mariotaku.twidere.model.DirectMessageCursorIndices;
@@ -183,8 +185,12 @@ import twitter4j.URLEntity;
 import twitter4j.User;
 import twitter4j.UserMentionEntity;
 import twitter4j.auth.AccessToken;
+import twitter4j.auth.Authorization;
 import twitter4j.auth.BasicAuthorization;
+import twitter4j.auth.OAuthAuthorization;
 import twitter4j.auth.TwipOModeAuthorization;
+import twitter4j.auth.XAuthAuthorization;
+import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
 import twitter4j.http.HostAddressResolver;
 import twitter4j.http.HttpClientWrapper;
@@ -325,6 +331,7 @@ public final class Utils implements Constants {
 		final PackageManager pm = context.getPackageManager();
 		final Resources res = context.getResources();
 		final float density = res.getDisplayMetrics().density;
+		final int padding = Math.round(density * 4);
 		final List<ResolveInfo> activities = pm.queryIntentActivities(queryIntent, 0);
 		for (final ResolveInfo info : activities) {
 			final Intent intent = new Intent(queryIntent);
@@ -332,14 +339,11 @@ public final class Utils implements Constants {
 			intent.setClassName(info.activityInfo.packageName, info.activityInfo.name);
 			final MenuItem item = menu.add(groupId, Menu.NONE, Menu.NONE, info.loadLabel(pm));
 			item.setIntent(intent);
-			if (icon instanceof BitmapDrawable) {
-				final int paddings = Math.round(density * 4);
-				final Bitmap orig = ((BitmapDrawable) icon).getBitmap();
-				final Bitmap bitmap = Bitmap.createBitmap(orig.getWidth() + paddings * 2, orig.getHeight() + paddings
-						* 2, Bitmap.Config.ARGB_8888);
-				final Canvas canvas = new Canvas(bitmap);
-				canvas.drawBitmap(orig, paddings, paddings, null);
-				item.setIcon(new BitmapDrawable(res, bitmap));
+			final int iw = icon.getIntrinsicWidth(), ih = icon.getIntrinsicHeight();
+			if (iw > 0 && ih > 0) {
+				final Drawable iconWithPadding = new PaddingDrawable(icon, padding);
+				iconWithPadding.setBounds(0, 0, iw, ih);
+				item.setIcon(iconWithPadding);
 			} else {
 				item.setIcon(icon);
 			}
@@ -479,7 +483,7 @@ public final class Utils implements Constants {
 		if (context == null) return;
 		final ContentResolver resolver = context.getContentResolver();
 		final int item_limit = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).getInt(
-				PREFERENCE_KEY_DATABASE_ITEM_LIMIT, PREFERENCE_DEFAULT_DATABASE_ITEM_LIMIT);
+				KEY_DATABASE_ITEM_LIMIT, DEFAULT_DATABASE_ITEM_LIMIT);
 
 		for (final long account_id : getAccountIds(context)) {
 			// Clean statuses.
@@ -527,12 +531,12 @@ public final class Utils implements Constants {
 		sAccountScreenNames.clear();
 	}
 
-	public static void clearListViewChoices(final ListView view) {
+	public static void clearListViewChoices(final AbsListView view) {
 		if (view == null) return;
 		final ListAdapter adapter = view.getAdapter();
 		if (adapter == null) return;
 		view.clearChoices();
-		view.setChoiceMode(ListView.CHOICE_MODE_NONE);
+		view.setChoiceMode(AbsListView.CHOICE_MODE_NONE);
 		// Workaround for Android bug
 		// http://stackoverflow.com/questions/9754170/listview-selection-remains-persistent-after-exiting-choice-mode
 		final int position = view.getFirstVisiblePosition(), offset = Utils.getFirstChildOffset(view);
@@ -540,12 +544,12 @@ public final class Utils implements Constants {
 		Utils.scrollListToPosition(view, position, offset);
 	}
 
-	public static void clearListViewChoices(final MultiColumnListView view) {
+	public static void clearListViewChoices(final StaggeredGridView view) {
 		if (view == null) return;
 		final ListAdapter adapter = view.getAdapter();
 		if (adapter == null) return;
 		view.clearChoices();
-		view.setChoiceMode(MultiColumnListView.CHOICE_MODE_NONE);
+		view.setChoiceMode(AbsListView.CHOICE_MODE_NONE);
 		view.invalidateViews();
 		// Workaround for Android bug
 		// http://stackoverflow.com/questions/9754170/listview-selection-remains-persistent-after-exiting-choice-mode
@@ -567,19 +571,19 @@ public final class Utils implements Constants {
 	public static void configBaseAdapter(final Context context, final IBaseAdapter adapter) {
 		if (context == null) return;
 		final SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		adapter.setDisplayProfileImage(pref.getBoolean(PREFERENCE_KEY_DISPLAY_PROFILE_IMAGE, true));
-		adapter.setDisplayNameFirst(pref.getBoolean(PREFERENCE_KEY_NAME_FIRST, true));
-		adapter.setLinkHighlightOption(pref.getString(PREFERENCE_KEY_LINK_HIGHLIGHT_OPTION, LINK_HIGHLIGHT_OPTION_NONE));
+		adapter.setDisplayProfileImage(pref.getBoolean(KEY_DISPLAY_PROFILE_IMAGE, true));
+		adapter.setDisplayNameFirst(pref.getBoolean(KEY_NAME_FIRST, true));
+		adapter.setLinkHighlightOption(pref.getString(KEY_LINK_HIGHLIGHT_OPTION, VALUE_LINK_HIGHLIGHT_OPTION_NONE));
 		adapter.setLinkHighlightColor(ThemeUtils.getUserLinkTextColor(context));
-		adapter.setNicknameOnly(pref.getBoolean(PREFERENCE_KEY_NICKNAME_ONLY, false));
-		adapter.setTextSize(pref.getInt(PREFERENCE_KEY_TEXT_SIZE, getDefaultTextSize(context)));
+		adapter.setNicknameOnly(pref.getBoolean(KEY_NICKNAME_ONLY, false));
+		adapter.setTextSize(pref.getInt(KEY_TEXT_SIZE, getDefaultTextSize(context)));
 	}
 
 	public static void configBaseCardAdapter(final Context context, final IBaseCardAdapter adapter) {
 		if (context == null) return;
 		configBaseAdapter(context, adapter);
 		final SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		adapter.setAnimationEnabled(pref.getBoolean(PREFERENCE_KEY_CARD_ANIMATION, true));
+		adapter.setAnimationEnabled(pref.getBoolean(KEY_CARD_ANIMATION, true));
 	}
 
 	public static void copyStream(final InputStream is, final OutputStream os) throws IOException {
@@ -1465,7 +1469,7 @@ public final class Utils implements Constants {
 	public static long getDefaultAccountId(final Context context) {
 		if (context == null) return -1;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		return prefs.getLong(PREFERENCE_KEY_DEFAULT_ACCOUNT_ID, -1);
+		return prefs.getLong(KEY_DEFAULT_ACCOUNT_ID, -1);
 	}
 
 	public static String getDefaultAccountScreenName(final Context context) {
@@ -1505,9 +1509,9 @@ public final class Utils implements Constants {
 			final String screen_name, final boolean ignore_cache) {
 		if (context == null) return null;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final boolean name_first = prefs.getBoolean(PREFERENCE_KEY_NAME_FIRST, true);
+		final boolean name_first = prefs.getBoolean(KEY_NAME_FIRST, true);
 		final boolean nickname_only = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
-				.getBoolean(PREFERENCE_KEY_NICKNAME_ONLY, false);
+				.getBoolean(KEY_NICKNAME_ONLY, false);
 		return getDisplayName(context, user_id, name, screen_name, name_first, nickname_only, ignore_cache);
 	}
 
@@ -1554,7 +1558,7 @@ public final class Utils implements Constants {
 		return t.getMessage();
 	}
 
-	public static int getFirstChildOffset(final ListView list) {
+	public static int getFirstChildOffset(final AbsListView list) {
 		if (list == null || list.getChildCount() == 0) return 0;
 		return list.getChildAt(0).getTop();
 	}
@@ -1584,7 +1588,7 @@ public final class Utils implements Constants {
 	public static HttpClientWrapper getImageLoaderHttpClient(final Context context) {
 		if (context == null) return null;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final int timeout_millis = prefs.getInt(PREFERENCE_KEY_CONNECTION_TIMEOUT, 10000) * 1000;
+		final int timeout_millis = prefs.getInt(KEY_CONNECTION_TIMEOUT, 10000) * 1000;
 		final Proxy proxy = getProxy(context);
 		final String user_agent = generateBrowserUserAgent();
 		final HostAddressResolver resolver = TwidereApplication.getInstance(context).getHostAddressResolver();
@@ -1639,9 +1643,9 @@ public final class Utils implements Constants {
 	public static String getImageUploadStatus(final Context context, final CharSequence link, final CharSequence text) {
 		if (context == null) return null;
 		String image_upload_format = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
-				.getString(PREFERENCE_KEY_IMAGE_UPLOAD_FORMAT, PREFERENCE_DEFAULT_IMAGE_UPLOAD_FORMAT);
+				.getString(KEY_IMAGE_UPLOAD_FORMAT, DEFAULT_IMAGE_UPLOAD_FORMAT);
 		if (isEmpty(image_upload_format)) {
-			image_upload_format = PREFERENCE_DEFAULT_IMAGE_UPLOAD_FORMAT;
+			image_upload_format = DEFAULT_IMAGE_UPLOAD_FORMAT;
 		}
 		if (link == null) return ParseUtils.parseString(text);
 		return image_upload_format.replace(FORMAT_PATTERN_LINK, link).replace(FORMAT_PATTERN_TEXT, text);
@@ -1662,7 +1666,7 @@ public final class Utils implements Constants {
 	public static String getLinkHighlightOption(final Context context) {
 		if (context == null) return null;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		return prefs.getString(PREFERENCE_KEY_LINK_HIGHLIGHT_OPTION, LINK_HIGHLIGHT_OPTION_NONE);
+		return prefs.getString(KEY_LINK_HIGHLIGHT_OPTION, VALUE_LINK_HIGHLIGHT_OPTION_NONE);
 	}
 
 	public static int getLinkHighlightOptionInt(final Context context) {
@@ -1670,12 +1674,13 @@ public final class Utils implements Constants {
 	}
 
 	public static int getLinkHighlightOptionInt(final String option) {
-		if (LINK_HIGHLIGHT_OPTION_BOTH.equals(option))
-			return LINK_HIGHLIGHT_OPTION_CODE_BOTH;
-		else if (LINK_HIGHLIGHT_OPTION_HIGHLIGHT.equals(option))
-			return LINK_HIGHLIGHT_OPTION_CODE_HIGHLIGHT;
-		else if (LINK_HIGHLIGHT_OPTION_UNDERLINE.equals(option)) return LINK_HIGHLIGHT_OPTION_CODE_UNDERLINE;
-		return LINK_HIGHLIGHT_OPTION_CODE_NONE;
+		if (VALUE_LINK_HIGHLIGHT_OPTION_BOTH.equals(option))
+			return VALUE_LINK_HIGHLIGHT_OPTION_CODE_BOTH;
+		else if (VALUE_LINK_HIGHLIGHT_OPTION_HIGHLIGHT.equals(option))
+			return VALUE_LINK_HIGHLIGHT_OPTION_CODE_HIGHLIGHT;
+		else if (VALUE_LINK_HIGHLIGHT_OPTION_UNDERLINE.equals(option))
+			return VALUE_LINK_HIGHLIGHT_OPTION_CODE_UNDERLINE;
+		return VALUE_LINK_HIGHLIGHT_OPTION_CODE_NONE;
 	}
 
 	public static String getLocalizedNumber(final Locale locale, final Number number) {
@@ -1846,10 +1851,10 @@ public final class Utils implements Constants {
 	public static Proxy getProxy(final Context context) {
 		if (context == null) return null;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final boolean enable_proxy = prefs.getBoolean(PREFERENCE_KEY_ENABLE_PROXY, false);
+		final boolean enable_proxy = prefs.getBoolean(KEY_ENABLE_PROXY, false);
 		if (!enable_proxy) return Proxy.NO_PROXY;
-		final String proxy_host = prefs.getString(PREFERENCE_KEY_PROXY_HOST, null);
-		final int proxy_port = ParseUtils.parseInt(prefs.getString(PREFERENCE_KEY_PROXY_PORT, "-1"));
+		final String proxy_host = prefs.getString(KEY_PROXY_HOST, null);
+		final int proxy_port = ParseUtils.parseInt(prefs.getString(KEY_PROXY_PORT, "-1"));
 		if (!isEmpty(proxy_host) && proxy_port > 0) {
 			final SocketAddress addr = InetSocketAddress.createUnresolved(proxy_host, proxy_port);
 			return new Proxy(Proxy.Type.HTTP, addr);
@@ -1860,9 +1865,9 @@ public final class Utils implements Constants {
 	public static String getQuoteStatus(final Context context, final String screen_name, final String text) {
 		if (context == null) return null;
 		String quote_format = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).getString(
-				PREFERENCE_KEY_QUOTE_FORMAT, PREFERENCE_DEFAULT_QUOTE_FORMAT);
+				KEY_QUOTE_FORMAT, DEFAULT_QUOTE_FORMAT);
 		if (isEmpty(quote_format)) {
-			quote_format = PREFERENCE_DEFAULT_QUOTE_FORMAT;
+			quote_format = DEFAULT_QUOTE_FORMAT;
 		}
 		return quote_format.replace(FORMAT_PATTERN_NAME, screen_name).replace(FORMAT_PATTERN_TEXT, text);
 	}
@@ -1919,16 +1924,16 @@ public final class Utils implements Constants {
 	public static String getSenderUserName(final Context context, final ParcelableDirectMessage user) {
 		if (context == null || user == null) return null;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final boolean display_name = prefs.getBoolean(PREFERENCE_KEY_NAME_FIRST, true);
+		final boolean display_name = prefs.getBoolean(KEY_NAME_FIRST, true);
 		return display_name ? user.sender_name : "@" + user.sender_screen_name;
 	}
 
 	public static String getShareStatus(final Context context, final CharSequence title, final CharSequence text) {
 		if (context == null) return null;
 		String share_format = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).getString(
-				PREFERENCE_KEY_SHARE_FORMAT, PREFERENCE_DEFAULT_SHARE_FORMAT);
+				KEY_SHARE_FORMAT, DEFAULT_SHARE_FORMAT);
 		if (isEmpty(share_format)) {
-			share_format = PREFERENCE_DEFAULT_SHARE_FORMAT;
+			share_format = DEFAULT_SHARE_FORMAT;
 		}
 		if (isEmpty(title)) return ParseUtils.parseString(text);
 		return share_format.replace(FORMAT_PATTERN_TITLE, title).replace(FORMAT_PATTERN_TEXT, text != null ? text : "");
@@ -1978,7 +1983,7 @@ public final class Utils implements Constants {
 		if (context == null) return null;
 		final String defaultOption = context.getString(R.string.default_tab_display_option);
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		return prefs.getString(PREFERENCE_KEY_TAB_DISPLAY_OPTION, defaultOption);
+		return prefs.getString(KEY_TAB_DISPLAY_OPTION, defaultOption);
 	}
 
 	public static int getTabDisplayOptionInt(final Context context) {
@@ -1986,10 +1991,10 @@ public final class Utils implements Constants {
 	}
 
 	public static int getTabDisplayOptionInt(final String option) {
-		if (TAB_DIPLAY_OPTION_ICON.equals(option))
-			return TAB_DIPLAY_OPTION_CODE_ICON;
-		else if (TAB_DIPLAY_OPTION_LABEL.equals(option)) return TAB_DIPLAY_OPTION_CODE_LABEL;
-		return TAB_DIPLAY_OPTION_CODE_BOTH;
+		if (VALUE_TAB_DIPLAY_OPTION_ICON.equals(option))
+			return VALUE_TAB_DIPLAY_OPTION_CODE_ICON;
+		else if (VALUE_TAB_DIPLAY_OPTION_LABEL.equals(option)) return VALUE_TAB_DIPLAY_OPTION_CODE_LABEL;
+		return VALUE_TAB_DIPLAY_OPTION_CODE_BOTH;
 	}
 
 	public static Bitmap getTabIconFromFile(final File file, final Resources res) {
@@ -2121,14 +2126,14 @@ public final class Utils implements Constants {
 		if (context == null) return null;
 		final TwidereApplication app = TwidereApplication.getInstance(context);
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final int connection_timeout = prefs.getInt(PREFERENCE_KEY_CONNECTION_TIMEOUT, 10) * 1000;
-		final boolean enable_gzip_compressing = prefs.getBoolean(PREFERENCE_KEY_GZIP_COMPRESSING, true);
-		final boolean ignore_ssl_error = prefs.getBoolean(PREFERENCE_KEY_IGNORE_SSL_ERROR, false);
-		final boolean enable_proxy = prefs.getBoolean(PREFERENCE_KEY_ENABLE_PROXY, false);
+		final int connection_timeout = prefs.getInt(KEY_CONNECTION_TIMEOUT, 10) * 1000;
+		final boolean enable_gzip_compressing = prefs.getBoolean(KEY_GZIP_COMPRESSING, true);
+		final boolean ignore_ssl_error = prefs.getBoolean(KEY_IGNORE_SSL_ERROR, false);
+		final boolean enable_proxy = prefs.getBoolean(KEY_ENABLE_PROXY, false);
 		// Here I use old consumer key/secret because it's default key for older
 		// versions
-		final String pref_consumer_key = prefs.getString(PREFERENCE_KEY_CONSUMER_KEY, TWITTER_CONSUMER_KEY);
-		final String pref_consumer_secret = prefs.getString(PREFERENCE_KEY_CONSUMER_SECRET, TWITTER_CONSUMER_SECRET);
+		final String pref_consumer_key = prefs.getString(KEY_CONSUMER_KEY, TWITTER_CONSUMER_KEY);
+		final String pref_consumer_secret = prefs.getString(KEY_CONSUMER_SECRET, TWITTER_CONSUMER_SECRET);
 		final StringBuilder where = new StringBuilder();
 		where.append(Accounts.ACCOUNT_ID + " = " + account_id);
 		final Cursor c = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
@@ -2147,8 +2152,8 @@ public final class Utils implements Constants {
 				cb.setGZIPEnabled(enable_gzip_compressing);
 				cb.setIgnoreSSLError(ignore_ssl_error);
 				if (enable_proxy) {
-					final String proxy_host = prefs.getString(PREFERENCE_KEY_PROXY_HOST, null);
-					final int proxy_port = ParseUtils.parseInt(prefs.getString(PREFERENCE_KEY_PROXY_PORT, "-1"));
+					final String proxy_host = prefs.getString(KEY_PROXY_HOST, null);
+					final int proxy_port = ParseUtils.parseInt(prefs.getString(KEY_PROXY_PORT, "-1"));
 					if (!isEmpty(proxy_host) && proxy_port > 0) {
 						cb.setHttpProxyHost(proxy_host);
 						cb.setHttpProxyPort(proxy_port);
@@ -2242,7 +2247,7 @@ public final class Utils implements Constants {
 		final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
 				Accounts.COLUMNS, null, null, null);
 		if (cur == null) return false;
-		final String[] keySecrets = context.getResources().getStringArray(R.array.values_consumer_key_secret);
+		final String[] keySecrets = context.getResources().getStringArray(R.array.values_official_consumer_key_secret);
 		final Account.Indices indices = new Account.Indices(cur);
 		cur.moveToFirst();
 		try {
@@ -2265,6 +2270,18 @@ public final class Utils implements Constants {
 		final long[] accountIds = getAccountIds(context);
 		final long[] refreshIds = AccountPreferences.getAutoRefreshEnabledAccountIds(context, accountIds);
 		return refreshIds != null && refreshIds.length > 0;
+	}
+
+	public static boolean hasStaggeredTimeline() {
+		return false;
+	}
+
+	public static int inferStatusBarHeight(final Activity activity) {
+		final Window w = activity.getWindow();
+		final View decorView = w.getDecorView();
+		final Rect rect = new Rect();
+		decorView.getWindowVisibleDisplayFrame(rect);
+		return rect.top;
 	}
 
 	public static void initAccountColor(final Context context) {
@@ -2295,7 +2312,7 @@ public final class Utils implements Constants {
 
 	public static boolean isCompactCards(final Context context) {
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		return prefs != null && prefs.getBoolean(PREFERENCE_KEY_COMPACT_CARDS, false);
+		return prefs != null && prefs.getBoolean(KEY_COMPACT_CARDS, false);
 	}
 
 	public static boolean isDatabaseReady(final Context context) {
@@ -2311,8 +2328,7 @@ public final class Utils implements Constants {
 	}
 
 	public static boolean isDebugBuild() {
-		// return BuildConfig.DEBUG;
-		return false;
+		return BuildConfig.DEBUG;
 	}
 
 	public static boolean isDebuggable(final Context context) {
@@ -2446,23 +2462,10 @@ public final class Utils implements Constants {
 		return prefs.getBoolean("silent_notifications_at_" + now.get(Calendar.HOUR_OF_DAY), false);
 	}
 
-	public static boolean isOfficialConsumerKeySecret(final Context context) {
-		if (context == null) return false;
-		final SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final String[] key_secrets = context.getResources().getStringArray(R.array.values_consumer_key_secret);
-		final String consumer_key = getNonEmptyString(pref, PREFERENCE_KEY_CONSUMER_KEY, null);
-		final String consumer_secret = getNonEmptyString(pref, PREFERENCE_KEY_CONSUMER_SECRET, null);
-		for (final String key_secret : key_secrets) {
-			final String[] pair = key_secret.split(";");
-			if (pair[0].equals(consumer_key) && pair[1].equals(consumer_secret)) return true;
-		}
-		return false;
-	}
-
 	public static boolean isOfficialConsumerKeySecret(final Context context, final String consumerKey,
 			final String consumerSecret) {
-		if (context == null) return false;
-		final String[] keySecrets = context.getResources().getStringArray(R.array.values_consumer_key_secret);
+		if (context == null || consumerKey == null || consumerSecret == null) return false;
+		final String[] keySecrets = context.getResources().getStringArray(R.array.values_official_consumer_key_secret);
 		for (final String keySecret : keySecrets) {
 			final String[] pair = keySecret.split(";");
 			if (pair[0].equals(consumerKey) && pair[1].equals(consumerSecret)) return true;
@@ -2470,11 +2473,19 @@ public final class Utils implements Constants {
 		return false;
 	}
 
+	public static boolean isOfficialTwitterInstance(final Context context, final Twitter twitter) {
+		if (context == null || twitter == null) return false;
+		final Configuration conf = twitter.getConfiguration();
+		final Authorization auth = twitter.getAuthorization();
+		final boolean isOAuth = auth instanceof OAuthAuthorization || auth instanceof XAuthAuthorization;
+		final String consumerKey = conf.getOAuthConsumerKey(), consumerSecret = conf.getOAuthConsumerSecret();
+		return isOAuth && isOfficialConsumerKeySecret(context, consumerKey, consumerSecret);
+	}
+
 	public static boolean isOnWifi(final Context context) {
 		if (context == null) return false;
 		final ConnectivityManager conn = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 		final NetworkInfo networkInfo = conn.getActiveNetworkInfo();
-
 		return networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_WIFI
 				&& networkInfo.isConnected();
 	}
@@ -2571,38 +2582,22 @@ public final class Utils implements Constants {
 	public static void openDirectMessagesConversation(final FragmentActivity activity, final long accountId,
 			final long recipientId) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment details_fragment = dual_pane_activity.getDetailsFragment();
-			if (details_fragment instanceof DirectMessagesConversationFragment && details_fragment.isAdded()) {
-				((DirectMessagesConversationFragment) details_fragment).showConversation(accountId, recipientId);
-				dual_pane_activity.showRightPane();
-			} else {
-				final Fragment fragment = new DirectMessagesConversationFragment();
-				final Bundle args = new Bundle();
-				args.putLong(EXTRA_ACCOUNT_ID, accountId);
-				args.putLong(EXTRA_RECIPIENT_ID, recipientId);
-				fragment.setArguments(args);
-				dual_pane_activity.showAtPane(PANE_RIGHT, fragment, true);
-			}
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_DIRECT_MESSAGES_CONVERSATION);
-			if (accountId > 0 && recipientId > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
-				builder.appendQueryParameter(QUERY_PARAM_RECIPIENT_ID, String.valueOf(recipientId));
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_DIRECT_MESSAGES_CONVERSATION);
+		if (accountId > 0 && recipientId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+			builder.appendQueryParameter(QUERY_PARAM_RECIPIENT_ID, String.valueOf(recipientId));
 		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openImage(final Context context, final String uri, final boolean is_possibly_sensitive) {
 		if (context == null || uri == null) return;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		if (context instanceof FragmentActivity && is_possibly_sensitive
-				&& !prefs.getBoolean(PREFERENCE_KEY_DISPLAY_SENSITIVE_CONTENTS, false)) {
+				&& !prefs.getBoolean(KEY_DISPLAY_SENSITIVE_CONTENTS, false)) {
 			final FragmentActivity activity = (FragmentActivity) context;
 			final FragmentManager fm = activity.getSupportFragmentManager();
 			final DialogFragment fragment = new SensitiveContentWarningDialogFragment();
@@ -2629,21 +2624,12 @@ public final class Utils implements Constants {
 
 	public static void openIncomingFriendships(final Activity activity, final long account_id) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new IncomingFriendshipsFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_INCOMING_FRIENDSHIPS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_INCOMING_FRIENDSHIPS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openMap(final Context context, final double latitude, final double longitude) {
@@ -2664,63 +2650,34 @@ public final class Utils implements Constants {
 
 	public static void openSavedSearches(final Activity activity, final long account_id) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new SavedSearchesListFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_SAVED_SEARCHES);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_SAVED_SEARCHES);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openSearch(final Activity activity, final long account_id, final String query) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new SearchFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			args.putString(EXTRA_QUERY, query);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_SEARCH);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			builder.appendQueryParameter(QUERY_PARAM_QUERY, query);
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_SEARCH);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		builder.appendQueryParameter(QUERY_PARAM_QUERY, query);
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openStatus(final Activity activity, final long account_id, final long status_id) {
 		if (activity == null || account_id <= 0 || status_id <= 0) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new StatusFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			args.putLong(EXTRA_STATUS_ID, status_id);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_RIGHT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_STATUS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_STATUS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openStatus(final Activity activity, final ParcelableStatus status) {
@@ -2728,274 +2685,151 @@ public final class Utils implements Constants {
 		final long account_id = status.account_id, status_id = status.id;
 		final Bundle extras = new Bundle();
 		extras.putParcelable(EXTRA_STATUS, status);
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment details_fragment = dual_pane_activity.getDetailsFragment();
-			if (details_fragment instanceof StatusFragment && details_fragment.isAdded()) {
-				((StatusFragment) details_fragment).displayStatus(status);
-				dual_pane_activity.showRightPane();
-			} else {
-				final Fragment fragment = new StatusFragment();
-				final Bundle args = new Bundle(extras);
-				args.putLong(EXTRA_ACCOUNT_ID, account_id);
-				args.putLong(EXTRA_STATUS_ID, status_id);
-				fragment.setArguments(args);
-				dual_pane_activity.showAtPane(DualPaneActivity.PANE_RIGHT, fragment, true);
-			}
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_STATUS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			intent.setExtrasClassLoader(activity.getClassLoader());
-			intent.putExtras(extras);
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_STATUS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		intent.setExtrasClassLoader(activity.getClassLoader());
+		intent.putExtras(extras);
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openStatuses(final Activity activity, final List<ParcelableStatus> statuses) {
 		if (activity == null || statuses == null) return;
 		final Bundle extras = new Bundle();
 		extras.putParcelableArrayList(EXTRA_STATUSES, new ArrayList<ParcelableStatus>(statuses));
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new StatusesListFragment();
-			fragment.setArguments(extras);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_STATUSES);
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			intent.putExtras(extras);
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_STATUSES);
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		intent.putExtras(extras);
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openStatusReplies(final Activity activity, final long accountId, final long statusId,
 			final String screenName) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new StatusRepliesListFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, accountId);
-			args.putLong(EXTRA_STATUS_ID, statusId);
-			args.putString(EXTRA_SCREEN_NAME, screenName);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_STATUS_REPLIES);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
-			builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(statusId));
-			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screenName);
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_STATUS_REPLIES);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+		builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(statusId));
+		builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screenName);
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openStatusRetweeters(final Activity activity, final long account_id, final long status_id) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new StatusRetweetersListFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			args.putLong(EXTRA_STATUS_ID, status_id);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_STATUS_RETWEETERS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_STATUS_RETWEETERS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openTweetSearch(final Activity activity, final long account_id, final String query) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new SearchStatusesFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			if (query != null) {
-				args.putString(EXTRA_QUERY, query);
-			}
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_SEARCH);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			builder.appendQueryParameter(QUERY_PARAM_TYPE, QUERY_PARAM_VALUE_TWEETS);
-			if (query != null) {
-				builder.appendQueryParameter(QUERY_PARAM_QUERY, query);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_SEARCH);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		builder.appendQueryParameter(QUERY_PARAM_TYPE, QUERY_PARAM_VALUE_TWEETS);
+		if (query != null) {
+			builder.appendQueryParameter(QUERY_PARAM_QUERY, query);
 		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserBlocks(final Activity activity, final long account_id) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserBlocksListFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_BLOCKS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_BLOCKS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserFavorites(final Activity activity, final long account_id, final long user_id,
 			final String screen_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserFavoritesFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			if (user_id > 0) {
-				args.putLong(EXTRA_USER_ID, user_id);
-			}
-			if (screen_name != null) {
-				args.putString(EXTRA_SCREEN_NAME, screen_name);
-			}
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_FAVORITES);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_FAVORITES);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
 		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 
 	}
 
 	public static void openUserFollowers(final Activity activity, final long account_id, final long user_id,
 			final String screen_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserFollowersFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			if (user_id > 0) {
-				args.putLong(EXTRA_USER_ID, user_id);
-			}
-			if (screen_name != null) {
-				args.putString(EXTRA_SCREEN_NAME, screen_name);
-			}
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_FOLLOWERS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_FOLLOWERS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
 		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserFriends(final Activity activity, final long account_id, final long user_id,
 			final String screen_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserFriendsFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			if (user_id > 0) {
-				args.putLong(EXTRA_USER_ID, user_id);
-			}
-			if (screen_name != null) {
-				args.putString(EXTRA_SCREEN_NAME, screen_name);
-			}
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_FRIENDS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_FRIENDS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
 		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 
 	}
 
 	public static void openUserListDetails(final Activity activity, final long accountId, final int listId,
 			final long userId, final String screenName, final String listName) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserListDetailsFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, accountId);
-			args.putInt(EXTRA_LIST_ID, listId);
-			args.putLong(EXTRA_USER_ID, userId);
-			args.putString(EXTRA_SCREEN_NAME, screenName);
-			args.putString(EXTRA_LIST_NAME, listName);
-			fragment.setArguments(args);
-			dual_pane_activity.showFragment(fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_LIST);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
-			if (listId > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(listId));
-			}
-			if (userId > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(userId));
-			}
-			if (screenName != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screenName);
-			}
-			if (listName != null) {
-				builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, listName);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_LIST);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+		if (listId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(listId));
 		}
+		if (userId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(userId));
+		}
+		if (screenName != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screenName);
+		}
+		if (listName != null) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, listName);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserListDetails(final Activity activity, final ParcelableUserList userList) {
@@ -3004,69 +2838,39 @@ public final class Utils implements Constants {
 		final int listId = userList.id;
 		final Bundle extras = new Bundle();
 		extras.putParcelable(EXTRA_USER_LIST, userList);
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment details_fragment = dual_pane_activity.getDetailsFragment();
-			if (details_fragment instanceof UserListDetailsFragment && details_fragment.isAdded()) {
-				((UserListDetailsFragment) details_fragment).displayUserList(userList);
-				dual_pane_activity.showRightPane();
-			} else {
-				final Fragment fragment = new UserListDetailsFragment();
-				final Bundle args = new Bundle(extras);
-				args.putLong(EXTRA_ACCOUNT_ID, accountId);
-				args.putLong(EXTRA_USER_ID, userId);
-				args.putInt(EXTRA_LIST_ID, listId);
-				fragment.setArguments(args);
-				dual_pane_activity.showAtPane(DualPaneActivity.PANE_RIGHT, fragment, true);
-			}
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_LIST);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
-			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(userId));
-			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(listId));
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			intent.setExtrasClassLoader(activity.getClassLoader());
-			intent.putExtras(extras);
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_LIST);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+		builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(userId));
+		builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(listId));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		intent.setExtrasClassLoader(activity.getClassLoader());
+		intent.putExtras(extras);
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserListMembers(final Activity activity, final long account_id, final int list_id,
 			final long user_id, final String screen_name, final String list_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserListMembersFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			args.putInt(EXTRA_LIST_ID, list_id);
-			args.putLong(EXTRA_USER_ID, user_id);
-			args.putString(EXTRA_SCREEN_NAME, screen_name);
-			args.putString(EXTRA_LIST_NAME, list_name);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_LIST_MEMBERS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (list_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
-			}
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			if (list_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_LIST_MEMBERS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (list_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
 		}
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
+		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		if (list_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserListMembers(final Activity activity, final ParcelableUserList list) {
@@ -3077,97 +2881,58 @@ public final class Utils implements Constants {
 	public static void openUserListMemberships(final Activity activity, final long account_id, final long user_id,
 			final String screen_name) {
 		if (activity == null || account_id <= 0 || user_id <= 0 && isEmpty(screen_name)) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserListMembershipsListFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			if (user_id > 0) {
-				args.putLong(EXTRA_USER_ID, user_id);
-			}
-			if (screen_name != null) {
-				args.putString(EXTRA_SCREEN_NAME, screen_name);
-			}
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_LIST_MEMBERSHIPS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_LIST_MEMBERSHIPS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
 		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserLists(final Activity activity, final long account_id, final long user_id,
 			final String screen_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserListsListFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			args.putLong(EXTRA_USER_ID, user_id);
-			args.putString(EXTRA_SCREEN_NAME, screen_name);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_LISTS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_LISTS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
 		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserListSubscribers(final Activity activity, final long account_id, final int list_id,
 			final long user_id, final String screen_name, final String list_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserListSubscribersFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			args.putInt(EXTRA_LIST_ID, list_id);
-			args.putLong(EXTRA_USER_ID, user_id);
-			args.putString(EXTRA_SCREEN_NAME, screen_name);
-			args.putString(EXTRA_LIST_NAME, list_name);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_LISTS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (list_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
-			}
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			if (list_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_LISTS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (list_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
 		}
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
+		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		if (list_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserListSubscribers(final Activity activity, final ParcelableUserList list) {
@@ -3178,37 +2943,24 @@ public final class Utils implements Constants {
 	public static void openUserListTimeline(final Activity activity, final long account_id, final int list_id,
 			final long user_id, final String screen_name, final String list_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserListTimelineFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			args.putInt(EXTRA_LIST_ID, list_id);
-			args.putLong(EXTRA_USER_ID, user_id);
-			args.putString(EXTRA_SCREEN_NAME, screen_name);
-			args.putString(EXTRA_LIST_NAME, list_name);
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_LIST_TIMELINE);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (list_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
-			}
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			if (list_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_LIST_TIMELINE);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (list_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
 		}
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
+		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		if (list_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserListTimeline(final Activity activity, final ParcelableUserList list) {
@@ -3218,151 +2970,81 @@ public final class Utils implements Constants {
 
 	public static void openUserMentions(final Activity activity, final long account_id, final String screen_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserMentionsFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			if (screen_name != null) {
-				args.putString(EXTRA_SCREEN_NAME, screen_name);
-			}
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_MENTIONS);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_MENTIONS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserProfile(final Activity activity, final long account_id, final long user_id,
 			final String screen_name) {
 		if (activity == null || account_id <= 0 || user_id <= 0 && isEmpty(screen_name)) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserProfileFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			if (user_id > 0) {
-				args.putLong(EXTRA_USER_ID, user_id);
-			}
-			if (screen_name != null) {
-				args.putString(EXTRA_SCREEN_NAME, screen_name);
-			}
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_RIGHT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
 		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserProfile(final Activity activity, final ParcelableUser user) {
 		if (activity == null || user == null) return;
 		final Bundle extras = new Bundle();
 		extras.putParcelable(EXTRA_USER, user);
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment details_fragment = dual_pane_activity.getDetailsFragment();
-			if (details_fragment instanceof UserProfileFragment && details_fragment.isAdded()) {
-				((UserProfileFragment) details_fragment).displayUser(user);
-				dual_pane_activity.showRightPane();
-			} else {
-				final Fragment fragment = new UserProfileFragment();
-				final Bundle args = new Bundle(extras);
-				args.putLong(EXTRA_ACCOUNT_ID, user.account_id);
-				if (user.id > 0) {
-					args.putLong(EXTRA_USER_ID, user.id);
-				}
-				if (user.screen_name != null) {
-					args.putString(EXTRA_SCREEN_NAME, user.screen_name);
-				}
-				fragment.setArguments(args);
-				dual_pane_activity.showAtPane(DualPaneActivity.PANE_RIGHT, fragment, true);
-			}
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(user.account_id));
-			if (user.id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user.id));
-			}
-			if (user.screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, user.screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			intent.setExtrasClassLoader(activity.getClassLoader());
-			intent.putExtras(extras);
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(user.account_id));
+		if (user.id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user.id));
 		}
+		if (user.screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, user.screen_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		intent.setExtrasClassLoader(activity.getClassLoader());
+		intent.putExtras(extras);
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUsers(final Activity activity, final List<ParcelableUser> users) {
 		if (activity == null || users == null) return;
 		final Bundle extras = new Bundle();
 		extras.putParcelableArrayList(EXTRA_USERS, new ArrayList<ParcelableUser>(users));
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UsersListFragment();
-			fragment.setArguments(extras);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USERS);
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			intent.putExtras(extras);
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
-		}
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USERS);
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		intent.putExtras(extras);
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openUserTimeline(final Activity activity, final long account_id, final long user_id,
 			final String screen_name) {
 		if (activity == null) return;
-		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
-			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
-			final Fragment fragment = new UserTimelineFragment();
-			final Bundle args = new Bundle();
-			args.putLong(EXTRA_ACCOUNT_ID, account_id);
-			if (user_id > 0) {
-				args.putLong(EXTRA_USER_ID, user_id);
-			}
-			if (screen_name != null) {
-				args.putString(EXTRA_SCREEN_NAME, screen_name);
-			}
-			fragment.setArguments(args);
-			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
-		} else {
-			final Uri.Builder builder = new Uri.Builder();
-			builder.scheme(SCHEME_TWIDERE);
-			builder.authority(AUTHORITY_USER_TIMELINE);
-			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			if (user_id > 0) {
-				builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
-			}
-			if (screen_name != null) {
-				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
-			}
-			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_USER_TIMELINE);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		if (user_id > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
 		}
+		if (screen_name != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		}
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 
 	}
 
@@ -3413,44 +3095,30 @@ public final class Utils implements Constants {
 		activity.overridePendingTransition(enter_anim, exit_anim);
 	}
 
-	public static void scrollListToPosition(final ListView list, final int position) {
+	public static void scrollListToPosition(final AbsListView list, final int position) {
 		scrollListToPosition(list, position, 0);
 	}
 
-	public static void scrollListToPosition(final ListView list, final int position, final int offset) {
+	public static void scrollListToPosition(final AbsListView list, final int position, final int offset) {
 		if (list == null) return;
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-			list.setSelectionFromTop(position, offset);
+			if (list instanceof ListView) {
+				((ListView) list).setSelectionFromTop(position, offset);
+			} else {
+				list.setSelection(position);
+			}
 			stopListView(list);
 		} else {
 			stopListView(list);
-			list.setSelectionFromTop(position, offset);
+			if (list instanceof ListView) {
+				((ListView) list).setSelectionFromTop(position, offset);
+			} else {
+				list.setSelection(position);
+			}
 		}
 	}
 
-	public static void scrollListToPosition(final PLAListView list, final int position) {
-		if (list == null) return;
-		// if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-		list.setSelection(position);
-		list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
-				MotionEvent.ACTION_CANCEL, 0, 0, 0));
-		// } else {
-		// list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(),
-		// SystemClock.uptimeMillis(),
-		// MotionEvent.ACTION_DOWN, 0, 0, 0));
-		// list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(),
-		// SystemClock.uptimeMillis(),
-		// MotionEvent.ACTION_UP, 0, 0, 0));
-		// list.setSelection(position);
-		// }
-	}
-
-	public static void scrollListToTop(final ListView list) {
-		if (list == null) return;
-		scrollListToPosition(list, 0);
-	}
-
-	public static void scrollListToTop(final PLAListView list) {
+	public static void scrollListToTop(final AbsListView list) {
 		if (list == null) return;
 		scrollListToPosition(list, 0);
 	}
@@ -3495,6 +3163,12 @@ public final class Utils implements Constants {
 				favorite.setTitle(R.string.favorite);
 			}
 		}
+		final MenuItem translate = menu.findItem(MENU_TRANSLATE);
+		if (translate != null) {
+			final AccountWithCredentials account = Account.getAccountWithCredentials(context, status.account_id);
+			final boolean isOfficialKey = AccountWithCredentials.isOfficialCredentials(context, account);
+			setMenuItemAvailability(menu, MENU_TRANSLATE, isOfficialKey);
+		}
 		menu.removeGroup(MENU_GROUP_STATUS_EXTENSION);
 		final Intent extensionIntent = new Intent(INTENT_ACTION_EXTENSION_OPEN_STATUS);
 		extensionIntent.setExtrasClassLoader(context.getClassLoader());
@@ -3533,7 +3207,7 @@ public final class Utils implements Constants {
 
 	public static void setUserAgent(final Context context, final ConfigurationBuilder cb) {
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final boolean gzip_compressing = prefs.getBoolean(PREFERENCE_KEY_GZIP_COMPRESSING, true);
+		final boolean gzip_compressing = prefs.getBoolean(KEY_GZIP_COMPRESSING, true);
 		final PackageManager pm = context.getPackageManager();
 		try {
 			final PackageInfo pi = pm.getPackageInfo(context.getPackageName(), 0);
@@ -3551,13 +3225,19 @@ public final class Utils implements Constants {
 	public static boolean shouldEnableFiltersForRTs(final Context context) {
 		if (context == null) return false;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		return prefs.getBoolean(PREFERENCE_KEY_FILTERS_FOR_RTS, true);
+		return prefs.getBoolean(KEY_FILTERS_FOR_RTS, true);
+	}
+
+	public static boolean shouldForceUsingPrivateAPIs(final Context context) {
+		if (context == null) return false;
+		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
+		return prefs.getBoolean(KEY_FORCE_USING_PRIVATE_APIS, false);
 	}
 
 	public static boolean shouldStopAutoRefreshOnBatteryLow(final Context context) {
 		final SharedPreferences mPreferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME,
 				Context.MODE_PRIVATE);
-		return mPreferences.getBoolean(PREFERENCE_KEY_STOP_AUTO_REFRESH_WHEN_BATTERY_LOW, true);
+		return mPreferences.getBoolean(KEY_STOP_AUTO_REFRESH_WHEN_BATTERY_LOW, true);
 	}
 
 	public static void showErrorMessage(final Context context, final CharSequence message, final boolean long_message) {
@@ -3733,7 +3413,7 @@ public final class Utils implements Constants {
 	public static void startProfilingServiceIfNeeded(final Context context) {
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		final Intent profilingServiceIntent = new Intent(context, UCDService.class);
-		if (prefs.getBoolean(PREFERENCE_KEY_UCD_DATA_PROFILING, false)) {
+		if (prefs.getBoolean(KEY_UCD_DATA_PROFILING, false)) {
 			context.startService(profilingServiceIntent);
 		} else {
 			context.stopService(profilingServiceIntent);
@@ -3764,7 +3444,7 @@ public final class Utils implements Constants {
 		context.startActivity(Intent.createChooser(intent, context.getString(R.string.share)));
 	}
 
-	public static void stopListView(final ListView list) {
+	public static void stopListView(final AbsListView list) {
 		if (list == null) return;
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
 			list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),

@@ -23,6 +23,7 @@
 
 	<style name="Widget.Twidere.Viewer.ActionBar" parent="android:Widget.Holo.ActionBar">
 		<item name="android:background">#80000000</item>
+		<item name="android:backgroundSplit">#80000000</item>
 	</style>
 
 	<style name="Widget.Twidere.ImageButton.Borderless" parent="android:Widget.Holo.ImageButton">
@@ -39,30 +40,6 @@
 
 	<style name="Widget.Twidere.Light.SelectableView" parent="android:Widget.Holo.Light">
 		<item name="android:background">?android:attr/selectableItemBackground</item>
-	</style>
-
-	<style name="Widget.Twidere.TextView" parent="android:Widget.Holo.TextView">
-		<!-- <item name="android:fontFamily">sans-serif-light</item> -->
-	</style>
-
-	<style name="Widget.Twidere.Light.TextView" parent="android:Widget.Holo.Light.TextView">
-		<!-- <item name="android:fontFamily">sans-serif-light</item> -->
-	</style>
-
-	<style name="Widget.Twidere.CompoundButton.RadioButton" parent="android:Widget.Holo.CompoundButton.RadioButton">
-		<!-- <item name="android:fontFamily">sans-serif-light</item> -->
-	</style>
-
-	<style name="Widget.Twidere.Light.CompoundButton.RadioButton" parent="android:Widget.Holo.Light.CompoundButton.RadioButton">
-		<!-- <item name="android:fontFamily">sans-serif-light</item> -->
-	</style>
-
-	<style name="Widget.Twidere.CompoundButton.CheckBox" parent="android:Widget.Holo.CompoundButton.CheckBox">
-		<!-- <item name="android:fontFamily">sans-serif-light</item> -->
-	</style>
-
-	<style name="Widget.Twidere.Light.CompoundButton.CheckBox" parent="android:Widget.Holo.Light.CompoundButton.CheckBox">
-		<!-- <item name="android:fontFamily">sans-serif-light</item> -->
 	</style>
 
 	<style name="Animation.Twidere.Activity" parent="android:Animation.Activity">
@@ -122,6 +99,7 @@
 
 	<style name="Widget.CardItemView" parent="android:Widget.Holo">
 		<item name="cardBackground">?cardItemBackground</item>
+		<item name="cardBackgroundAlpha">50%p</item>
 		<item name="cardSelector">?android:selectableItemBackground</item>
 		<item name="cardActivatedIndicator">?android:activatedBackgroundIndicator</item>
 		<item name="cardOverflowIcon">?listMenuOverflowButton</item>
@@ -129,6 +107,11 @@
 		<item name="cardGapText">@string/tap_to_load_more</item>
 		<item name="cardGapTextColor">?android:textColorPrimary</item>
 		<item name="cardGapTextSize">18sp</item>
+	</style>
+
+	<style name="Widget.StaggeredGridView" parent="android:Widget.Holo">
+		<item name="column_count_portrait">@integer/staggered_grid_columns_port</item>
+		<item name="column_count_landscape">@integer/staggered_grid_columns_land</item>
 	</style>
 
 </resources>

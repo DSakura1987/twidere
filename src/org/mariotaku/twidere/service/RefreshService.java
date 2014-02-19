@@ -1,20 +1,20 @@
 /*
- *				Twidere - Twitter client for Android
+ * 				Twidere - Twitter client for Android
  * 
- * Copyright (C) 2012 Mariotaku Lee <mariotaku.lee@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  Copyright (C) 2012-2014 Mariotaku Lee <mariotaku.lee@gmail.com>
+ * 
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ * 
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ * 
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.mariotaku.twidere.service;
@@ -37,7 +37,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -48,12 +47,13 @@ import org.mariotaku.twidere.provider.TweetStore.DirectMessages;
 import org.mariotaku.twidere.provider.TweetStore.Mentions;
 import org.mariotaku.twidere.provider.TweetStore.Statuses;
 import org.mariotaku.twidere.util.AsyncTwitterWrapper;
+import org.mariotaku.twidere.util.SharedPreferencesWrapper;
 
 import java.util.Arrays;
 
 public class RefreshService extends Service implements Constants {
 
-	private SharedPreferences mPreferences;
+	private SharedPreferencesWrapper mPreferences;
 
 	private AlarmManager mAlarmManager;
 	private AsyncTwitterWrapper mTwitterWrapper;
@@ -136,7 +136,7 @@ public class RefreshService extends Service implements Constants {
 		mAlarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
 		final TwidereApplication app = TwidereApplication.getInstance(this);
 		mTwitterWrapper = app.getTwitterWrapper();
-		mPreferences = getSharedPreferences(SHARED_PREFERENCES_NAME, MODE_PRIVATE);
+		mPreferences = SharedPreferencesWrapper.getInstance(app, SHARED_PREFERENCES_NAME, MODE_PRIVATE);
 		mPendingRefreshHomeTimelineIntent = PendingIntent.getBroadcast(this, 0, new Intent(
 				BROADCAST_REFRESH_HOME_TIMELINE), 0);
 		mPendingRefreshMentionsIntent = PendingIntent.getBroadcast(this, 0, new Intent(BROADCAST_REFRESH_MENTIONS), 0);
@@ -179,7 +179,7 @@ public class RefreshService extends Service implements Constants {
 
 	private int getLocalTrends(final long[] accountIds) {
 		final long account_id = getDefaultAccountId(this);
-		final int woeid = mPreferences.getInt(PREFERENCE_KEY_LOCAL_TRENDS_WOEID, 1);
+		final int woeid = mPreferences.getInt(KEY_LOCAL_TRENDS_WOEID, 1);
 		return mTwitterWrapper.getLocalTrendsAsync(account_id, woeid);
 	}
 
@@ -207,8 +207,7 @@ public class RefreshService extends Service implements Constants {
 
 	private long getRefreshInterval() {
 		if (mPreferences == null) return 0;
-		final int prefValue = parseInt(mPreferences.getString(PREFERENCE_KEY_REFRESH_INTERVAL,
-				PREFERENCE_DEFAULT_REFRESH_INTERVAL));
+		final int prefValue = parseInt(mPreferences.getString(KEY_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL));
 		return Math.max(prefValue, 3) * 60 * 1000;
 	}
 

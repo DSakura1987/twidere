@@ -23,25 +23,25 @@ import static org.mariotaku.twidere.util.Utils.restartActivity;
 
 import android.app.Activity;
 import android.content.res.Resources;
+import android.content.res.Resources.Theme;
 import android.os.Bundle;
 import android.support.v4.app.NavUtils;
 
 import com.negusoft.holoaccent.AccentHelper;
 
 import org.mariotaku.twidere.activity.iface.IThemedActivity;
-import org.mariotaku.twidere.theme.TwidereAccentHelper;
 import org.mariotaku.twidere.util.CompareUtils;
 import org.mariotaku.twidere.util.StrictModeUtils;
 import org.mariotaku.twidere.util.ThemeUtils;
 import org.mariotaku.twidere.util.Utils;
+import org.mariotaku.twidere.util.theme.TwidereAccentHelper;
 
 public abstract class BaseThemedActivity extends Activity implements IThemedActivity {
 
 	private int mCurrentThemeResource, mCurrentThemeColor, mCurrentThemeBackgroundAlpha;
-
 	private String mCurrentThemeFontFamily;
-
 	private AccentHelper mAccentHelper;
+	private Theme mTheme;
 
 	@Override
 	public void finish() {
@@ -65,6 +65,19 @@ public abstract class BaseThemedActivity extends Activity implements IThemedActi
 	}
 
 	@Override
+	public Theme getTheme() {
+		if (mTheme == null) {
+			mTheme = getResources().newTheme();
+			mTheme.setTo(super.getTheme());
+			final int getThemeResourceId = getThemeResourceId();
+			if (getThemeResourceId != 0) {
+				mTheme.applyStyle(getThemeResourceId, true);
+			}
+		}
+		return mTheme;
+	}
+
+	@Override
 	public int getThemeBackgroundAlpha() {
 		return ThemeUtils.isTransparentBackground(this) ? ThemeUtils.getUserThemeBackgroundAlpha(this) : 0xff;
 	}
@@ -75,7 +88,7 @@ public abstract class BaseThemedActivity extends Activity implements IThemedActi
 	@Override
 	public final Resources getThemedResources() {
 		if (mAccentHelper == null) {
-			mAccentHelper = new TwidereAccentHelper(ThemeUtils.getUserThemeColor(this));
+			mAccentHelper = new TwidereAccentHelper(getThemeResourceId(), getThemeColor());
 		}
 		return mAccentHelper.getResources(this, super.getResources());
 	}
@@ -126,6 +139,7 @@ public abstract class BaseThemedActivity extends Activity implements IThemedActi
 		}
 		setTheme();
 		super.onCreate(savedInstanceState);
+		// AccentThemeFixer.fixActionBar(getActionBar(), this);
 		setActionBarBackground();
 	}
 
@@ -134,6 +148,9 @@ public abstract class BaseThemedActivity extends Activity implements IThemedActi
 		super.onResume();
 		if (isThemeChanged()) {
 			restart();
+		} else {
+			ThemeUtils.notifyStatusBarColorChanged(this, mCurrentThemeResource, mCurrentThemeColor,
+					mCurrentThemeBackgroundAlpha);
 		}
 	}
 
@@ -150,6 +167,8 @@ public abstract class BaseThemedActivity extends Activity implements IThemedActi
 		mCurrentThemeColor = getThemeColor();
 		mCurrentThemeFontFamily = getThemeFontFamily();
 		mCurrentThemeBackgroundAlpha = getThemeBackgroundAlpha();
+		ThemeUtils.notifyStatusBarColorChanged(this, mCurrentThemeResource, mCurrentThemeColor,
+				mCurrentThemeBackgroundAlpha);
 		setTheme(mCurrentThemeResource);
 		if (ThemeUtils.isTransparentBackground(mCurrentThemeResource)) {
 			getWindow().setBackgroundDrawable(ThemeUtils.getWindowBackground(this));

@@ -2,15 +2,17 @@
 <resources>
 
 	<dimen name="element_size_default">48dp</dimen>
-	<dimen name="element_spacing_small">4dp</dimen>
-	<dimen name="element_spacing_default">8dp</dimen>
-	<dimen name="element_spacing_large">16dp</dimen>
 	<dimen name="element_spacing_extra_small">2dp</dimen>
+	<dimen name="element_spacing_small">4dp</dimen>
+	<dimen name="element_spacing_normal">8dp</dimen>
+	<dimen name="element_spacing_large">16dp</dimen>
+	<dimen name="element_spacing_xlarge">24dp</dimen>
 	<dimen name="icon_size_list_item">56dp</dimen>
 	<dimen name="icon_size_list_item_small">42dp</dimen>
 	<dimen name="icon_size_card_list_item">48dp</dimen>
 	<dimen name="icon_size_card_details">56dp</dimen>
 	<dimen name="icon_size_wizard_large">240dp</dimen>
+	<dimen name="icon_size_user_profile">64dp</dimen>
 	<dimen name="profile_image_size_activity_small">32dp</dimen>
 	<dimen name="default_sliding_menu_shadow_width">8dp</dimen>
 	<dimen name="default_sliding_menu_margin_threshold">16dp</dimen>
@@ -23,6 +25,7 @@
 	<dimen name="accounts_drawer_switch_label_size">16sp</dimen>
 	<dimen name="accounts_drawer_child_size">16sp</dimen>
 	<dimen name="home_actions_button_size">56dp</dimen>
+	<dimen name="action_button_size">56dp</dimen>
 
 	<!-- Size of icons in the top-level of settings -->
 	<dimen name="header_icon_width">28dp</dimen>
@@ -39,7 +42,7 @@
 	<dimen name="item_menu_padding_start_default">6dp</dimen>
 	<dimen name="item_menu_padding_bottom_default">2dp</dimen>
 	<dimen name="item_menu_padding_end_default">10dp</dimen>
-	<dimen name="item_menu_card_padding_compact">20dp</dimen>
+	<dimen name="item_menu_card_padding_compact">28dp</dimen>
 
 	<!-- Dimensions for color picker -->
 	<dimen name="color_button_width">48dp</dimen>

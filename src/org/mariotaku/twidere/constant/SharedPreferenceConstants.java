@@ -24,7 +24,7 @@ import static org.mariotaku.twidere.annotation.Preference.Type.INT;
 import static org.mariotaku.twidere.annotation.Preference.Type.LONG;
 import static org.mariotaku.twidere.annotation.Preference.Type.STRING;
 
-import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.TwidereConstants;
 import org.mariotaku.twidere.annotation.Preference;
 import org.mariotaku.twidere.provider.TweetStore.Accounts;
 
@@ -35,7 +35,8 @@ public interface SharedPreferenceConstants {
 	public static final String FORMAT_PATTERN_NAME = "[NAME]";
 	public static final String FORMAT_PATTERN_LINK = "[LINK]";
 
-	public static final String VALUE_LINK_HIGHLIGHT_OPTION_NONE = "none";
+	public static final String VALUE_NONE = "none";
+	public static final String VALUE_LINK_HIGHLIGHT_OPTION_NONE = VALUE_NONE;
 	public static final String VALUE_LINK_HIGHLIGHT_OPTION_HIGHLIGHT = "highlight";
 	public static final String VALUE_LINK_HIGHLIGHT_OPTION_UNDERLINE = "underline";
 	public static final String VALUE_LINK_HIGHLIGHT_OPTION_BOTH = "both";
@@ -75,6 +76,18 @@ public interface SharedPreferenceConstants {
 	public static final String VALUE_THEME_NAME_DARK = "dark";
 	public static final String VALUE_THEME_NAME_LIGHT = "light";
 
+	public static final String VALUE_COMPOSE_NOW_ACTION_COMPOSE = "compose";
+	public static final String VALUE_COMPOSE_NOW_ACTION_TAKE_PHOTO = "take_photo";
+	public static final String VALUE_COMPOSE_NOW_ACTION_PICK_IMAGE = "pick_image";
+
+	public static final String VALUE_CARD_HIGHLIGHT_OPTION_NONE = VALUE_NONE;
+	public static final String VALUE_CARD_HIGHLIGHT_OPTION_BACKGROUND = "background";
+	public static final String VALUE_CARD_HIGHLIGHT_OPTION_LINE = "line";
+
+	public static final int VALUE_CARD_HIGHLIGHT_OPTION_CODE_NONE = 0x0;
+	public static final int VALUE_CARD_HIGHLIGHT_OPTION_CODE_BACKGROUND = 0x1;
+	public static final int VALUE_CARD_HIGHLIGHT_OPTION_CODE_LINE = 0x2;
+
 	public static final String DEFAULT_THEME = VALUE_THEME_NAME_TWIDERE;
 	public static final String DEFAULT_THEME_BACKGROUND = VALUE_THEME_BACKGROUND_DEFAULT;
 	public static final String DEFAULT_THEME_FONT_FAMILY = VALUE_THEME_FONT_FAMILY_REGULAR;
@@ -103,8 +116,7 @@ public interface SharedPreferenceConstants {
 
 	public static final int DEFAULT_DATABASE_ITEM_LIMIT = 100;
 	public static final int DEFAULT_LOAD_ITEM_LIMIT = 20;
-	public static final boolean DEFAULT_HARDWARE_ACCELERATION = true;
-	public static final boolean DEFAULT_SEPARATE_RETWEET_ACTION = true;
+	public static final String DEFAULT_CARD_HIGHLIGHT_OPTION = VALUE_CARD_HIGHLIGHT_OPTION_BACKGROUND;
 
 	@Preference(type = INT, hasDefault = true, defaultInt = DEFAULT_DATABASE_ITEM_LIMIT)
 	public static final String KEY_DATABASE_ITEM_LIMIT = "database_item_limit";
@@ -146,6 +158,8 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_QUOTE_FORMAT = "quote_format";
 	@Preference(type = BOOLEAN)
 	public static final String KEY_REMEMBER_POSITION = "remember_position";
+	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
+	public static final String KEY_LOAD_MORE_FROM_TOP = "load_more_from_top";
 	@Preference(type = INT, exportable = false)
 	public static final String KEY_SAVED_TAB_POSITION = "saved_tab_position";
 	@Preference(type = BOOLEAN)
@@ -181,12 +195,12 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_NOTIFICATION_RINGTONE = "notification_ringtone";
 	public static final String KEY_NOTIFICATION_LIGHT_COLOR = "notification_light_color";
 	public static final String KEY_SHARE_FORMAT = "share_format";
-	public static final String KEY_IMAGE_UPLOADER = "image_uploader";
 	public static final String KEY_HOME_REFRESH_MENTIONS = "home_refresh_mentions";
 	public static final String KEY_HOME_REFRESH_DIRECT_MESSAGES = "home_refresh_direct_messages";
 	public static final String KEY_HOME_REFRESH_TRENDS = "home_refresh_trends";
 	public static final String KEY_IMAGE_UPLOAD_FORMAT = "image_upload_format";
-	public static final String KEY_TWEET_SHORTENER = "tweet_shortener";
+	public static final String KEY_STATUS_SHORTENER = "status_shortener";
+	public static final String KEY_MEDIA_UPLOADER = "media_uploader";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_SHOW_ABSOLUTE_TIME = "show_absolute_time";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
@@ -195,9 +209,8 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_COMPOSE_ACCOUNTS = "compose_accounts";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_TCP_DNS_QUERY = "tcp_dns_query";
+	@Preference(type = STRING, hasDefault = true, defaultString = "8.8.8.8")
 	public static final String KEY_DNS_SERVER = "dns_server";
-	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = DEFAULT_SEPARATE_RETWEET_ACTION)
-	public static final String KEY_SEPARATE_RETWEET_ACTION = "separate_retweet_action";
 	public static final String KEY_CONNECTION_TIMEOUT = "connection_timeout";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = true)
 	public static final String KEY_NAME_FIRST = "name_first";
@@ -241,9 +254,9 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_SIGNING_OAUTH_BASE_URL = "signing_oauth_base_url";
 	@Preference(type = INT, hasDefault = true, defaultInt = Accounts.AUTH_TYPE_OAUTH)
 	public static final String KEY_AUTH_TYPE = "auth_type";
-	@Preference(type = STRING, hasDefault = true, defaultString = Constants.TWITTER_CONSUMER_KEY_2)
+	@Preference(type = STRING, hasDefault = true, defaultString = TwidereConstants.TWITTER_CONSUMER_KEY_2)
 	public static final String KEY_CONSUMER_KEY = "consumer_key";
-	@Preference(type = STRING, hasDefault = true, defaultString = Constants.TWITTER_CONSUMER_SECRET_2)
+	@Preference(type = STRING, hasDefault = true, defaultString = TwidereConstants.TWITTER_CONSUMER_SECRET_2)
 	public static final String KEY_CONSUMER_SECRET = "consumer_secret";
 	public static final String KEY_FILTERS_IN_HOME_TIMELINE = "filters_in_home_timeline";
 	public static final String KEY_FILTERS_IN_MENTIONS = "filters_in_mentions";
@@ -258,21 +271,30 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_NOTIFICATION_TYPE_HOME = "notification_type_home";
 	public static final String KEY_NOTIFICATION_TYPE_MENTIONS = "notification_type_mentions";
 	public static final String KEY_NOTIFICATION_TYPE_DIRECT_MESSAGES = "notification_type_direct_messages";
+	public static final String KEY_MY_FOLLOWING_ONLY = "my_following_only";
+
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_COMPACT_CARDS = "compact_cards";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_LONG_CLICK_TO_OPEN_MENU = "long_click_to_open_menu";
-	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = true)
+	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_SWIPE_BACK = "swipe_back";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_FORCE_USING_PRIVATE_APIS = "force_using_private_apis";
-	@Preference(type = INT, hasDefault = true, defaultInt = 140)
+	@Preference(type = STRING, hasDefault = true, defaultString = "140")
 	public static final String KEY_STATUS_TEXT_LIMIT = "status_text_limit";
+	@Preference(type = STRING, hasDefault = true, defaultString = VALUE_COMPOSE_NOW_ACTION_COMPOSE)
+	public static final String KEY_COMPOSE_NOW_ACTION = "compose_now_action";
+	public static final String KEY_FALLBACK_TWITTER_LINK_HANDLER = "fallback_twitter_link_handler";
+	@Preference(type = STRING, hasDefault = true, defaultString = "CENTER_CROP")
+	public static final String KEY_IMAGE_PREVIEW_SCALE_TYPE = "image_preview_scale_type";
 
 	@Preference(type = STRING)
 	public static final String KEY_TRANSLATION_DESTINATION = "translation_destination";
 	@Preference(type = STRING)
 	public static final String KEY_TAB_DISPLAY_OPTION = "tab_display_option";
+	@Preference(type = STRING)
+	public static final String KEY_CARD_HIGHLIGHT_OPTION = "card_highlight_option";
 	@Preference(type = INT, exportable = false)
 	public static final String KEY_LIVE_WALLPAPER_SCALE = "live_wallpaper_scale";
 	@Preference(type = LONG, exportable = false)

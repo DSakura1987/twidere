@@ -24,7 +24,8 @@ import static org.mariotaku.twidere.util.UserColorNicknameUtils.getUserNickname;
 import static org.mariotaku.twidere.util.Utils.configBaseCardAdapter;
 import static org.mariotaku.twidere.util.Utils.findStatusInDatabases;
 import static org.mariotaku.twidere.util.Utils.getAccountColor;
-import static org.mariotaku.twidere.util.Utils.getStatusBackground;
+import static org.mariotaku.twidere.util.Utils.getCardHighlightColor;
+import static org.mariotaku.twidere.util.Utils.getCardHighlightOptionInt;
 import static org.mariotaku.twidere.util.Utils.isFiltered;
 import static org.mariotaku.twidere.util.Utils.openImage;
 import static org.mariotaku.twidere.util.Utils.openUserProfile;
@@ -38,11 +39,11 @@ import android.text.TextUtils;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.widget.ImageView.ScaleType;
 
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.adapter.iface.IStatusesAdapter;
 import org.mariotaku.twidere.app.TwidereApplication;
-import org.mariotaku.twidere.model.CursorStatusIndices;
 import org.mariotaku.twidere.model.ParcelableStatus;
 import org.mariotaku.twidere.model.ParcelableUserMention;
 import org.mariotaku.twidere.provider.TweetStore.Statuses;
@@ -53,6 +54,8 @@ import org.mariotaku.twidere.util.TwidereLinkify;
 import org.mariotaku.twidere.util.Utils;
 import org.mariotaku.twidere.view.holder.StatusViewHolder;
 import org.mariotaku.twidere.view.iface.ICardItemView.OnOverflowIconClickListener;
+
+import java.util.Locale;
 
 public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatusesAdapter<Cursor>, OnClickListener,
 		OnOverflowIconClickListener {
@@ -72,9 +75,11 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 			mAnimationEnabled;
 	private boolean mFilterIgnoreUser, mFilterIgnoreSource, mFilterIgnoreTextHtml, mFilterIgnoreTextPlain,
 			mFilterRetweetedById;
-	private int mMaxAnimationPosition;
+	private int mMaxAnimationPosition, mCardHighlightOption;
 
-	private CursorStatusIndices mIndices;
+	private ParcelableStatus.CursorIndices mIndices;
+
+	private ScaleType mImagePreviewScaleType;
 
 	public CursorStatusesAdapter(final Context context) {
 		this(context, Utils.isCompactCards(context));
@@ -103,6 +108,7 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 		holder.setShowAsGap(showGap);
 		holder.position = position;
 		holder.setDisplayProfileImage(isDisplayProfileImage());
+		holder.setCardHighlightOption(mCardHighlightOption);
 
 		if (!showGap) {
 
@@ -129,13 +135,13 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 			final String name = cursor.getString(mIndices.user_name);
 			final String inReplyToName = cursor.getString(mIndices.in_reply_to_user_name);
 			final String inReplyToScreenName = cursor.getString(mIndices.in_reply_to_user_screen_name);
-			final String mediaLink = cursor.getString(mIndices.media_link);
+			final String firstMedia = cursor.getString(mIndices.first_media);
 
 			// Tweet type (favorite/location/media)
 			final boolean isFavorite = cursor.getShort(mIndices.is_favorite) == 1;
 			final boolean hasLocation = !TextUtils.isEmpty(cursor.getString(mIndices.location));
 			final boolean possiblySensitive = cursor.getInt(mIndices.is_possibly_sensitive) == 1;
-			final boolean hasMedia = mediaLink != null;
+			final boolean hasMedia = firstMedia != null;
 
 			// User type (protected/verified)
 			final boolean isVerified = cursor.getShort(mIndices.is_verified) == 1;
@@ -147,7 +153,7 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 			final boolean isMyStatus = accountId == userId;
 
 			holder.setUserColor(getUserColor(mContext, userId));
-			holder.setHighlightColor(getStatusBackground(!mMentionsHighlightDisabled && isMention,
+			holder.setHighlightColor(getCardHighlightColor(!mMentionsHighlightDisabled && isMention,
 					!mFavoritesHighlightDisabled && isFavorite, isRetweet));
 
 			holder.setAccountColorEnabled(showAccountColor);
@@ -201,14 +207,17 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 			}
 			final boolean hasPreview = mDisplayImagePreview && hasMedia;
 			holder.image_preview_container.setVisibility(hasPreview ? View.VISIBLE : View.GONE);
-			if (hasPreview && mediaLink != null) {
+			if (hasPreview && firstMedia != null) {
+				if (mImagePreviewScaleType != null) {
+					holder.image_preview.setScaleType(mImagePreviewScaleType);
+				}
 				if (possiblySensitive && !mDisplaySensitiveContents) {
 					holder.image_preview.setImageDrawable(null);
 					holder.image_preview.setBackgroundResource(R.drawable.image_preview_nsfw);
 					holder.image_preview_progress.setVisibility(View.GONE);
-				} else if (!mediaLink.equals(mImageLoadingHandler.getLoadingUri(holder.image_preview))) {
+				} else if (!firstMedia.equals(mImageLoadingHandler.getLoadingUri(holder.image_preview))) {
 					holder.image_preview.setBackgroundResource(0);
-					mImageLoader.displayPreviewImage(holder.image_preview, mediaLink, mImageLoadingHandler);
+					mImageLoader.displayPreviewImage(holder.image_preview, firstMedia, mImageLoadingHandler);
 				}
 				holder.image_preview.setTag(position);
 			}
@@ -316,8 +325,8 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 		switch (view.getId()) {
 			case R.id.image_preview: {
 				final ParcelableStatus status = getStatus(position);
-				if (status == null || status.media_link == null) return;
-				openImage(mContext, status.media_link, status.is_possibly_sensitive);
+				if (status == null || status.first_media == null) return;
+				openImage(mContext, status.first_media, status.is_possibly_sensitive);
 				break;
 			}
 			case R.id.my_profile_image:
@@ -348,6 +357,14 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 	public void setAnimationEnabled(final boolean anim) {
 		if (mAnimationEnabled == anim) return;
 		mAnimationEnabled = anim;
+	}
+
+	@Override
+	public void setCardHighlightOption(final String option) {
+		final int option_int = getCardHighlightOptionInt(option);
+		if (option_int == mCardHighlightOption) return;
+		mCardHighlightOption = option_int;
+		notifyDataSetChanged();
 	}
 
 	@Override
@@ -403,6 +420,15 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 	}
 
 	@Override
+	public void setImagePreviewScaleType(final String scaleTypeString) {
+		final ScaleType scaleType = ScaleType.valueOf(scaleTypeString.toUpperCase(Locale.US));
+		if (!scaleType.equals(mImagePreviewScaleType)) {
+			mImagePreviewScaleType = scaleType;
+			notifyDataSetChanged();
+		}
+	}
+
+	@Override
 	public void setIndicateMyStatusDisabled(final boolean disable) {
 		if (mIndicateMyStatusDisabled == disable) return;
 		mIndicateMyStatusDisabled = disable;
@@ -428,12 +454,12 @@ public class CursorStatusesAdapter extends BaseCursorAdapter implements IStatuse
 
 	@Override
 	public Cursor swapCursor(final Cursor cursor) {
-		mIndices = cursor != null ? new CursorStatusIndices(cursor) : null;
+		mIndices = cursor != null ? new ParcelableStatus.CursorIndices(cursor) : null;
 		rebuildFilterInfo(cursor, mIndices);
 		return super.swapCursor(cursor);
 	}
 
-	private void rebuildFilterInfo(final Cursor c, final CursorStatusIndices i) {
+	private void rebuildFilterInfo(final Cursor c, final ParcelableStatus.CursorIndices i) {
 		if (i != null && c != null && moveCursorToLast(c)) {
 			final long userId = mFilterIgnoreUser ? -1 : c.getLong(mIndices.user_id);
 			final String textPlain = mFilterIgnoreTextPlain ? null : c.getString(mIndices.text_plain);

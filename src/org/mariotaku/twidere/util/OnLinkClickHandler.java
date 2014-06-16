@@ -26,6 +26,7 @@ import static org.mariotaku.twidere.util.Utils.openUserListDetails;
 import static org.mariotaku.twidere.util.Utils.openUserProfile;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -62,12 +63,12 @@ public class OnLinkClickHandler implements OnLinkClickListener, Constants {
 				openTweetSearch(activity, account_id, link);
 				break;
 			}
-			case TwidereLinkify.LINK_TYPE_LINK_WITH_IMAGE_EXTENSION: {
-				openImage(activity, link, sensitive);
-				break;
-			}
 			case TwidereLinkify.LINK_TYPE_LINK: {
-				openLink(link);
+				if (MediaPreviewUtils.isLinkSupported(link)) {
+					openImage(activity, link, sensitive);
+				} else {
+					openLink(link);
+				}
 				break;
 			}
 			case TwidereLinkify.LINK_TYPE_LIST: {
@@ -97,6 +98,10 @@ public class OnLinkClickHandler implements OnLinkClickListener, Constants {
 		if (activity == null || manager.isActive()) return;
 		final Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(link));
 		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-		activity.startActivity(intent);
+		try {
+			activity.startActivity(intent);
+		} catch (final ActivityNotFoundException e) {
+			// TODO
+		}
 	}
 }

@@ -20,14 +20,12 @@
 package org.mariotaku.twidere.fragment.support;
 
 import android.app.ActionBar;
+import android.content.res.TypedArray;
 import android.graphics.Color;
-import android.graphics.PorterDuff.Mode;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.provider.SearchRecentSuggestions;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
-import android.support.v4.view.ViewPager;
 import android.support.v4.view.ViewPager.OnPageChangeListener;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -35,34 +33,27 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AnimationUtils;
-import android.widget.ImageView;
-import android.widget.ImageView.ScaleType;
-import android.widget.LinearLayout;
-import android.widget.LinearLayout.LayoutParams;
+
+import com.viewpagerindicator.CirclePageIndicator;
 
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.activity.support.LinkHandlerActivity;
 import org.mariotaku.twidere.adapter.support.SupportTabsAdapter;
 import org.mariotaku.twidere.fragment.iface.RefreshScrollTopInterface;
 import org.mariotaku.twidere.fragment.iface.SupportFragmentCallback;
-import org.mariotaku.twidere.graphic.DropShadowDrawable;
 import org.mariotaku.twidere.model.Panes;
 import org.mariotaku.twidere.provider.RecentSearchProvider;
 import org.mariotaku.twidere.util.AsyncTwitterWrapper;
-import org.mariotaku.twidere.util.ThemeUtils;
 import org.mariotaku.twidere.view.ExtendedViewPager;
-import org.mariotaku.twidere.view.SquareImageView;
 
 public class SearchFragment extends BaseSupportFragment implements Panes.Left, OnPageChangeListener,
 		RefreshScrollTopInterface, SupportFragmentCallback {
 
 	private ExtendedViewPager mViewPager;
-	private LinearLayout mIndicator;
 
 	private SupportTabsAdapter mAdapter;
+	private CirclePageIndicator mPagerIndicator;
 
-	private int mThemeColor;
 	private Fragment mCurrentVisibleFragment;
 
 	@Override
@@ -71,9 +62,6 @@ public class SearchFragment extends BaseSupportFragment implements Panes.Left, O
 	}
 
 	public void hideIndicator() {
-		if (mIndicator.getVisibility() == View.GONE) return;
-		mIndicator.setVisibility(View.GONE);
-		mIndicator.startAnimation(AnimationUtils.loadAnimation(getActivity(), android.R.anim.fade_out));
 	}
 
 	@Override
@@ -81,34 +69,25 @@ public class SearchFragment extends BaseSupportFragment implements Panes.Left, O
 		super.onActivityCreated(savedInstanceState);
 		setHasOptionsMenu(true);
 		final Bundle args = getArguments();
-		mThemeColor = ThemeUtils.getUserThemeColor(getActivity());
-		mAdapter = new SupportTabsAdapter(getActivity(), getChildFragmentManager(), null, 1);
-		mAdapter.addTab(SearchStatusesFragment.class, args, getString(R.string.statuses), R.drawable.ic_tab_twitter, 0);
-		mAdapter.addTab(SearchUsersFragment.class, args, getString(R.string.users), R.drawable.ic_tab_person, 1);
+		final FragmentActivity activity = getActivity();
+		mAdapter = new SupportTabsAdapter(activity, getChildFragmentManager(), null, 1);
+		mAdapter.addTab(SearchStatusesFragment.class, args, getString(R.string.statuses),
+				R.drawable.ic_iconic_action_twitter, 0);
+		mAdapter.addTab(SearchUsersFragment.class, args, getString(R.string.users), R.drawable.ic_iconic_action_user, 1);
 		mViewPager.setAdapter(mAdapter);
 		mViewPager.setOnPageChangeListener(this);
 		mViewPager.setOffscreenPageLimit(2);
-		final int current = mViewPager.getCurrentItem();
-		for (int i = 0, count = mAdapter.getCount(); i < count; i++) {
-			final ImageView v = new SquareImageView(getActivity());
-			v.setScaleType(ScaleType.CENTER_INSIDE);
-			final LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT);
-			lp.weight = 0;
-			mIndicator.addView(v, lp);
-			final Drawable icon = mAdapter.getPageIcon(i);
-			v.setImageDrawable(new DropShadowDrawable(getResources(), icon, 3, Color.BLACK, Color.WHITE));
-			if (i == current) {
-				v.setColorFilter(mThemeColor, Mode.MULTIPLY);
-			} else {
-				v.clearColorFilter();
-			}
-		}
+		final TypedArray a = activity.obtainStyledAttributes(new int[] { android.R.attr.colorForeground });
+		final int foregroundColor = a.getColor(0, Color.GRAY);
+		a.recycle();
+		mPagerIndicator.setFillColor(foregroundColor);
+		mPagerIndicator.setStrokeColor(foregroundColor);
+		mPagerIndicator.setViewPager(mViewPager);
 		if (savedInstanceState == null && args != null && args.containsKey(EXTRA_QUERY)) {
 			final String query = args.getString(EXTRA_QUERY);
 			final SearchRecentSuggestions suggestions = new SearchRecentSuggestions(getActivity(),
 					RecentSearchProvider.AUTHORITY, RecentSearchProvider.MODE);
 			suggestions.saveRecentQuery(query, null);
-			final FragmentActivity activity = getActivity();
 			if (activity instanceof LinkHandlerActivity) {
 				final ActionBar ab = activity.getActionBar();
 				if (ab != null) {
@@ -125,7 +104,7 @@ public class SearchFragment extends BaseSupportFragment implements Panes.Left, O
 
 	@Override
 	public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-		return inflater.inflate(R.layout.search, container, false);
+		return inflater.inflate(R.layout.fragment_search, container, false);
 	}
 
 	@Override
@@ -156,23 +135,10 @@ public class SearchFragment extends BaseSupportFragment implements Panes.Left, O
 
 	@Override
 	public void onPageScrollStateChanged(final int state) {
-		if (state == ViewPager.SCROLL_STATE_DRAGGING) {
-			showIndicator();
-		}
 	}
 
 	@Override
 	public void onPageSelected(final int position) {
-		final int count = mAdapter.getCount();
-		if (count != mIndicator.getChildCount()) return;
-		for (int i = 0; i < count; i++) {
-			final ImageView v = (ImageView) mIndicator.getChildAt(i);
-			if (i == position) {
-				v.setColorFilter(mThemeColor, Mode.SRC_ATOP);
-			} else {
-				v.clearColorFilter();
-			}
-		}
 	}
 
 	@Override
@@ -186,7 +152,7 @@ public class SearchFragment extends BaseSupportFragment implements Panes.Left, O
 	public void onViewCreated(final View view, final Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
 		mViewPager = (ExtendedViewPager) view.findViewById(R.id.search_pager);
-		mIndicator = (LinearLayout) view.findViewById(R.id.search_pager_indicator);
+		mPagerIndicator = (CirclePageIndicator) view.findViewById(R.id.search_pager_indicator);
 	}
 
 	@Override
@@ -197,9 +163,6 @@ public class SearchFragment extends BaseSupportFragment implements Panes.Left, O
 	}
 
 	public void showIndicator() {
-		if (mIndicator.getVisibility() == View.VISIBLE) return;
-		mIndicator.setVisibility(View.VISIBLE);
-		mIndicator.startAnimation(AnimationUtils.loadAnimation(getActivity(), android.R.anim.fade_in));
 	}
 
 	@Override

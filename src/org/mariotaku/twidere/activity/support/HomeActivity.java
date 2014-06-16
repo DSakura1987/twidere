@@ -46,7 +46,6 @@ import android.content.pm.ActivityInfo;
 import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.graphics.Canvas;
-import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -54,23 +53,24 @@ import android.os.Handler;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.view.ViewPager;
 import android.support.v4.view.ViewPager.OnPageChangeListener;
 import android.util.SparseArray;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
-import android.view.ViewGroup;
 import android.view.Window;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.FrameLayout.LayoutParams;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import com.jeremyfeinstein.slidingmenu.lib.CustomViewBehind;
 import com.jeremyfeinstein.slidingmenu.lib.SlidingMenu;
 import com.jeremyfeinstein.slidingmenu.lib.SlidingMenu.CanvasTransformer;
 import com.readystatesoftware.viewbadger.BadgeView;
@@ -104,6 +104,7 @@ import org.mariotaku.twidere.util.accessor.ViewAccessor;
 import org.mariotaku.twidere.view.ExtendedViewPager;
 import org.mariotaku.twidere.view.HomeActionsActionView;
 import org.mariotaku.twidere.view.LeftDrawerFrameLayout;
+import org.mariotaku.twidere.view.RightDrawerFrameLayout;
 import org.mariotaku.twidere.view.TabPageIndicator;
 
 import java.util.ArrayList;
@@ -119,6 +120,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 			final String action = intent.getAction();
 			if (BROADCAST_TASK_STATE_CHANGED.equals(action)) {
 				updateActionsButton();
+				updateSmartBar();
 			} else if (BROADCAST_UNREAD_COUNT_UPDATED.equals(action)) {
 				updateUnreadCount();
 			}
@@ -148,16 +150,15 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 
 	private ExtendedViewPager mViewPager;
 	private TabPageIndicator mIndicator;
-	private SlidingMenu mSlidingMenu;
+	private HomeSlidingMenu mSlidingMenu;
 	private View mEmptyTabHint;
 	private ProgressBar mSmartBarProgress;
 	private HomeActionsActionView mActionsButton, mBottomActionsButton;
 	private LeftDrawerFrameLayout mLeftDrawerContainer;
+	private RightDrawerFrameLayout mRightDrawerContainer;
 
 	private Fragment mCurrentVisibleFragment;
 	private UpdateUnreadCountTask mUpdateUnreadCountTask;
-
-	private final Rect mRect = new Rect();
 
 	private int mTabDisplayOption;
 
@@ -175,6 +176,10 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 
 	public SlidingMenu getSlidingMenu() {
 		return mSlidingMenu;
+	}
+
+	public ViewPager getViewPager() {
+		return mViewPager;
 	}
 
 	public void notifyAccountsChanged() {
@@ -204,21 +209,6 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		super.onBackPressed();
 	}
 
-	// @Override
-	// public void onBackStackChanged() {
-	// super.onBackStackChanged();
-	// if (!isDualPaneMode()) return;
-	// final FragmentManager fm = getSupportFragmentManager();
-	// setPagingEnabled(!isLeftPaneUsed());
-	// final int count = fm.getBackStackEntryCount();
-	// if (count == 0) {
-	// showLeftPane();
-	// }
-	// updateActionsButton();
-	// updateActionsButtonStyle();
-	// updateSlidingMenuTouchMode();
-	// }
-
 	@Override
 	public void onClick(final View v) {
 		switch (v.getId()) {
@@ -233,7 +223,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 
 	@Override
 	public void onClosed() {
-		updatePullToRefreshLayoutScroll(0, true);
+		updateDrawerPercentOpen(0, true);
 	}
 
 	@Override
@@ -243,7 +233,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		mEmptyTabHint = findViewById(R.id.empty_tab_hint);
 		mBottomActionsButton = (HomeActionsActionView) findViewById(R.id.actions_button_bottom);
 		if (mSlidingMenu == null) {
-			mSlidingMenu = new SlidingMenu(this);
+			mSlidingMenu = new HomeSlidingMenu(this);
 		}
 	}
 
@@ -253,6 +243,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		final MenuItem itemProgress = menu.findItem(MENU_PROGRESS);
 		mSmartBarProgress = (ProgressBar) itemProgress.getActionView().findViewById(android.R.id.progress);
 		updateActionsButton();
+		updateSmartBar();
 		return true;
 	}
 
@@ -295,7 +286,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 
 	@Override
 	public void onOpened() {
-		updatePullToRefreshLayoutScroll(1, true);
+		updateDrawerPercentOpen(1, true);
 	}
 
 	@Override
@@ -342,6 +333,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		}
 		updateSlidingMenuTouchMode();
 		updateActionsButton();
+		updateSmartBar();
 	}
 
 	@Override
@@ -356,16 +348,16 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 			final SupportTabSpec tab = mPagerAdapter.getTab(position);
 			if (tab == null) {
 				title = R.string.compose;
-				icon = R.drawable.ic_menu_status_compose;
+				icon = R.drawable.ic_iconic_action_compose;
 			} else {
 				if (classEquals(DirectMessagesFragment.class, tab.cls)) {
-					icon = R.drawable.ic_menu_compose;
-					title = R.string.compose;
+					icon = R.drawable.ic_iconic_action_new_message;
+					title = R.string.new_direct_message;
 				} else if (classEquals(TrendsSuggectionsFragment.class, tab.cls)) {
-					icon = android.R.drawable.ic_menu_search;
+					icon = R.drawable.ic_iconic_action_search;
 					title = android.R.string.search_go;
 				} else {
-					icon = R.drawable.ic_menu_status_compose;
+					icon = R.drawable.ic_iconic_action_compose;
 					title = R.string.compose;
 				}
 			}
@@ -397,9 +389,9 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	public void onWindowFocusChanged(final boolean hasFocus) {
 		super.onWindowFocusChanged(hasFocus);
 		if (mSlidingMenu != null && mSlidingMenu.isMenuShowing()) {
-			updatePullToRefreshLayoutScroll(1, false);
+			updateDrawerPercentOpen(1, false);
 		} else {
-			updatePullToRefreshLayoutScroll(0, false);
+			updateDrawerPercentOpen(0, false);
 		}
 	}
 
@@ -485,7 +477,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 			finish();
 			return;
 		}
-		setContentView(R.layout.home);
+		setContentView(R.layout.activity_home);
 		sendBroadcast(new Intent(BROADCAST_HOME_ACTIVITY_ONCREATE));
 		final boolean refreshOnStart = mPreferences.getBoolean(KEY_REFRESH_ON_START, false);
 		mTabDisplayOption = getTabDisplayOptionInt(this);
@@ -526,6 +518,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		showDataProfilingRequest();
 		initUnreadCount();
 		updateActionsButton();
+		updateSmartBar();
 		updateSlidingMenuTouchMode();
 
 		if (savedInstanceState == null) {
@@ -555,12 +548,20 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	}
 
 	@Override
+	protected void onPause() {
+		sendBroadcast(new Intent(BROADCAST_HOME_ACTIVITY_ONPAUSE));
+		super.onPause();
+	}
+
+	@Override
 	protected void onResume() {
 		super.onResume();
+		sendBroadcast(new Intent(BROADCAST_HOME_ACTIVITY_ONRESUME));
 		mViewPager.setEnabled(!mPreferences.getBoolean(KEY_DISABLE_TAB_SWIPE, false));
 		invalidateOptionsMenu();
 		updateActionsButtonStyle();
 		updateActionsButton();
+		updateSmartBar();
 		updateSlidingMenuTouchMode();
 	}
 
@@ -608,21 +609,6 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	@Override
 	protected boolean shouldSetWindowBackground() {
 		return false;
-	}
-
-	private LeftDrawerFrameLayout getLeftDrawerContainer() {
-		return mLeftDrawerContainer;
-	}
-
-	private View getPullToRefreshHeaderView(final Fragment f) {
-		return null;
-		// if (f.getActivity() == null || !(f instanceof
-		// IBasePullToRefreshFragment)) return null;
-		// final IBasePullToRefreshFragment ptrf = (IBasePullToRefreshFragment)
-		// f;
-		// final PullToRefreshLayout l = ptrf.getPullToRefreshLayout();
-		// if (l == null) return null;
-		// return l.getHeaderView();
 	}
 
 	private int handleIntent(final Intent intent, final boolean firstCreate) {
@@ -712,18 +698,6 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		return true;
 	}
 
-	private void setPullToRefreshLayoutScroll(final WindowManager wm, final Fragment f, final int scrollX,
-			final int statusBarHeight, final boolean horizontalScroll) {
-		if (f == null || f.isDetached() || f.getActivity() == null) return;
-		final View headerView = getPullToRefreshHeaderView(f);
-		if (headerView != null) {
-			headerView.setScrollX(scrollX);
-			if (!horizontalScroll) {
-				updatePullToRefreshY(wm, headerView, statusBarHeight);
-			}
-		}
-	}
-
 	private void setTabPosition(final int initial_tab) {
 		final boolean remember_position = mPreferences.getBoolean(KEY_REMEMBER_POSITION, true);
 		if (initial_tab >= 0) {
@@ -747,20 +721,26 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	private void setupSlidingMenu() {
 		if (mSlidingMenu == null) return;
 		final int marginThreshold = getResources().getDimensionPixelSize(R.dimen.default_sliding_menu_margin_threshold);
-		mSlidingMenu.setMode(SlidingMenu.LEFT);
+		mSlidingMenu.setMode(SlidingMenu.LEFT_RIGHT);
 		mSlidingMenu.setShadowWidthRes(R.dimen.default_sliding_menu_shadow_width);
-		mSlidingMenu.setShadowDrawable(R.drawable.shadow_holo);
+		mSlidingMenu.setShadowDrawable(R.drawable.shadow_left);
+		mSlidingMenu.setSecondaryShadowDrawable(R.drawable.shadow_right);
 		mSlidingMenu.setBehindWidthRes(R.dimen.left_drawer_width);
 		mSlidingMenu.setTouchmodeMarginThreshold(marginThreshold);
 		mSlidingMenu.setFadeDegree(0.5f);
 		mSlidingMenu.attachToActivity(this, SlidingMenu.SLIDING_WINDOW);
-		mSlidingMenu.setMenu(R.layout.home_left_drawer_container);
+		mSlidingMenu.setMenu(R.layout.drawer_home_accounts);
+		mSlidingMenu.setSecondaryMenu(R.layout.drawer_home_quick_menu);
 		mSlidingMenu.setOnOpenedListener(this);
 		mSlidingMenu.setOnClosedListener(this);
 		mLeftDrawerContainer = (LeftDrawerFrameLayout) mSlidingMenu.getMenu().findViewById(R.id.left_drawer_container);
+		mRightDrawerContainer = (RightDrawerFrameLayout) mSlidingMenu.getSecondaryMenu().findViewById(
+				R.id.right_drawer_container);
 		final boolean isTransparentBackground = ThemeUtils.isTransparentBackground(this);
 		mLeftDrawerContainer.setClipEnabled(isTransparentBackground);
 		mLeftDrawerContainer.setScrollScale(mSlidingMenu.getBehindScrollScale());
+		mRightDrawerContainer.setClipEnabled(isTransparentBackground);
+		mRightDrawerContainer.setScrollScale(mSlidingMenu.getBehindScrollScale());
 		mSlidingMenu.setBehindCanvasTransformer(new ListenerCanvasTransformer(this));
 		final Window window = getWindow();
 		if (isTransparentBackground) {
@@ -811,16 +791,16 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		final SupportTabSpec tab = mPagerAdapter.getTab(position);
 		if (tab == null) {
 			title = R.string.compose;
-			icon = R.drawable.ic_menu_status_compose;
+			icon = R.drawable.ic_iconic_action_compose;
 		} else {
 			if (classEquals(DirectMessagesFragment.class, tab.cls)) {
-				icon = R.drawable.ic_menu_compose;
-				title = R.string.compose;
+				icon = R.drawable.ic_iconic_action_new_message;
+				title = R.string.new_direct_message;
 			} else if (classEquals(TrendsSuggectionsFragment.class, tab.cls)) {
-				icon = android.R.drawable.ic_menu_search;
+				icon = R.drawable.ic_iconic_action_search;
 				title = android.R.string.search_go;
 			} else {
-				icon = R.drawable.ic_menu_status_compose;
+				icon = R.drawable.ic_iconic_action_compose;
 				title = R.string.compose;
 			}
 		}
@@ -838,10 +818,6 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		if (mSmartBarProgress != null) {
 			mSmartBarProgress.setVisibility(hasActivatedTask ? View.VISIBLE : View.INVISIBLE);
 		}
-		final boolean useBottomActionItems = SmartBarUtils.hasSmartBar() && isBottomComposeButton();
-		if (useBottomActionItems) {
-			invalidateOptionsMenu();
-		}
 	}
 
 	private void updateActionsButtonStyle() {
@@ -856,37 +832,27 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		mBottomActionsButton.setLayoutParams(compose_lp);
 	}
 
-	private void updatePullToRefreshLayoutScroll(final float percentOpen, final boolean horizontalScroll) {
-		final Window w = getWindow();
-		final WindowManager wm = getWindowManager();
-		final View decorView = w.getDecorView();
-		decorView.getWindowVisibleDisplayFrame(mRect);
-		final int statusBarHeight = mRect.top;
-		final LeftDrawerFrameLayout ld = getLeftDrawerContainer();
-		if (ld == null) return;
-		final int scrollX = -Math.round(percentOpen * ld.getMeasuredWidth());
-		ld.setPercentOpen(percentOpen);
-		for (int i = 0, j = mAttachedFragments.size(); i < j; i++) {
-			final Fragment f = mAttachedFragments.valueAt(i);
-			setPullToRefreshLayoutScroll(wm, f, scrollX, statusBarHeight, horizontalScroll);
-		}
+	private void updateDrawerPercentOpen(final float percentOpen, final boolean horizontalScroll) {
+		if (mLeftDrawerContainer == null || mRightDrawerContainer == null) return;
+		mLeftDrawerContainer.setPercentOpen(percentOpen);
+		mRightDrawerContainer.setPercentOpen(percentOpen);
 	}
 
 	private void updateSlidingMenuTouchMode() {
 		if (mViewPager == null || mSlidingMenu == null) return;
 		final int position = mViewPager.getCurrentItem();
-		final int mode = !mViewPager.isEnabled() || position == 0 ? SlidingMenu.TOUCHMODE_FULLSCREEN
+		final boolean pagingEnabled = mViewPager.isEnabled();
+		final boolean atFirstOrLast = position == 0 || position == mPagerAdapter.getCount() - 1;
+		final int mode = !pagingEnabled || atFirstOrLast ? SlidingMenu.TOUCHMODE_FULLSCREEN
 				: SlidingMenu.TOUCHMODE_MARGIN;
 		mSlidingMenu.setTouchModeAbove(mode);
 	}
 
-	private static void updatePullToRefreshY(final WindowManager wm, final View view, final int y) {
-		if (view == null || wm == null || view.getWindowToken() == null) return;
-		final ViewGroup.LayoutParams lp = view.getLayoutParams();
-		if (!(lp instanceof WindowManager.LayoutParams)) return;
-		final WindowManager.LayoutParams wlp = (WindowManager.LayoutParams) lp;
-		wlp.y = y;
-		wm.updateViewLayout(view, wlp);
+	private void updateSmartBar() {
+		final boolean useBottomActionItems = SmartBarUtils.hasSmartBar() && isBottomComposeButton();
+		if (useBottomActionItems) {
+			invalidateOptionsMenu();
+		}
 	}
 
 	private static final class AccountChangeObserver extends ContentObserver {
@@ -909,6 +875,77 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		}
 	}
 
+	private static class HomeSlidingMenu extends SlidingMenu {
+
+		private final HomeActivity mActivity;
+
+		public HomeSlidingMenu(final HomeActivity activity) {
+			super(activity);
+			mActivity = activity;
+		}
+
+		@Override
+		public boolean dispatchTouchEvent(final MotionEvent ev) {
+			switch (ev.getActionMasked()) {
+				case MotionEvent.ACTION_DOWN: {
+					final boolean isTouchingMargin = isTouchingMargin(ev);
+					setTouchModeAbove(isTouchingMargin ? TOUCHMODE_MARGIN : TOUCHMODE_FULLSCREEN);
+					break;
+				}
+			}
+			return super.dispatchTouchEvent(ev);
+		}
+
+		@Override
+		protected CustomViewBehind newCustomViewBehind(final Context context) {
+			return new MyCustomViewBehind(context, this);
+		}
+
+		private ViewPager getViewPager() {
+			return mActivity.getViewPager();
+		}
+
+		private boolean isTouchingMargin(final MotionEvent e) {
+			final float x = e.getX(), marginThreshold = getTouchmodeMarginThreshold();
+			final View content = getContent();
+			final int mode = getMode(), left = content.getLeft(), right = content.getRight();
+			if (mode == SlidingMenu.LEFT)
+				return x >= left && x <= marginThreshold + left;
+			else if (mode == SlidingMenu.RIGHT)
+				return x <= right && x >= right - marginThreshold;
+			else if (mode == SlidingMenu.LEFT_RIGHT)
+				return x >= left && x <= marginThreshold + left || x <= right && x >= right - marginThreshold;
+			return false;
+		}
+
+		private static class MyCustomViewBehind extends CustomViewBehind {
+
+			private final HomeSlidingMenu mSlidingMenu;
+
+			public MyCustomViewBehind(final Context context, final HomeSlidingMenu slidingMenu) {
+				super(context);
+				mSlidingMenu = slidingMenu;
+			}
+
+			@Override
+			public boolean menuClosedSlideAllowed(final float dx) {
+				if (mSlidingMenu.getTouchModeAbove() != SlidingMenu.TOUCHMODE_FULLSCREEN)
+					return super.menuClosedSlideAllowed(dx);
+				final ViewPager viewPager = mSlidingMenu.getViewPager();
+				if (viewPager == null) return false;
+				final boolean canScrollHorizontally = viewPager.canScrollHorizontally(Math.round(-dx));
+				final int mode = getMode();
+				if (mode == SlidingMenu.LEFT)
+					return dx > 0 && !canScrollHorizontally;
+				else if (mode == SlidingMenu.RIGHT)
+					return dx < 0 && !canScrollHorizontally;
+				else if (mode == SlidingMenu.LEFT_RIGHT) return !canScrollHorizontally;
+				return false;
+			}
+		}
+
+	}
+
 	private static class ListenerCanvasTransformer implements CanvasTransformer {
 		private final HomeActivity mHomeActivity;
 
@@ -918,7 +955,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 
 		@Override
 		public void transformCanvas(final Canvas canvas, final float percentOpen) {
-			mHomeActivity.updatePullToRefreshLayoutScroll(percentOpen, true);
+			mHomeActivity.updateDrawerPercentOpen(percentOpen, true);
 		}
 
 	}

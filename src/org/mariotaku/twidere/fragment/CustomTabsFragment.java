@@ -38,7 +38,6 @@ import android.content.Loader;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Paint;
-import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -62,6 +61,7 @@ import org.mariotaku.querybuilder.Columns.Column;
 import org.mariotaku.querybuilder.RawItemArray;
 import org.mariotaku.querybuilder.Where;
 import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.activity.iface.IThemedActivity;
 import org.mariotaku.twidere.activity.support.CustomTabEditorActivity;
 import org.mariotaku.twidere.model.CustomTabConfiguration;
 import org.mariotaku.twidere.model.CustomTabConfiguration.CustomTabConfigurationComparator;
@@ -69,6 +69,7 @@ import org.mariotaku.twidere.model.Panes;
 import org.mariotaku.twidere.provider.TweetStore.Tabs;
 import org.mariotaku.twidere.util.ThemeUtils;
 import org.mariotaku.twidere.util.Utils;
+import org.mariotaku.twidere.util.accessor.ViewAccessor;
 import org.mariotaku.twidere.view.holder.TwoLineWithIconViewHolder;
 
 import java.util.ArrayList;
@@ -106,8 +107,14 @@ public class CustomTabsFragment extends BaseListFragment implements LoaderCallba
 		super.onActivityCreated(savedInstanceState);
 		setHasOptionsMenu(true);
 		mResolver = getContentResolver();
-		final Context context = getActivity();
-		mAdapter = new CustomTabsAdapter(context);
+		final Activity activity = getActivity();
+		final int themeRes;
+		if (activity instanceof IThemedActivity) {
+			themeRes = ((IThemedActivity) activity).getThemeResourceId();
+		} else {
+			themeRes = ThemeUtils.getSettingsThemeResource(activity);
+		}
+		mAdapter = new CustomTabsAdapter(ThemeUtils.getContextForActionIcons(activity, themeRes));
 		setListAdapter(mAdapter);
 		setEmptyText(getString(R.string.no_tab_hint));
 		mListView = (DragSortListView) getListView();
@@ -168,7 +175,7 @@ public class CustomTabsFragment extends BaseListFragment implements LoaderCallba
 		final ListView originalList = (ListView) view.findViewById(android.R.id.list);
 		final ViewGroup listContainer = (ViewGroup) originalList.getParent();
 		listContainer.removeView(originalList);
-		inflater.inflate(R.layout.custom_tabs, listContainer, true);
+		inflater.inflate(R.layout.fragment_custom_tabs, listContainer, true);
 		return view;
 	}
 
@@ -238,8 +245,6 @@ public class CustomTabsFragment extends BaseListFragment implements LoaderCallba
 			final List<Entry<String, CustomTabConfiguration>> tabs = new ArrayList<Entry<String, CustomTabConfiguration>>(
 					map.entrySet());
 			Collections.sort(tabs, CustomTabConfigurationComparator.SINGLETON);
-			final boolean isLightActionBar = ThemeUtils.isLightActionBar(getActivity());
-			final int actionIconColor = ThemeUtils.getActionIconColor(getActivity());
 			for (final Entry<String, CustomTabConfiguration> entry : tabs) {
 				final String type = entry.getKey();
 				final CustomTabConfiguration conf = entry.getValue();
@@ -260,10 +265,6 @@ public class CustomTabsFragment extends BaseListFragment implements LoaderCallba
 				subItem.setVisible(!shouldDisable);
 				subItem.setEnabled(!shouldDisable);
 				final Drawable icon = res.getDrawable(conf.getDefaultIcon());
-				if (icon != null && isLightActionBar) {
-					icon.mutate();
-					icon.setColorFilter(actionIconColor, PorterDuff.Mode.SRC_ATOP);
-				}
 				subItem.setIcon(icon);
 				subItem.setIntent(intent);
 			}
@@ -303,16 +304,10 @@ public class CustomTabsFragment extends BaseListFragment implements LoaderCallba
 
 	public static class CustomTabsAdapter extends SimpleDragSortCursorAdapter implements OnClickListener {
 
-		private final Context mContext;
-
 		private CursorIndices mIndices;
-
-		private final int mActionIconColor;
 
 		public CustomTabsAdapter(final Context context) {
 			super(context, R.layout.list_item_custom_tab, null, new String[0], new int[0], 0);
-			mContext = context;
-			mActionIconColor = ThemeUtils.isDarkTheme(context) ? 0xffffffff : 0xc0333333;
 		}
 
 		@Override
@@ -333,17 +328,12 @@ public class CustomTabsFragment extends BaseListFragment implements LoaderCallba
 				holder.text1.setPaintFlags(holder.text1.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
 				holder.text2.setText(R.string.invalid_tab);
 			}
-			final Drawable icon = getTabIconDrawable(mContext, getTabIconObject(iconKey));
+			final Drawable icon = getTabIconDrawable(context, getTabIconObject(iconKey));
 			holder.icon.setVisibility(View.VISIBLE);
 			if (icon != null) {
-				icon.mutate();
-				icon.setColorFilter(mActionIconColor, PorterDuff.Mode.MULTIPLY);
-				holder.icon.setImageDrawable(icon);
+				ViewAccessor.setBackground(holder.icon, icon);
 			} else {
-				final Drawable fallback = context.getResources().getDrawable(R.drawable.ic_tab_list);
-				fallback.mutate();
-				fallback.setColorFilter(mActionIconColor, PorterDuff.Mode.MULTIPLY);
-				holder.icon.setImageDrawable(fallback);
+				holder.icon.setBackgroundResource(R.drawable.ic_iconic_action_list);
 			}
 		}
 
@@ -368,7 +358,6 @@ public class CustomTabsFragment extends BaseListFragment implements LoaderCallba
 
 		@Override
 		public void onClick(final View view) {
-			// TODO Auto-generated method stub
 
 		}
 

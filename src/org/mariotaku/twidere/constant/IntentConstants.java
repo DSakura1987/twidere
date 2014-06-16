@@ -48,6 +48,8 @@ public interface IntentConstants {
 	public static final String INTENT_ACTION_REQUEST_PERMISSIONS = INTENT_PACKAGE_PREFIX + "REQUEST_PERMISSIONS";
 	public static final String INTENT_ACTION_SELECT_USER_LIST = INTENT_PACKAGE_PREFIX + "SELECT_USER_LIST";
 	public static final String INTENT_ACTION_SELECT_USER = INTENT_PACKAGE_PREFIX + "SELECT_USER";
+	public static final String INTENT_ACTION_COMPOSE_TAKE_PHOTO = INTENT_PACKAGE_PREFIX + "COMPOSE_TAKE_PHOTO";
+	public static final String INTENT_ACTION_COMPOSE_PICK_IMAGE = INTENT_PACKAGE_PREFIX + "COMPOSE_PICK_IMAGE";
 
 	public static final String INTENT_ACTION_EXTENSION_EDIT_IMAGE = INTENT_PACKAGE_PREFIX + "EXTENSION_EDIT_IMAGE";
 	public static final String INTENT_ACTION_EXTENSION_UPLOAD = INTENT_PACKAGE_PREFIX + "EXTENSION_UPLOAD";
@@ -56,13 +58,16 @@ public interface IntentConstants {
 	public static final String INTENT_ACTION_EXTENSION_OPEN_USER_LIST = INTENT_PACKAGE_PREFIX
 			+ "EXTENSION_OPEN_USER_LIST";
 	public static final String INTENT_ACTION_EXTENSION_COMPOSE = INTENT_PACKAGE_PREFIX + "EXTENSION_COMPOSE";
-	public static final String INTENT_ACTION_EXTENSION_UPLOAD_IMAGE = INTENT_PACKAGE_PREFIX + "EXTENSION_UPLOAD_IMAGE";
-	public static final String INTENT_ACTION_EXTENSION_SHORTEN_TWEET = INTENT_PACKAGE_PREFIX
-			+ "EXTENSION_SHORTEN_TWEET";
+	public static final String INTENT_ACTION_EXTENSION_UPLOAD_MEDIA = INTENT_PACKAGE_PREFIX + "EXTENSION_UPLOAD_MEDIA";
+	public static final String INTENT_ACTION_EXTENSION_SHORTEN_STATUS = INTENT_PACKAGE_PREFIX
+			+ "EXTENSION_SHORTEN_STATUS";
+	public static final String INTENT_ACTION_EXTENSION_SYNC_TIMELINE = INTENT_PACKAGE_PREFIX
+			+ "EXTENSION_SYNC_TIMELINE";
 	public static final String INTENT_ACTION_EXTENSION_SETTINGS = INTENT_PACKAGE_PREFIX + "EXTENSION_SETTINGS";
 
 	public static final String INTENT_ACTION_UPDATE_STATUS = INTENT_PACKAGE_PREFIX + "UPDATE_STATUS";
 	public static final String INTENT_ACTION_SEND_DIRECT_MESSAGE = INTENT_PACKAGE_PREFIX + "SEND_DIRECT_MESSAGE";
+	public static final String INTENT_ACTION_PICK_ACTIVITY = "org.mariotaku.twidere.PICK_ACTIVITY";
 
 	public static final String BROADCAST_HOME_TIMELINE_REFRESHED = INTENT_PACKAGE_PREFIX + "HOME_TIMELINE_REFRESHED";
 	public static final String BROADCAST_MENTIONS_REFRESHED = INTENT_PACKAGE_PREFIX + "MENTIONS_REFRESHED";
@@ -104,6 +109,8 @@ public interface IntentConstants {
 	public static final String BROADCAST_MULTI_MUTESTATE_CHANGED = INTENT_PACKAGE_PREFIX + "MULTI_MUTESTATE_CHANGED";
 	public static final String BROADCAST_HOME_ACTIVITY_ONCREATE = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONCREATE";
 	public static final String BROADCAST_HOME_ACTIVITY_ONSTART = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONSTART";
+	public static final String BROADCAST_HOME_ACTIVITY_ONRESUME = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONRESUME";
+	public static final String BROADCAST_HOME_ACTIVITY_ONPAUSE = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONPAUSE";
 	public static final String BROADCAST_HOME_ACTIVITY_ONSTOP = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONSTOP";
 	public static final String BROADCAST_HOME_ACTIVITY_ONDESTROY = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONDESTROY";
 	public static final String BROADCAST_UNREAD_COUNT_UPDATED = INTENT_PACKAGE_PREFIX + "UNREAD_COUNT_UPDATED";
@@ -179,6 +186,7 @@ public interface IntentConstants {
 	public static final String EXTRA_COMMAND = "command";
 	public static final String EXTRA_WIDTH = "width";
 	public static final String EXTRA_ALLOW_SELECT_NONE = "allow_select_none";
+	public static final String EXTRA_SINGLE_SELECTION = "single_selection";
 	public static final String EXTRA_OAUTH_ONLY = "oauth_only";
 	public static final String EXTRA_PERMISSIONS = "permissions";
 	public static final String EXTRA_LOCATION = "location";
@@ -200,5 +208,7 @@ public interface IntentConstants {
 	public static final String EXTRA_PATH = "path";
 	public static final String EXTRA_ACTION = "action";
 	public static final String EXTRA_FLAGS = "flags";
+	public static final String EXTRA_INTENT = "intent";
+	public static final String EXTRA_BLACKLIST = "blacklist";
 
 }

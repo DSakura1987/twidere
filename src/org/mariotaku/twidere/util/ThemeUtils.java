@@ -19,13 +19,10 @@
 
 package org.mariotaku.twidere.util;
 
-import static org.mariotaku.twidere.util.HtmlEscapeHelper.toPlainText;
-import static org.mariotaku.twidere.util.Utils.formatToLongTimeString;
-import static org.mariotaku.twidere.util.Utils.getDefaultTextSize;
-
 import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
@@ -36,18 +33,24 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.util.AttributeSet;
 import android.view.ContextThemeWrapper;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.ImageView;
-import android.widget.TextView;
 
+import org.mariotaku.refreshnow.widget.RefreshNowConfig;
 import org.mariotaku.refreshnow.widget.RefreshNowProgressIndicator.IndicatorConfig;
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.activity.iface.IThemedActivity;
-import org.mariotaku.twidere.theme.TwidereContextWrapper;
-import org.mariotaku.twidere.util.accessor.ViewAccessor;
-import org.mariotaku.twidere.view.iface.ICardItemView;
+import org.mariotaku.twidere.content.TwidereContextThemeWrapper;
+import org.mariotaku.twidere.content.TwidereContextWrapper;
+import org.mariotaku.twidere.content.iface.ITwidereContextWrapper;
+import org.mariotaku.twidere.content.res.TwidereAccentResources;
+import org.mariotaku.twidere.content.res.TwidereResources;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
 public class ThemeUtils implements Constants {
 
@@ -55,6 +58,8 @@ public class ThemeUtils implements Constants {
 			android.R.attr.activityOpenExitAnimation };
 	private static final int[] ANIM_CLOSE_STYLE_ATTRS = { android.R.attr.activityCloseEnterAnimation,
 			android.R.attr.activityCloseExitAnimation };
+
+	private static final String[] sClassPrefixList = { "android.widget.", "android.webkit." };
 
 	private ThemeUtils() {
 		throw new AssertionError();
@@ -122,6 +127,34 @@ public class ThemeUtils implements Constants {
 		return builder.build();
 	}
 
+	public static RefreshNowConfig buildRefreshNowConfig(final Context context) {
+		final RefreshNowConfig.Builder builder = new RefreshNowConfig.Builder(context);
+		return builder.build();
+	}
+
+	public static View createView(final String name, final Context context, final AttributeSet attrs) {
+		try {
+			return newViewInstance(name, context, attrs);
+		} catch (final Exception e) {
+			// In this case we want to let the base class take a crack
+			// at it.
+		}
+		for (final String prefix : sClassPrefixList) {
+			try {
+				return newViewInstance(prefix + name, context, attrs);
+			} catch (final Exception e) {
+				// In this case we want to let the base class take a crack
+				// at it.
+			}
+		}
+		return null;
+	}
+
+	public static Resources getAccentResourcesForActionIcons(final Context baseContext, final int themeRes,
+			final int accentColor) {
+		return new TwidereAccentResources(baseContext, baseContext.getResources(), themeRes, accentColor);
+	}
+
 	@Deprecated
 	public static Drawable getActionBarBackground(final Context context, final boolean applyAlpha) {
 		final TypedArray a = context.obtainStyledAttributes(null, new int[] { android.R.attr.background },
@@ -143,8 +176,8 @@ public class ThemeUtils implements Constants {
 		final TypedArray a = context.obtainStyledAttributes(new int[] { android.R.attr.actionBarWidgetTheme });
 		final int resId = a.getResourceId(0, 0);
 		a.recycle();
-		if (resId == 0) return context;
-		return new ContextThemeWrapper(context, resId);
+		if (resId == 0) return new TwidereContextWrapper(context);
+		return new TwidereContextThemeWrapper(context, resId, getUserThemeColor(context));
 	}
 
 	@Deprecated
@@ -191,13 +224,25 @@ public class ThemeUtils implements Constants {
 			case R.style.Theme_Twidere_Light_SolidBackground:
 			case R.style.Theme_Twidere_Light_Transparent:
 			case R.style.Theme_Twidere_Light_Compose:
+			case R.style.Theme_Twidere_Light_Dialog:
 			case R.style.Theme_Twidere_Colored:
 			case R.style.Theme_Twidere_Colored_SolidBackground:
 			case R.style.Theme_Twidere_Colored_Transparent:
 			case R.style.Theme_Twidere_Colored_Compose:
-				return 0xc0333333;
+			case R.style.Theme_Twidere_ActionBar_Colored_Light:
+			case R.style.Theme_Twidere_Settings_Light:
+			case R.style.Theme_Twidere_Light_DarkActionBar_DarkIcon:
+			case R.style.Theme_Twidere_Light_DarkActionBar_SolidBackground_DarkIcon:
+			case R.style.Theme_Twidere_Light_DarkActionBar_Transparent_DarkIcon:
+			case R.style.Theme_Twidere_Light_DarkActionBar_Compose_DarkIcon:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_DarkIcon:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_SolidBackground_DarkIcon:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_Transparent_DarkIcon:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_Compose_DarkIcon:
+			case R.style.Theme_Twidere_Settings_Light_DarkActionBar_DarkIcon:
+				return 0x99333333;
 		}
-		return Color.WHITE;
+		return 0xCCFFFFFF;
 	}
 
 	public static Drawable getCardItemBackground(final Context context) {
@@ -230,6 +275,10 @@ public class ThemeUtils implements Constants {
 		return R.style.Theme_Twidere_Colored_Compose;
 	}
 
+	public static Context getContextForActionIcons(final Context baseContext, final int baseThemeRes) {
+		return new TwidereContextWrapper(baseContext, getThemeResActionIcons(baseThemeRes));
+	}
+
 	public static boolean getDarkActionBarOption(final Context context) {
 		if (context == null) return true;
 		final SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
@@ -237,7 +286,7 @@ public class ThemeUtils implements Constants {
 	}
 
 	public static Context getDialogThemedContext(final Context context) {
-		return new ContextThemeWrapper(context, getDialogThemeResource(context));
+		return new TwidereContextThemeWrapper(context, getDialogThemeResource(context), getThemeColor(context));
 	}
 
 	public static int getDialogThemeResource(final Context context) {
@@ -298,6 +347,10 @@ public class ThemeUtils implements Constants {
 		return context.getResources();
 	}
 
+	public static Resources getResourcesForActionIcons(final Context baseContext, final int themeRes) {
+		return new TwidereResources(baseContext, baseContext.getResources(), themeRes);
+	}
+
 	public static Drawable getSelectableItemBackgroundDrawable(final Context context) {
 		final TypedArray a = context.obtainStyledAttributes(new int[] { android.R.attr.selectableItemBackground });
 		try {
@@ -317,6 +370,10 @@ public class ThemeUtils implements Constants {
 					: R.style.Theme_Twidere_Settings_Light;
 		else if (VALUE_THEME_NAME_DARK.equals(name)) return R.style.Theme_Twidere_Settings_Dark;
 		return R.style.Theme_Twidere_Settings_Light_DarkActionBar;
+	}
+
+	public static int getSettingsWizardThemeResource(final Context context) {
+		return R.style.Theme_Twidere_Settings_Light;
 	}
 
 	public static int getTextAppearanceLarge(final Context context) {
@@ -388,6 +445,24 @@ public class ThemeUtils implements Constants {
 		return new TwidereContextWrapper(context, res);
 	}
 
+	public static Context getThemedContextForActionIcons(final Context baseContext, final int baseThemeRes,
+			final int accentColor) {
+		return new TwidereContextThemeWrapper(baseContext, getThemeResActionIcons(baseThemeRes), accentColor);
+	}
+
+	public static LayoutInflater getThemedLayoutInflaterForActionIcons(final Context context) {
+		final int themeRes, accentColor;
+		if (context instanceof IThemedActivity) {
+			themeRes = ((IThemedActivity) context).getThemeResourceId();
+			accentColor = ((IThemedActivity) context).getThemeColor();
+		} else {
+			themeRes = getSettingsThemeResource(context);
+			accentColor = getUserThemeColor(context);
+		}
+		final Context theme = getThemedContextForActionIcons(context, themeRes, accentColor);
+		return LayoutInflater.from(theme);
+	}
+
 	public static String getThemeFontFamily(final Context context) {
 		if (context == null) return VALUE_THEME_FONT_FAMILY_REGULAR;
 		final SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
@@ -396,10 +471,54 @@ public class ThemeUtils implements Constants {
 		return VALUE_THEME_FONT_FAMILY_REGULAR;
 	}
 
+	public static int getThemeForegroundColor(final Context context) {
+		final Resources res = getResources(context);
+		final Context wrapped = getThemedContext(context, res);
+		final TypedArray a = wrapped.obtainStyledAttributes(new int[] { android.R.attr.colorForeground });
+		try {
+			return a.getColor(0, Color.GRAY);
+		} finally {
+			a.recycle();
+		}
+	}
+
 	public static String getThemeNameOption(final Context context) {
 		if (context == null) return VALUE_THEME_NAME_TWIDERE;
 		final SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		return pref != null ? pref.getString(KEY_THEME, VALUE_THEME_NAME_TWIDERE) : VALUE_THEME_NAME_TWIDERE;
+	}
+
+	public static int getThemeResActionIcons(final int baseThemeRes) {
+		switch (baseThemeRes) {
+			case R.style.Theme_Twidere_Light_DarkActionBar: {
+				return R.style.Theme_Twidere_Light_DarkActionBar_DarkIcon;
+			}
+			case R.style.Theme_Twidere_Light_DarkActionBar_SolidBackground: {
+				return R.style.Theme_Twidere_Light_DarkActionBar_SolidBackground_DarkIcon;
+			}
+			case R.style.Theme_Twidere_Light_DarkActionBar_Transparent: {
+				return R.style.Theme_Twidere_Light_DarkActionBar_Transparent_DarkIcon;
+			}
+			case R.style.Theme_Twidere_Light_DarkActionBar_Compose: {
+				return R.style.Theme_Twidere_Light_DarkActionBar_Compose_DarkIcon;
+			}
+			case R.style.Theme_Twidere_Colored_DarkActionBar: {
+				return R.style.Theme_Twidere_Colored_DarkActionBar_DarkIcon;
+			}
+			case R.style.Theme_Twidere_Colored_DarkActionBar_SolidBackground: {
+				return R.style.Theme_Twidere_Colored_DarkActionBar_SolidBackground_DarkIcon;
+			}
+			case R.style.Theme_Twidere_Colored_DarkActionBar_Transparent: {
+				return R.style.Theme_Twidere_Colored_DarkActionBar_Transparent_DarkIcon;
+			}
+			case R.style.Theme_Twidere_Colored_DarkActionBar_Compose: {
+				return R.style.Theme_Twidere_Colored_DarkActionBar_Compose_DarkIcon;
+			}
+			case R.style.Theme_Twidere_Settings_Light_DarkActionBar: {
+				return R.style.Theme_Twidere_Settings_Light_DarkActionBar_DarkIcon;
+			}
+		}
+		return baseThemeRes;
 	}
 
 	public static int getThemeResource(final Context context) {
@@ -473,7 +592,7 @@ public class ThemeUtils implements Constants {
 		final Resources res = getResources(context);
 		final SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		final int def = res.getColor(android.R.color.holo_blue_light);
-		return pref.getInt(KEY_THEME_COLOR, def);
+		return pref != null ? pref.getInt(KEY_THEME_COLOR, def) : def;
 	}
 
 	public static Typeface getUserTypeface(final Context context, final Typeface defTypeface) {
@@ -543,6 +662,8 @@ public class ThemeUtils implements Constants {
 	}
 
 	public static boolean isDarkTheme(final Context context) {
+		if (context instanceof ITwidereContextWrapper)
+			return isDarkTheme(((ITwidereContextWrapper) context).getThemeResourceId());
 		return isDarkTheme(getThemeResource(context));
 	}
 
@@ -580,6 +701,7 @@ public class ThemeUtils implements Constants {
 			case R.style.Theme_Twidere_Colored_SolidBackground:
 			case R.style.Theme_Twidere_Colored_Transparent:
 			case R.style.Theme_Twidere_Colored_Compose:
+			case R.style.Theme_Twidere_Settings_Light:
 				return true;
 		}
 		return false;
@@ -597,12 +719,40 @@ public class ThemeUtils implements Constants {
 		switch (themeRes) {
 			case R.style.Theme_Twidere_Colored_Transparent:
 			case R.style.Theme_Twidere_Colored_DarkActionBar_Transparent:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_Transparent_DarkIcon:
 			case R.style.Theme_Twidere_Dark_Transparent:
 			case R.style.Theme_Twidere_Light_Transparent:
 			case R.style.Theme_Twidere_Light_DarkActionBar_Transparent:
+			case R.style.Theme_Twidere_Light_DarkActionBar_Transparent_DarkIcon:
+			case R.style.Theme_Twidere_Viewer_Transparent:
 				return true;
 		}
 		return false;
+	}
+
+	public static void notifyStatusBarColorChanged(final Context context, final int themeResource,
+			final int accentColor, final int backgroundAlpha) {
+		final Intent intent = new Intent("com.mohammadag.colouredstatusbar.ChangeStatusBarColor");
+		if (isColoredActionBar(themeResource)) {
+			intent.putExtra("status_bar_color", backgroundAlpha << 24 | accentColor);
+		} else {
+			if (isLightActionBar(themeResource)) {
+				intent.putExtra("status_bar_color", backgroundAlpha << 24 | 0xFFDDDDDD);
+			} else {
+				intent.putExtra("status_bar_color", backgroundAlpha << 24 | 0xFF222222);
+			}
+		}
+		if (isLightActionBar(themeResource)) {
+			intent.putExtra("status_bar_icons_color", Color.DKGRAY);
+		} else {
+			intent.putExtra("status_bar_icons_color", Color.WHITE);
+		}
+		// Please note that these are not yet implemented!!!
+		// You're free to include them in your code so that when they
+		// are implemented, your app will work out of the box.
+		intent.putExtra("navigation_bar_color", Color.BLACK);
+		intent.putExtra("navigation_bar_icon_color", Color.WHITE);
+		context.sendOrderedBroadcast(intent, null);
 	}
 
 	public static void overrideActivityCloseAnimation(final Activity activity) {
@@ -644,71 +794,6 @@ public class ThemeUtils implements Constants {
 		activity.overridePendingTransition(activityCloseEnterAnimation, activityCloseExitAnimation);
 	}
 
-	public static void setPreviewView(final Context context, final View view, final int themeRes) {
-		final ContextThemeWrapper theme = new ContextThemeWrapper(context, themeRes);
-		final View windowBackgroundView = view.findViewById(R.id.theme_preview_window_background);
-		final View windowContentOverlayView = view.findViewById(R.id.theme_preview_window_content_overlay);
-		final View actionBarView = view.findViewById(R.id.actionbar);
-		final TextView actionBarTitleView = (TextView) view.findViewById(R.id.actionbar_title);
-		final View actionBarSplitView = view.findViewById(R.id.actionbar_split);
-		final View statusContentView = view.findViewById(R.id.theme_preview_status_content);
-
-		final int defaultTextSize = getDefaultTextSize(context);
-		final int textColorPrimary = getTextColorPrimary(theme);
-		final int textColorSecondary = getTextColorSecondary(theme);
-		final int titleTextAppearance = getTitleTextAppearance(theme);
-
-		ViewAccessor.setBackground(windowBackgroundView, getWindowBackground(theme));
-		ViewAccessor.setBackground(windowContentOverlayView, getWindowContentOverlay(theme));
-		ViewAccessor.setBackground(actionBarView, getActionBarBackground(theme, true));
-		ViewAccessor.setBackground(actionBarSplitView, getActionBarSplitBackground(theme, true));
-
-		actionBarTitleView.setTextAppearance(theme, titleTextAppearance);
-		if (statusContentView != null) {
-			ViewAccessor.setBackground(statusContentView, getWindowBackground(theme));
-
-			final ICardItemView cardView = (ICardItemView) statusContentView.findViewById(R.id.card);
-			final View profileView = statusContentView.findViewById(R.id.profile);
-			final ImageView profileImageView = (ImageView) statusContentView.findViewById(R.id.profile_image);
-			final TextView nameView = (TextView) statusContentView.findViewById(R.id.name);
-			final TextView screenNameView = (TextView) statusContentView.findViewById(R.id.screen_name);
-			final TextView textView = (TextView) statusContentView.findViewById(R.id.text);
-			final TextView timeSourceView = (TextView) statusContentView.findViewById(R.id.time_source);
-			final TextView retweetView = (TextView) statusContentView.findViewById(R.id.retweet_view);
-			final TextView repliesView = (TextView) statusContentView.findViewById(R.id.replies_view);
-
-			cardView.setItemSelector(null);
-			cardView.setItemBackground(getCardItemBackground(theme));
-
-			nameView.setTextColor(textColorPrimary);
-			screenNameView.setTextColor(textColorSecondary);
-			textView.setTextColor(textColorPrimary);
-			timeSourceView.setTextColor(textColorSecondary);
-			retweetView.setTextColor(textColorSecondary);
-			repliesView.setTextColor(textColorSecondary);
-
-			nameView.setTextSize(defaultTextSize * 1.25f);
-			textView.setTextSize(defaultTextSize * 1.25f);
-			screenNameView.setTextSize(defaultTextSize * 0.85f);
-			timeSourceView.setTextSize(defaultTextSize * 0.85f);
-			retweetView.setTextSize(defaultTextSize * 0.85f);
-			repliesView.setTextSize(defaultTextSize * 0.85f);
-
-			profileView.setBackgroundResource(0);
-			retweetView.setBackgroundResource(0);
-			repliesView.setBackgroundResource(0);
-			textView.setTextIsSelectable(false);
-
-			profileImageView.setImageResource(R.drawable.ic_launcher);
-			nameView.setText(TWIDERE_PREVIEW_NAME);
-			screenNameView.setText("@" + TWIDERE_PREVIEW_SCREEN_NAME);
-			textView.setText(toPlainText(TWIDERE_PREVIEW_TEXT_HTML));
-
-			final String time = formatToLongTimeString(context, System.currentTimeMillis());
-			timeSourceView.setText(toPlainText(context.getString(R.string.time_source, time, TWIDERE_PREVIEW_SOURCE)));
-		}
-	}
-
 	public static boolean shouldApplyColorFilter(final Context context) {
 		return shouldApplyColorFilter(getThemeResource(context));
 	}
@@ -728,12 +813,12 @@ public class ThemeUtils implements Constants {
 		return true;
 	}
 
-	public static boolean shouldApplyColorFilterToTabIcons(final Context context) {
-		return shouldApplyColorFilterToTabIcons(getThemeResource(context));
+	public static boolean shouldApplyColorFilterToActionIcons(final Context context) {
+		return false;
 	}
 
-	public static boolean shouldApplyColorFilterToTabIcons(final int res) {
-		return isLightActionBar(res);
+	public static boolean shouldApplyColorFilterToActionIcons(final int res) {
+		return false;
 	}
 
 	private static Drawable applyActionBarDrawable(final Context context, final Drawable d, final boolean applyAlpha) {
@@ -750,6 +835,14 @@ public class ThemeUtils implements Constants {
 			d.setAlpha(getThemeAlpha(context));
 		}
 		return d;
+	}
+
+	private static View newViewInstance(final String className, final Context context, final AttributeSet attrs)
+			throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException,
+			InvocationTargetException {
+		final Class<?> viewCls = Class.forName(className);
+		final Constructor<?> constructor = viewCls.getConstructor(Context.class, AttributeSet.class);
+		return (View) constructor.newInstance(context, attrs);
 	}
 
 }

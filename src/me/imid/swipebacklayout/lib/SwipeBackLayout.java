@@ -149,12 +149,9 @@ public class SwipeBackLayout extends FrameLayout {
 		final int mode = EDGE_FLAGS[a.getInt(R.styleable.SwipeBackLayout_edgeFlag, 0)];
 		setEdgeTrackingEnabled(mode);
 
-		final int shadowLeft = a
-				.getResourceId(R.styleable.SwipeBackLayout_shadowLeft, R.drawable.swipeback_shadow_left);
-		final int shadowRight = a.getResourceId(R.styleable.SwipeBackLayout_shadowRight,
-				R.drawable.swipeback_shadow_right);
-		final int shadowBottom = a.getResourceId(R.styleable.SwipeBackLayout_shadowBottom,
-				R.drawable.swipeback_shadow_bottom);
+		final int shadowLeft = a.getResourceId(R.styleable.SwipeBackLayout_shadowLeft, R.drawable.shadow_left);
+		final int shadowRight = a.getResourceId(R.styleable.SwipeBackLayout_shadowRight, R.drawable.shadow_right);
+		final int shadowBottom = a.getResourceId(R.styleable.SwipeBackLayout_shadowBottom, R.drawable.shadow_bottom);
 		final int scrimColor = a.getColor(R.styleable.SwipeBackLayout_scrimColor, DEFAULT_SCRIM_COLOR);
 		final float scrimAlpha = a.getFloat(R.styleable.SwipeBackLayout_scrimAlpha, Color.alpha(scrimColor) / 255.0f);
 		final float scalePercent = a.getFraction(R.styleable.SwipeBackLayout_scalePercent, 1, 1, 1);
@@ -467,6 +464,7 @@ public class SwipeBackLayout extends FrameLayout {
 		if (mBackgroundView == null) return;
 		final float scrollPercentAbs = Math.abs(mScrollPercent);
 		final float percent = MathUtils.clamp(1 - (1 - scrollPercentAbs) * (1 - mScalePercent), 1, 0);
+		mBackgroundView.setScaleType(ScaleType.CENTER_CROP);
 		mBackgroundView.setScaleX(percent);
 		mBackgroundView.setScaleY(percent);
 		mBackgroundView.setVisibility(mScrollPercent <= 0 ? View.INVISIBLE : View.VISIBLE);

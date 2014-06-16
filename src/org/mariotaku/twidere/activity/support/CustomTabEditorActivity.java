@@ -50,7 +50,6 @@ import org.mariotaku.twidere.adapter.AccountsSpinnerAdapter;
 import org.mariotaku.twidere.adapter.ArrayAdapter;
 import org.mariotaku.twidere.app.TwidereApplication;
 import org.mariotaku.twidere.fragment.support.BaseSupportDialogFragment;
-import org.mariotaku.twidere.graphic.DropShadowDrawable;
 import org.mariotaku.twidere.model.Account;
 import org.mariotaku.twidere.model.CustomTabConfiguration;
 import org.mariotaku.twidere.model.ParcelableUser;
@@ -58,6 +57,7 @@ import org.mariotaku.twidere.model.ParcelableUserList;
 import org.mariotaku.twidere.util.ImageLoaderWrapper;
 import org.mariotaku.twidere.util.ParseUtils;
 import org.mariotaku.twidere.util.ThemeUtils;
+import org.mariotaku.twidere.util.accessor.ViewAccessor;
 
 import java.text.Collator;
 import java.util.Comparator;
@@ -252,7 +252,7 @@ public class CustomTabEditorActivity extends BaseSupportDialogActivity implement
 		}
 		mTabId = intent.getLongExtra(EXTRA_ID, -1);
 		setTitle(isEditMode() ? R.string.edit_tab : R.string.add_tab);
-		setContentView(R.layout.custom_tab_editor);
+		setContentView(R.layout.activity_custom_tab_editor);
 		mTabTypeName.setText(getTabTypeName(this, type));
 		mTabIconsAdapter = new CustomTabIconsAdapter(this);
 		mTabIconsAdapter.setData(getIconMap());
@@ -275,7 +275,7 @@ public class CustomTabEditorActivity extends BaseSupportDialogActivity implement
 				mAccountsAdapter.add(Account.dummyInstance());
 			}
 			final boolean officialKeyOnly = intent.getBooleanExtra(EXTRA_OFFICIAL_KEY_ONLY, false);
-			mAccountsAdapter.addAll(Account.getAccounts(this, false, officialKeyOnly));
+			mAccountsAdapter.addAll(Account.getAccountsList(this, false, officialKeyOnly));
 			switch (conf.getSecondaryFieldType()) {
 				case CustomTabConfiguration.FIELD_TYPE_USER: {
 					mSecondaryFieldLabel.setText(R.string.user);
@@ -380,7 +380,7 @@ public class CustomTabEditorActivity extends BaseSupportDialogActivity implement
 			final FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
 					FrameLayout.LayoutParams.WRAP_CONTENT);
 			lp.leftMargin = lp.topMargin = lp.bottomMargin = lp.rightMargin = getResources().getDimensionPixelSize(
-					R.dimen.element_spacing_default);
+					R.dimen.element_spacing_normal);
 			view.addView(mEditText, lp);
 			builder.setView(view);
 			mEditText.setText(args.getString(EXTRA_TEXT));
@@ -404,8 +404,8 @@ public class CustomTabEditorActivity extends BaseSupportDialogActivity implement
 		private final Resources mResources;
 
 		public CustomTabIconsAdapter(final Context context) {
-			super(context, R.layout.custom_tab_icon_spinner_item);
-			setDropDownViewResource(R.layout.two_line_list_item_small);
+			super(context, R.layout.spinner_item_custom_tab_icon);
+			setDropDownViewResource(R.layout.list_item_two_line_small);
 			mResources = context.getResources();
 		}
 
@@ -452,9 +452,9 @@ public class CustomTabEditorActivity extends BaseSupportDialogActivity implement
 			final ImageView icon = (ImageView) view.findViewById(android.R.id.icon);
 			final int value = item.getValue();
 			if (value > 0) {
-				icon.setImageDrawable(new DropShadowDrawable(mResources, mResources.getDrawable(value), 2, 0x80000000));
+				ViewAccessor.setBackground(icon, mResources.getDrawable(value));
 			} else {
-				icon.setImageDrawable(null);
+				ViewAccessor.setBackground(icon, null);
 			}
 		}
 

@@ -28,8 +28,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.mariotaku.jsonserializer.JSONSerializer;
 import org.mariotaku.twidere.TwidereConstants;
+import org.mariotaku.twidere.model.Account;
 import org.mariotaku.twidere.model.ParcelableDirectMessage;
 import org.mariotaku.twidere.model.ParcelableLocation;
+import org.mariotaku.twidere.model.ParcelableMedia;
 import org.mariotaku.twidere.model.ParcelableStatus;
 import org.mariotaku.twidere.model.ParcelableStatusUpdate;
 import org.mariotaku.twidere.model.ParcelableUser;
@@ -96,7 +98,7 @@ public final class ContentValuesCreator implements TwidereConstants {
 		return values;
 	}
 
-	public static ContentValues makeCachedUserContentValues(final User user, final boolean large_profile_image) {
+	public static ContentValues makeCachedUserContentValues(final User user) {
 		if (user == null || user.getId() <= 0) return null;
 		final String profile_image_url = ParseUtils.parseString(user.getProfileImageUrlHttps());
 		final String url = ParseUtils.parseString(user.getURL());
@@ -105,8 +107,7 @@ public final class ContentValuesCreator implements TwidereConstants {
 		values.put(CachedUsers.USER_ID, user.getId());
 		values.put(CachedUsers.NAME, user.getName());
 		values.put(CachedUsers.SCREEN_NAME, user.getScreenName());
-		values.put(CachedUsers.PROFILE_IMAGE_URL,
-				large_profile_image ? Utils.getBiggerTwitterProfileImage(profile_image_url) : profile_image_url);
+		values.put(CachedUsers.PROFILE_IMAGE_URL, profile_image_url);
 		values.put(CachedUsers.CREATED_AT, user.getCreatedAt().getTime());
 		values.put(CachedUsers.IS_PROTECTED, user.isProtected());
 		values.put(CachedUsers.IS_VERIFIED, user.isVerified());
@@ -128,7 +129,7 @@ public final class ContentValuesCreator implements TwidereConstants {
 	}
 
 	public static ContentValues makeDirectMessageContentValues(final DirectMessage message, final long account_id,
-			final boolean is_outgoing, final boolean large_profile_image) {
+			final boolean is_outgoing) {
 		if (message == null || message.getId() <= 0) return null;
 		final ContentValues values = new ContentValues();
 		final User sender = message.getSender(), recipient = message.getRecipient();
@@ -147,12 +148,8 @@ public final class ContentValuesCreator implements TwidereConstants {
 		values.put(DirectMessages.SENDER_SCREEN_NAME, sender.getScreenName());
 		values.put(DirectMessages.RECIPIENT_NAME, recipient.getName());
 		values.put(DirectMessages.RECIPIENT_SCREEN_NAME, recipient.getScreenName());
-		values.put(DirectMessages.SENDER_PROFILE_IMAGE_URL,
-				large_profile_image ? Utils.getBiggerTwitterProfileImage(sender_profile_image_url)
-						: sender_profile_image_url);
-		values.put(DirectMessages.RECIPIENT_PROFILE_IMAGE_URL,
-				large_profile_image ? Utils.getBiggerTwitterProfileImage(recipient_profile_image_url)
-						: recipient_profile_image_url);
+		values.put(DirectMessages.SENDER_PROFILE_IMAGE_URL, sender_profile_image_url);
+		values.put(DirectMessages.RECIPIENT_PROFILE_IMAGE_URL, recipient_profile_image_url);
 		return values;
 	}
 
@@ -220,8 +217,7 @@ public final class ContentValuesCreator implements TwidereConstants {
 		return values;
 	}
 
-	public static ContentValues makeStatusContentValues(final Status orig, final long account_id,
-			final boolean largeProfileImage) {
+	public static ContentValues makeStatusContentValues(final Status orig, final long account_id) {
 		if (orig == null || orig.getId() <= 0) return null;
 		final ContentValues values = new ContentValues();
 		values.put(Statuses.ACCOUNT_ID, account_id);
@@ -250,8 +246,7 @@ public final class ContentValuesCreator implements TwidereConstants {
 			values.put(Statuses.USER_SCREEN_NAME, screenName);
 			values.put(Statuses.IS_PROTECTED, user.isProtected());
 			values.put(Statuses.IS_VERIFIED, user.isVerified());
-			values.put(Statuses.USER_PROFILE_IMAGE_URL,
-					largeProfileImage ? Utils.getBiggerTwitterProfileImage(profileImageUrl) : profileImageUrl);
+			values.put(Statuses.USER_PROFILE_IMAGE_URL, profileImageUrl);
 			values.put(CachedUsers.IS_FOLLOWING, user.isFollowing());
 		}
 		if (status.getCreatedAt() != null) {
@@ -274,25 +269,28 @@ public final class ContentValuesCreator implements TwidereConstants {
 		}
 		values.put(Statuses.IS_RETWEET, is_retweet);
 		values.put(Statuses.IS_FAVORITE, status.isFavorited());
-		values.put(Statuses.MEDIA_LINK, MediaPreviewUtils.getSupportedFirstLink(status));
-		final JSONArray json = JSONSerializer.toJSONArray(ParcelableUserMention.fromUserMentionEntities(status
-				.getUserMentionEntities()));
-		if (json != null) {
-			values.put(Statuses.MENTIONS, json.toString());
+		final ParcelableMedia[] medias = ParcelableMedia.fromEntities(status);
+		if (medias != null) {
+			values.put(Statuses.MEDIAS, ParseUtils.parseString(JSONSerializer.toJSONArray(medias)));
+			values.put(Statuses.FIRST_MEDIA, medias[0].url);
+		}
+		final JSONArray mentions = JSONSerializer.toJSONArray(ParcelableUserMention.fromStatus(status));
+		if (mentions != null) {
+			values.put(Statuses.MENTIONS, mentions.toString());
 		}
 		return values;
 	}
 
 	public static ContentValues makeStatusDraftContentValues(final ParcelableStatusUpdate status) {
-		return makeStatusDraftContentValues(status, status.account_ids);
+		return makeStatusDraftContentValues(status, Account.getAccountIds(status.accounts));
 	}
 
 	public static ContentValues makeStatusDraftContentValues(final ParcelableStatusUpdate status,
-			final long[] account_ids) {
+			final long[] accountIds) {
 		final ContentValues values = new ContentValues();
 		values.put(Drafts.ACTION_TYPE, Drafts.ACTION_UPDATE_STATUS);
 		values.put(Drafts.TEXT, status.text);
-		values.put(Drafts.ACCOUNT_IDS, ArrayUtils.toString(account_ids, ',', false));
+		values.put(Drafts.ACCOUNT_IDS, ArrayUtils.toString(accountIds, ',', false));
 		values.put(Drafts.IN_REPLY_TO_STATUS_ID, status.in_reply_to_status_id);
 		values.put(Drafts.LOCATION, ParcelableLocation.toString(status.location));
 		values.put(Drafts.IS_POSSIBLY_SENSITIVE, status.is_possibly_sensitive);

@@ -24,7 +24,6 @@ import static org.mariotaku.twidere.util.Utils.clearListViewChoices;
 import static org.mariotaku.twidere.util.Utils.configBaseCardAdapter;
 import static org.mariotaku.twidere.util.Utils.isMyRetweet;
 import static org.mariotaku.twidere.util.Utils.openStatus;
-import static org.mariotaku.twidere.util.Utils.setMenuForStatus;
 import static org.mariotaku.twidere.util.Utils.showOkMessage;
 import static org.mariotaku.twidere.util.Utils.startStatusShareChooser;
 
@@ -32,25 +31,24 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v4.app.LoaderManager.LoaderCallbacks;
 import android.support.v4.content.Loader;
 import android.util.Log;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MenuItem.OnMenuItemClickListener;
 import android.view.View;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemLongClickListener;
+import android.widget.ImageView.ScaleType;
 import android.widget.ListView;
 
-import org.mariotaku.menucomponent.widget.PopupMenu;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.adapter.iface.IBaseCardAdapter.MenuButtonClickListener;
 import org.mariotaku.twidere.adapter.iface.IStatusesAdapter;
+import org.mariotaku.twidere.model.Account;
+import org.mariotaku.twidere.model.Account.AccountWithCredentials;
 import org.mariotaku.twidere.model.Panes;
 import org.mariotaku.twidere.model.ParcelableStatus;
 import org.mariotaku.twidere.task.AsyncTask;
@@ -59,7 +57,6 @@ import org.mariotaku.twidere.util.AsyncTwitterWrapper;
 import org.mariotaku.twidere.util.ClipboardUtils;
 import org.mariotaku.twidere.util.MultiSelectManager;
 import org.mariotaku.twidere.util.PositionManager;
-import org.mariotaku.twidere.util.ThemeUtils;
 import org.mariotaku.twidere.util.TwitterWrapper;
 import org.mariotaku.twidere.util.Utils;
 import org.mariotaku.twidere.util.collection.NoDuplicatesCopyOnWriteArrayList;
@@ -81,7 +78,6 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 
 	private ListView mListView;
 	private IStatusesAdapter<Data> mAdapter;
-	private PopupMenu mPopupMenu;
 
 	private Data mData;
 	private ParcelableStatus mSelectedStatus;
@@ -225,20 +221,23 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 		setData(data);
 		mFirstVisibleItem = -1;
 		mReadPositions.clear();
+		final int firstVisiblePosition = mListView.getFirstVisiblePosition();
+		final int lastVisiblePosition = mListView.getLastVisiblePosition();
 		final int listVisiblePosition, savedChildIndex;
 		final boolean rememberPosition = mPreferences.getBoolean(KEY_REMEMBER_POSITION, true);
-		if (rememberPosition) {
-			listVisiblePosition = mListView.getLastVisiblePosition();
-			final int childCount = mListView.getChildCount();
+		final boolean loadMoreFromTop = mPreferences.getBoolean(KEY_LOAD_MORE_FROM_TOP, false);
+		final int childCount = mListView.getChildCount();
+		if (firstVisiblePosition != 0 && lastVisiblePosition != mListView.getCount() - 1 && loadMoreFromTop) {
+			listVisiblePosition = lastVisiblePosition;
 			savedChildIndex = childCount - 1;
 			if (childCount > 0) {
 				final View lastChild = mListView.getChildAt(savedChildIndex);
 				mListScrollOffset = lastChild != null ? lastChild.getTop() : 0;
 			}
 		} else {
-			listVisiblePosition = mListView.getFirstVisiblePosition();
+			listVisiblePosition = firstVisiblePosition;
 			savedChildIndex = 0;
-			if (mListView.getChildCount() > 0) {
+			if (childCount > 0) {
 				final View firstChild = mListView.getChildAt(savedChildIndex);
 				mListScrollOffset = firstChild != null ? firstChild.getTop() : 0;
 			}
@@ -296,7 +295,6 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 				}
 				break;
 			}
-			case R.id.direct_retweet:
 			case MENU_RETWEET: {
 				if (isMyRetweet(status)) {
 					cancelRetweet(twitter, status);
@@ -306,7 +304,6 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 				}
 				break;
 			}
-			case R.id.direct_quote:
 			case MENU_QUOTE: {
 				final Intent intent = new Intent(INTENT_ACTION_QUOTE);
 				final Bundle bundle = new Bundle();
@@ -332,11 +329,21 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 				break;
 			}
 			case MENU_DELETE: {
-				twitter.destroyStatusAsync(status.account_id, status.id);
+				DestroyStatusDialogFragment.show(getFragmentManager(), status);
 				break;
 			}
 			case MENU_ADD_TO_FILTER: {
 				AddStatusFilterDialogFragment.show(getFragmentManager(), status);
+				break;
+			}
+			case MENU_TRANSLATE: {
+				final AccountWithCredentials account = Account.getAccountWithCredentials(getActivity(),
+						status.account_id);
+				if (AccountWithCredentials.isOfficialCredentials(getActivity(), account)) {
+					StatusTranslateDialogFragment.show(getFragmentManager(), status);
+				} else {
+
+				}
 				break;
 			}
 			case MENU_MULTI_SELECT: {
@@ -372,10 +379,16 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 		configBaseCardAdapter(getActivity(), mAdapter);
 		final boolean display_image_preview = mPreferences.getBoolean(KEY_DISPLAY_IMAGE_PREVIEW, false);
 		final boolean display_sensitive_contents = mPreferences.getBoolean(KEY_DISPLAY_SENSITIVE_CONTENTS, false);
-		final boolean indicate_my_status = mPreferences.getBoolean(KEY_INDICATE_MY_STATUS, true);
+		final boolean indicateMyStatus = mPreferences.getBoolean(KEY_INDICATE_MY_STATUS, true);
+		final String cardHighlightOption = mPreferences.getString(KEY_CARD_HIGHLIGHT_OPTION,
+				DEFAULT_CARD_HIGHLIGHT_OPTION);
+		final String previewScaleType = Utils.getNonEmptyString(mPreferences, KEY_IMAGE_PREVIEW_SCALE_TYPE,
+				ScaleType.CENTER_CROP.name());
 		mAdapter.setDisplayImagePreview(display_image_preview);
+		mAdapter.setImagePreviewScaleType(previewScaleType);
 		mAdapter.setDisplaySensitiveContents(display_sensitive_contents);
-		mAdapter.setIndicateMyStatusDisabled(isMyTimeline() || !indicate_my_status);
+		mAdapter.setIndicateMyStatusDisabled(isMyTimeline() || !indicateMyStatus);
+		mAdapter.setCardHighlightOption(cardHighlightOption);
 		mLoadMoreAutomatically = mPreferences.getBoolean(KEY_LOAD_MORE_AUTOMATICALLY, false);
 	}
 
@@ -421,9 +434,6 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 	public void onStop() {
 		savePosition();
 		mMultiSelectManager.unregisterCallback(this);
-		if (mPopupMenu != null) {
-			mPopupMenu.dismiss();
-		}
 		super.onStop();
 	}
 
@@ -530,34 +540,11 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 		if (twitter != null) {
 			TwitterWrapper.removeUnreadCounts(getActivity(), getTabPosition(), status.account_id, status.id);
 		}
-		if (mPopupMenu != null && mPopupMenu.isShowing()) {
-			mPopupMenu.dismiss();
-		}
-		final int activated_color = ThemeUtils.getUserThemeColor(getActivity());
-		mPopupMenu = PopupMenu.getInstance(getActivity(), view);
-		mPopupMenu.inflate(R.menu.action_status);
-		final boolean separateRetweetAction = mPreferences.getBoolean(KEY_SEPARATE_RETWEET_ACTION,
-				DEFAULT_SEPARATE_RETWEET_ACTION);
-		final boolean longclickToOpenMenu = mPreferences.getBoolean(KEY_LONG_CLICK_TO_OPEN_MENU, false);
-		final Menu menu = mPopupMenu.getMenu();
-		setMenuForStatus(getActivity(), menu, status);
-		Utils.setMenuItemAvailability(menu, R.id.retweet_submenu, !separateRetweetAction);
-		Utils.setMenuItemAvailability(menu, R.id.direct_quote, separateRetweetAction);
-		Utils.setMenuItemAvailability(menu, MENU_MULTI_SELECT, longclickToOpenMenu);
-		final MenuItem direct_retweet = menu.findItem(R.id.direct_retweet);
-		if (direct_retweet != null) {
-			final Drawable icon = direct_retweet.getIcon().mutate();
-			direct_retweet.setVisible(separateRetweetAction && (!status.user_is_protected || isMyRetweet(status)));
-			if (isMyRetweet(status)) {
-				icon.setColorFilter(activated_color, PorterDuff.Mode.MULTIPLY);
-				direct_retweet.setTitle(R.string.cancel_retweet);
-			} else {
-				icon.clearColorFilter();
-				direct_retweet.setTitle(R.string.retweet);
-			}
-		}
-		mPopupMenu.setOnMenuItemClickListener(this);
-		mPopupMenu.show();
+		final StatusMenuDialogFragment df = new StatusMenuDialogFragment();
+		final Bundle args = new Bundle();
+		args.putParcelable(EXTRA_STATUS, status);
+		df.setArguments(args);
+		df.show(getChildFragmentManager(), "status_menu");
 	}
 
 	private void removeUnreadCounts() {

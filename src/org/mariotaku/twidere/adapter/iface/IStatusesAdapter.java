@@ -39,6 +39,8 @@ public interface IStatusesAdapter<Data> extends IBaseCardAdapter {
 
 	public boolean isLastItemFiltered();
 
+	public void setCardHighlightOption(String option);
+
 	public void setData(Data data);
 
 	public void setDisplayImagePreview(boolean display);
@@ -53,6 +55,8 @@ public interface IStatusesAdapter<Data> extends IBaseCardAdapter {
 
 	public void setIgnoredFilterFields(boolean user, boolean text_plain, boolean text_html, boolean source,
 			final boolean retweeted_by_id);
+
+	public void setImagePreviewScaleType(String scaleType);
 
 	public void setIndicateMyStatusDisabled(boolean disable);
 

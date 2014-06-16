@@ -31,6 +31,7 @@ import org.mariotaku.twidere.constant.SharedPreferenceConstants;
 public interface TwidereConstants extends SharedPreferenceConstants, IntentConstants {
 
 	public static final String APP_NAME = "Twidere";
+	public static final String APP_PACKAGE_NAME = "org.mariotaku.twidere";
 	public static final String APP_PROJECT_URL = "https://github.com/mariotaku/twidere";
 	public static final String APP_PROJECT_EMAIL = "twidere.project@gmail.com";
 
@@ -132,6 +133,7 @@ public interface TwidereConstants extends SharedPreferenceConstants, IntentConst
 	public static final int REQUEST_ADD_TO_LIST = 15;
 	public static final int REQUEST_SELECT_USER = 16;
 	public static final int REQUEST_SELECT_USER_LIST = 17;
+	public static final int REQUEST_PICK_ACTIVITY = 18;
 	public static final int REQUEST_SWIPEBACK_ACTIVITY = 101;
 
 	public static final int TABLE_ID_ACCOUNTS = 1;

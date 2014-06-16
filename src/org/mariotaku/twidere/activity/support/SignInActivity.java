@@ -328,7 +328,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		mPreferences = getSharedPreferences(SHARED_PREFERENCES_NAME, MODE_PRIVATE);
 		mResolver = getContentResolver();
 		mApplication = TwidereApplication.getInstance(this);
-		setContentView(R.layout.sign_in);
+		setContentView(R.layout.activity_sign_in);
 		setProgressBarIndeterminateVisibility(false);
 		final long[] account_ids = getActivatedAccountIds(this);
 		getActionBar().setDisplayHomeAsUpEnabled(account_ids.length > 0);
@@ -480,7 +480,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		if (mUserColor != null) {
 			mSetColorButton.setImageBitmap(ColorPickerView.getColorPreviewBitmap(this, mUserColor));
 		} else {
-			mSetColorButton.setImageResource(R.drawable.ic_menu_color_palette);
+			mSetColorButton.setImageResource(R.drawable.ic_iconic_action_color_palette);
 		}
 	}
 

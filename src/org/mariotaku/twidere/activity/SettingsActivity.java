@@ -19,6 +19,7 @@
 
 package org.mariotaku.twidere.activity;
 
+import android.app.ActionBar;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.Intent;
@@ -37,6 +38,7 @@ import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.activity.support.DataExportActivity;
 import org.mariotaku.twidere.activity.support.DataImportActivity;
 import org.mariotaku.twidere.adapter.ArrayAdapter;
+import org.mariotaku.twidere.util.ThemeUtils;
 import org.mariotaku.twidere.view.holder.ViewHolder;
 
 import java.util.List;
@@ -47,7 +49,7 @@ public class SettingsActivity extends BasePreferenceActivity {
 
 	public HeaderAdapter getHeaderAdapter() {
 		if (mAdapter != null) return mAdapter;
-		return mAdapter = new HeaderAdapter(this);
+		return mAdapter = new HeaderAdapter(ThemeUtils.getContextForActionIcons(this, getThemeResourceId()));
 	}
 
 	@Override
@@ -122,7 +124,8 @@ public class SettingsActivity extends BasePreferenceActivity {
 	protected void onCreate(final Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setIntent(getIntent().addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
-		getActionBar().setDisplayHomeAsUpEnabled(true);
+		final ActionBar actionBar = getActionBar();
+		actionBar.setDisplayHomeAsUpEnabled(true);
 		if (savedInstanceState != null) {
 			invalidateHeaders();
 		}
@@ -137,7 +140,7 @@ public class SettingsActivity extends BasePreferenceActivity {
 		private final Resources mResources;
 
 		public HeaderAdapter(final Context context) {
-			super(context, R.layout.settings_list_item);
+			super(context, R.layout.list_item_settings);
 			mContext = context;
 			mResources = context.getResources();
 		}
@@ -165,10 +168,9 @@ public class SettingsActivity extends BasePreferenceActivity {
 					break;
 				}
 				default: {
-					final boolean is_switch_item = convertView != null
-							&& convertView.findViewById(android.R.id.toggle) != null;
-					final boolean should_create_new = convertView instanceof TextView || is_switch_item;
-					view = super.getView(position, should_create_new ? null : convertView, parent);
+					final boolean viewChanged = convertView != null
+							&& !(convertView.getTag() instanceof HeaderViewHolder);
+					view = super.getView(position, viewChanged ? null : convertView, parent);
 					final HeaderViewHolder holder;
 					final Object tag = view.getTag();
 					if (tag instanceof HeaderViewHolder) {
@@ -187,7 +189,7 @@ public class SettingsActivity extends BasePreferenceActivity {
 						holder.summary.setVisibility(View.GONE);
 					}
 					if (header.iconRes != 0) {
-						holder.icon.setImageResource(header.iconRes);
+						holder.icon.setImageDrawable(mResources.getDrawable(header.iconRes));
 					} else {
 						holder.icon.setImageDrawable(null);
 					}

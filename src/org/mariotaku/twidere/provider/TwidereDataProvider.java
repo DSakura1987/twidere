@@ -26,7 +26,6 @@ import static org.mariotaku.twidere.util.Utils.getAccountIds;
 import static org.mariotaku.twidere.util.Utils.getAccountNotificationId;
 import static org.mariotaku.twidere.util.Utils.getAccountScreenName;
 import static org.mariotaku.twidere.util.Utils.getActivatedAccountIds;
-import static org.mariotaku.twidere.util.Utils.getBiggerTwitterProfileImage;
 import static org.mariotaku.twidere.util.Utils.getDisplayName;
 import static org.mariotaku.twidere.util.Utils.getNotificationUri;
 import static org.mariotaku.twidere.util.Utils.getTableId;
@@ -70,7 +69,6 @@ import org.mariotaku.twidere.app.TwidereApplication;
 import org.mariotaku.twidere.model.AccountPreferences;
 import org.mariotaku.twidere.model.ParcelableDirectMessage;
 import org.mariotaku.twidere.model.ParcelableStatus;
-import org.mariotaku.twidere.model.PreviewMedia;
 import org.mariotaku.twidere.model.SupportTabSpec;
 import org.mariotaku.twidere.model.UnreadItem;
 import org.mariotaku.twidere.provider.TweetStore.Accounts;
@@ -85,6 +83,9 @@ import org.mariotaku.twidere.util.ImagePreloader;
 import org.mariotaku.twidere.util.MediaPreviewUtils;
 import org.mariotaku.twidere.util.ParseUtils;
 import org.mariotaku.twidere.util.PermissionsManager;
+import org.mariotaku.twidere.util.SQLiteDatabaseWrapper;
+import org.mariotaku.twidere.util.SQLiteDatabaseWrapper.LazyLoadCallback;
+import org.mariotaku.twidere.util.SharedPreferencesWrapper;
 import org.mariotaku.twidere.util.TwidereQueryBuilder;
 import org.mariotaku.twidere.util.Utils;
 import org.mariotaku.twidere.util.collection.NoDuplicatesCopyOnWriteArrayList;
@@ -105,7 +106,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public final class TwidereDataProvider extends ContentProvider implements Constants, OnSharedPreferenceChangeListener {
+public final class TwidereDataProvider extends ContentProvider implements Constants, OnSharedPreferenceChangeListener,
+		LazyLoadCallback {
 
 	private static final String UNREAD_STATUSES_FILE_NAME = "unread_statuses";
 	private static final String UNREAD_MENTIONS_FILE_NAME = "unread_mentions";
@@ -115,7 +117,7 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 	private SQLiteDatabaseWrapper mDatabaseWrapper;
 	private PermissionsManager mPermissionsManager;
 	private NotificationManager mNotificationManager;
-	private SharedPreferences mPreferences;
+	private SharedPreferencesWrapper mPreferences;
 	private ImagePreloader mImagePreloader;
 	private HostAddressResolver mHostAddressResolver;
 
@@ -268,12 +270,9 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 	public boolean onCreate() {
 		final Context context = getContext();
 		final TwidereApplication app = TwidereApplication.getInstance(context);
-		final SQLiteOpenHelper helper = app.getSQLiteOpenHelper();
-		mContentResolver = context.getContentResolver();
-		mDatabaseWrapper = new SQLiteDatabaseWrapper();
+		mDatabaseWrapper = new SQLiteDatabaseWrapper(this);
 		mHostAddressResolver = app.getHostAddressResolver();
-		mNotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-		mPreferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
+		mPreferences = SharedPreferencesWrapper.getInstance(context, SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		mPreferences.registerOnSharedPreferenceChangeListener(this);
 		updatePreferences();
 		mPermissionsManager = new PermissionsManager(context);
@@ -283,11 +282,17 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		filter.addAction(BROADCAST_HOME_ACTIVITY_ONSTOP);
 		context.registerReceiver(mHomeActivityStateReceiver, filter);
 		restoreUnreadItems();
-		mDatabaseWrapper.setSQLiteDatabase(helper.getWritableDatabase());
 		// final GetWritableDatabaseTask task = new
 		// GetWritableDatabaseTask(context, helper, mDatabaseWrapper);
 		// task.execute();
 		return true;
+	}
+
+	@Override
+	public SQLiteDatabase onCreateSQLiteDatabase() {
+		final TwidereApplication app = TwidereApplication.getInstance(getContext());
+		final SQLiteOpenHelper helper = app.getSQLiteOpenHelper();
+		return helper.getWritableDatabase();
 	}
 
 	@Override
@@ -574,11 +579,12 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		mNewStatuses.clear();
 		mNewMentions.clear();
 		mNewMessages.clear();
-		mNotificationManager.cancelAll();
+		getNotificationManager().cancelAll();
 	}
 
 	private void clearNotification(final int notificationType, final long accountId) {
-		boolean isAccountSpecific;
+		final NotificationManager nm = getNotificationManager();
+		final boolean isAccountSpecific;
 		switch (notificationType) {
 			case NOTIFICATION_ID_HOME_TIMELINE: {
 				mNewStatuses.clear();
@@ -601,14 +607,14 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		}
 		if (isAccountSpecific) {
 			if (accountId > 0) {
-				mNotificationManager.cancel(getAccountNotificationId(notificationType, accountId));
+				nm.cancel(getAccountNotificationId(notificationType, accountId));
 			} else {
 				for (final long id : getAccountIds(getContext())) {
-					mNotificationManager.cancel(getAccountNotificationId(notificationType, id));
+					nm.cancel(getAccountNotificationId(notificationType, id));
 				}
 			}
 		} else {
-			mNotificationManager.cancel(notificationType);
+			nm.cancel(notificationType);
 		}
 	}
 
@@ -659,6 +665,7 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 
 	private void displayMessagesNotification(final int notifiedCount, final AccountPreferences accountPrefs,
 			final int notificationType, final int icon, final List<ParcelableDirectMessage> messages) {
+		final NotificationManager nm = getNotificationManager();
 		if (notifiedCount == 0 || accountPrefs == null || messages.isEmpty()) return;
 		final long accountId = accountPrefs.getAccountId();
 		final Context context = getContext();
@@ -729,12 +736,13 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 			notifStyle = bigTextStyle;
 		}
 		final int accountNotificationId = getAccountNotificationId(NOTIFICATION_ID_DIRECT_MESSAGES, accountId);
-		mNotificationManager.notify(accountNotificationId, notifStyle.build());
+		nm.notify(accountNotificationId, notifStyle.build());
 	}
 
 	private void displayStatusesNotification(final int notifiedCount, final AccountPreferences accountPreferences,
 			final int notificationType, final int notificationId, final List<ParcelableStatus> statuses,
 			final int titleSingle, final int titleMutiple, final int icon) {
+		final NotificationManager nm = getNotificationManager();
 		if (notifiedCount == 0 || accountPreferences == null || statuses.isEmpty()) return;
 		final long accountId = accountPreferences.getAccountId();
 		final Context context = getContext();
@@ -802,7 +810,7 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 			replyIntent.putExtra(EXTRA_NOTIFICATION_ACCOUNT, accountId);
 			replyIntent.putExtra(EXTRA_STATUS, firstItem);
 			replyIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-			notifBuilder.addAction(R.drawable.ic_menu_reply, context.getString(R.string.reply),
+			notifBuilder.addAction(R.drawable.ic_action_reply, context.getString(R.string.reply),
 					PendingIntent.getActivity(context, 0, replyIntent, PendingIntent.FLAG_UPDATE_CURRENT));
 			final NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle(notifBuilder);
 			bigTextStyle.bigText(stripMentionText(firstItem.text_unescaped,
@@ -811,7 +819,7 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 			notifStyle = bigTextStyle;
 		}
 		final int accountNotificationId = getAccountNotificationId(notificationId, accountId);
-		mNotificationManager.notify(accountNotificationId, notifStyle.build());
+		nm.notify(accountNotificationId, notifStyle.build());
 	}
 
 	private Cursor getCachedImageCursor(final String url) {
@@ -844,6 +852,12 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
 	}
 
+	private ContentResolver getContentResolver() {
+		if (mContentResolver != null) return mContentResolver;
+		final Context context = getContext();
+		return mContentResolver = context.getContentResolver();
+	}
+
 	private Cursor getDNSCursor(final String host) {
 		final MatrixCursor c = new MatrixCursor(TweetStore.DNS.MATRIX_COLUMNS);
 		try {
@@ -855,6 +869,12 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 
 		}
 		return c;
+	}
+
+	private NotificationManager getNotificationManager() {
+		if (mNotificationManager != null) return mNotificationManager;
+		final Context context = getContext();
+		return mNotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 	}
 
 	private Cursor getNotificationsCursor() {
@@ -880,12 +900,9 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 	private Bitmap getProfileImageForNotification(final String profile_image_url) {
 		final Context context = getContext();
 		final Resources res = context.getResources();
-		final boolean hires_profile_image = res.getBoolean(R.bool.hires_profile_image);
 		final int w = res.getDimensionPixelSize(android.R.dimen.notification_large_icon_width);
 		final int h = res.getDimensionPixelSize(android.R.dimen.notification_large_icon_height);
-		final File profile_image_file = mImagePreloader
-				.getCachedImageFile(hires_profile_image ? getBiggerTwitterProfileImage(profile_image_url)
-						: profile_image_url);
+		final File profile_image_file = mImagePreloader.getCachedImageFile(profile_image_url);
 		final Bitmap profile_image = profile_image_file != null && profile_image_file.isFile() ? BitmapFactory
 				.decodeFile(profile_image_file.getPath()) : null;
 		if (profile_image != null) return Bitmap.createScaledBitmap(profile_image, w, h, true);
@@ -966,8 +983,9 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 	}
 
 	private void notifyContentObserver(final Uri uri) {
-		if (uri == null || mContentResolver == null) return;
-		mContentResolver.notifyChange(uri, null);
+		final ContentResolver cr = getContentResolver();
+		if (uri == null || cr == null) return;
+		cr.notifyChange(uri, null);
 	}
 
 	private int notifyIncomingMessagesInserted(final ContentValues... values) {
@@ -987,7 +1005,7 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		return result;
 	}
 
-	private int notifyMentionsInserted(final ContentValues... values) {
+	private int notifyMentionsInserted(final AccountPreferences[] prefs, final ContentValues... values) {
 		if (values == null || values.length == 0) return 0;
 		// Add statuses that not filtered to list for future use.
 		int result = 0;
@@ -996,7 +1014,10 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		for (final ContentValues value : values) {
 			final ParcelableStatus status = new ParcelableStatus(value);
 			if (!enabled || !isFiltered(mDatabaseWrapper.getSQLiteDatabase(), status, filtersForRts)) {
-				mNewMentions.add(status);
+				final AccountPreferences pref = AccountPreferences.getAccountPreferences(prefs, status.account_id);
+				if (pref == null || status.user_is_following || !pref.isMyFollowingOnly()) {
+					mNewMentions.add(status);
+				}
 				if (mUnreadMentions.add(new UnreadItem(status.id, status.account_id))) {
 					result++;
 				}
@@ -1073,11 +1094,11 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 				break;
 			}
 			case TABLE_ID_MENTIONS: {
-				final int notifiedCount = notifyMentionsInserted(values);
-				final List<ParcelableStatus> items = new ArrayList<ParcelableStatus>(mNewMentions);
-				Collections.sort(items);
 				final AccountPreferences[] prefs = AccountPreferences.getNotificationEnabledPreferences(getContext(),
 						getAccountIds(getContext()));
+				final int notifiedCount = notifyMentionsInserted(prefs, values);
+				final List<ParcelableStatus> items = new ArrayList<ParcelableStatus>(mNewMentions);
+				Collections.sort(items);
 				for (final AccountPreferences pref : prefs) {
 					if (pref.isMentionsNotificationEnabled()) {
 						final long accountId = pref.getAccountId();
@@ -1118,9 +1139,9 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 				mImagePreloader.preloadImage(v.getAsString(DirectMessages.RECIPIENT_PROFILE_IMAGE_URL));
 			}
 			if (mPreferences.getBoolean(KEY_PRELOAD_PREVIEW_IMAGES, false)) {
-				final String text_html = v.getAsString(Statuses.TEXT_HTML);
-				for (final PreviewMedia spec : MediaPreviewUtils.getImagesInStatus(text_html, false)) {
-					mImagePreloader.preloadImage(spec.url);
+				final String textHtml = v.getAsString(Statuses.TEXT_HTML);
+				for (final String link : MediaPreviewUtils.getSupportedLinksInStatus(textHtml)) {
+					mImagePreloader.preloadImage(link);
 				}
 			}
 		}
@@ -1198,8 +1219,9 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 	}
 
 	private void setNotificationUri(final Cursor c, final Uri uri) {
-		if (mContentResolver == null || c == null || uri == null) return;
-		c.setNotificationUri(mContentResolver, uri);
+		final ContentResolver cr = getContentResolver();
+		if (cr == null || c == null || uri == null) return;
+		c.setNotificationUri(cr, uri);
 	}
 
 	private void updatePreferences() {
@@ -1230,7 +1252,7 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		return result;
 	}
 
-	private static Cursor getPreferencesCursor(final SharedPreferences preferences, final String key) {
+	private static Cursor getPreferencesCursor(final SharedPreferencesWrapper preferences, final String key) {
 		final MatrixCursor c = new MatrixCursor(TweetStore.Preferences.MATRIX_COLUMNS);
 		final Map<String, Object> map = new HashMap<String, Object>();
 		final Map<String, ?> all = preferences.getAll();
@@ -1335,72 +1357,6 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 				mContext.sendBroadcast(new Intent(BROADCAST_DATABASE_READY));
 			}
 		}
-	}
-
-	private static class SQLiteDatabaseWrapper {
-		private SQLiteDatabase mDatabase;
-
-		public void beginTransaction() {
-			if (mDatabase == null) return;
-			mDatabase.beginTransaction();
-		}
-
-		public int delete(final String table, final String whereClause, final String[] whereArgs) {
-			if (mDatabase == null) return 0;
-			return mDatabase.delete(table, whereClause, whereArgs);
-		}
-
-		public void endTransaction() {
-			if (mDatabase == null) return;
-			mDatabase.endTransaction();
-		}
-
-		public SQLiteDatabase getSQLiteDatabase() {
-			return mDatabase;
-		}
-
-		public long insert(final String table, final String nullColumnHack, final ContentValues values) {
-			if (mDatabase == null) return -1;
-			return mDatabase.insert(table, nullColumnHack, values);
-		}
-
-		public long insertWithOnConflict(final String table, final String nullColumnHack,
-				final ContentValues initialValues, final int conflictAlgorithm) {
-			if (mDatabase == null) return -1;
-			return mDatabase.insertWithOnConflict(table, nullColumnHack, initialValues, conflictAlgorithm);
-		}
-
-		public boolean isReady() {
-			return mDatabase != null;
-		}
-
-		public Cursor query(final String table, final String[] columns, final String selection,
-				final String[] selectionArgs, final String groupBy, final String having, final String orderBy) {
-			if (mDatabase == null) return null;
-			return mDatabase.query(table, columns, selection, selectionArgs, groupBy, having, orderBy);
-		}
-
-		public Cursor rawQuery(final String sql, final String[] selectionArgs) {
-
-			if (mDatabase == null) return null;
-			return mDatabase.rawQuery(sql, selectionArgs);
-		}
-
-		public void setSQLiteDatabase(final SQLiteDatabase database) {
-			mDatabase = database;
-		}
-
-		public void setTransactionSuccessful() {
-			if (mDatabase == null) return;
-			mDatabase.setTransactionSuccessful();
-		}
-
-		public int update(final String table, final ContentValues values, final String whereClause,
-				final String[] whereArgs) {
-			if (mDatabase == null) return 0;
-			return mDatabase.update(table, values, whereClause, whereArgs);
-		}
-
 	}
 
 }

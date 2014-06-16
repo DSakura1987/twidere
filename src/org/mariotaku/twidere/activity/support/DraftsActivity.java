@@ -47,7 +47,6 @@ import org.mariotaku.querybuilder.RawItemArray;
 import org.mariotaku.querybuilder.Where;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.adapter.DraftsAdapter;
-import org.mariotaku.twidere.model.CursorDraftIndices;
 import org.mariotaku.twidere.model.DraftItem;
 import org.mariotaku.twidere.model.ParcelableStatusUpdate;
 import org.mariotaku.twidere.provider.TweetStore.Drafts;
@@ -83,7 +82,7 @@ public class DraftsActivity extends BaseSupportActivity implements LoaderCallbac
 				if (c == null || c.isClosed()) return false;
 				final SparseBooleanArray checked = mListView.getCheckedItemPositions();
 				final List<DraftItem> list = new ArrayList<DraftItem>();
-				final CursorDraftIndices indices = new CursorDraftIndices(c);
+				final DraftItem.CursorIndices indices = new DraftItem.CursorIndices(c);
 				for (int i = 0, j = checked.size(); i < j; i++) {
 					if (checked.valueAt(i) && c.moveToPosition(checked.keyAt(i))) {
 						list.add(new DraftItem(c, indices));
@@ -132,7 +131,7 @@ public class DraftsActivity extends BaseSupportActivity implements LoaderCallbac
 	public void onItemClick(final AdapterView<?> view, final View child, final int position, final long id) {
 		final Cursor c = mAdapter.getCursor();
 		if (c == null || c.isClosed() || !c.moveToPosition(position)) return;
-		final DraftItem item = new DraftItem(c, new CursorDraftIndices(c));
+		final DraftItem item = new DraftItem(c, new DraftItem.CursorIndices(c));
 		if (item.action_type == Drafts.ACTION_UPDATE_STATUS || item.action_type <= 0) {
 			editDraft(item);
 		}
@@ -227,7 +226,7 @@ public class DraftsActivity extends BaseSupportActivity implements LoaderCallbac
 		if (twitter == null) return false;
 		for (final DraftItem item : list) {
 			if (item.action_type == Drafts.ACTION_UPDATE_STATUS || item.action_type <= 0) {
-				twitter.updateStatusesAsync(new ParcelableStatusUpdate(item));
+				twitter.updateStatusesAsync(new ParcelableStatusUpdate(this, item));
 			} else if (item.action_type == Drafts.ACTION_SEND_DIRECT_MESSAGE) {
 				final long recipientId = item.action_extras.optLong(EXTRA_RECIPIENT_ID);
 				if (item.account_ids == null || item.account_ids.length <= 0 || recipientId <= 0) {

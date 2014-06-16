@@ -24,10 +24,10 @@
 		<!-- Window attributes -->
 		<item name="android:windowAnimationStyle">@style/Animation.Twidere.Activity</item>
 		<item name="android:windowBackground">@color/bg_color_dark</item>
-		<item name="android:fitsSystemWindows">true</item>
 
 		<!-- ActionBar styles -->
 		<item name="android:actionBarStyle">@style/Widget.Twidere.ActionBar.Dark</item>
+		<item name="android:actionBarWidgetTheme">@style/Theme.Twidere.Dark</item>
 
 		<!-- Custom view styles -->
 		<item name="tabItemStyle">@style/Widget.TabPageIndicator.TabItem</item>
@@ -57,10 +57,10 @@
 		<!-- Window attributes -->
 		<item name="android:windowAnimationStyle">@style/Animation.Twidere.Activity</item>
 		<item name="android:windowBackground">@color/bg_color_light</item>
-		<item name="android:fitsSystemWindows">true</item>
 
 		<!-- ActionBar styles -->
 		<item name="android:actionBarStyle">@style/Widget.Twidere.ActionBar.Light</item>
+		<item name="android:actionBarWidgetTheme">@style/Theme.Twidere.Light</item>
 
 		<!-- Custom view styles -->
 		<item name="tabItemStyle">@style/Widget.TabPageIndicator.TabItem</item>
@@ -90,10 +90,10 @@
 		<!-- Window attributes -->
 		<item name="android:windowAnimationStyle">@style/Animation.Twidere.Activity</item>
 		<item name="android:windowBackground">@color/bg_color_light</item>
-		<item name="android:fitsSystemWindows">true</item>
 
 		<!-- ActionBar styles -->
 		<item name="android:actionBarStyle">@style/Widget.Twidere.ActionBar.Light.DarkActionBar</item>
+		<item name="android:actionBarWidgetTheme">@style/Theme.Twidere.Dark</item>
 
 		<!-- Custom view styles -->
 		<item name="tabItemStyle">@style/Widget.TabPageIndicator.TabItem</item>
@@ -111,10 +111,14 @@
 		<item name="listMenuOverflowButton">@drawable/ic_menu_moreoverflow_card_light</item>
 	</style>
 
+	<style name="Theme.Twidere.Light.DarkActionBar.DarkIcon"/>
+
 	<style name="Theme.Twidere.Colored" parent="Theme.Twidere.Light">
 
 		<!-- ActionBar styles -->
 		<item name="android:actionBarStyle">@style/Widget.Twidere.ActionBar.Colored</item>
+		<item name="android:actionBarWidgetTheme">@style/Theme.Twidere.ActionBar.Colored.Light</item>
+		<item name="android:actionBarItemBackground">@drawable/list_selector_light_white</item>
 	</style>
 
 	<style name="Theme.Twidere.Colored.DarkActionBar" parent="Theme.Twidere.Light.DarkActionBar">
@@ -122,14 +126,10 @@
 		<!-- ActionBar styles -->
 		<item name="android:actionBarStyle">@style/Widget.Twidere.ActionBar.Colored.Inverse</item>
 		<item name="android:actionBarWidgetTheme">@style/Theme.Twidere.ActionBar.Colored.Dark</item>
+		<item name="android:actionBarItemBackground">@drawable/list_selector_white</item>
 	</style>
 
-	<style name="Theme.Twidere.ActionBar.Colored.Dark" parent="Theme.HoloAccent">
-
-		<!-- Accent Colors -->
-		<item name="accentColor">#ff0099cc</item>
-		<item name="accentColorTranslucent">#660099cc</item>
-	</style>
+	<style name="Theme.Twidere.Colored.DarkActionBar.DarkIcon"/>
 
 	<style name="Theme.Twidere.Colored.DarkActionBar.Transparent">
 
@@ -141,6 +141,8 @@
 		<item name="android:windowBackground">@color/bg_color_transparent_light</item>
 		<item name="android:windowShowWallpaper">true</item>
 	</style>
+
+	<style name="Theme.Twidere.Colored.DarkActionBar.Transparent.DarkIcon"/>
 
 	<style name="Theme.Twidere.Colored.Transparent">
 
@@ -183,11 +185,15 @@
 		<item name="android:windowShowWallpaper">true</item>
 	</style>
 
+	<style name="Theme.Twidere.Light.DarkActionBar.Transparent.DarkIcon"/>
+
 	<style name="Theme.Twidere.Colored.DarkActionBar.SolidBackground">
 
 		<!-- Window attributes -->
 		<item name="android:windowBackground">@android:color/white</item>
 	</style>
+
+	<style name="Theme.Twidere.Colored.DarkActionBar.SolidBackground.DarkIcon"/>
 
 	<style name="Theme.Twidere.Colored.SolidBackground">
 
@@ -211,6 +217,20 @@
 
 		<!-- Window attributes -->
 		<item name="android:windowBackground">@android:color/white</item>
+	</style>
+
+	<style name="Theme.Twidere.Light.DarkActionBar.SolidBackground.DarkIcon"/>
+
+	<style name="Theme.Twidere.ActionBar.Colored.Light" parent="Theme.Twidere.Light">
+		<item name="accentColor">@color/accent_white</item>
+		<item name="accentColorTranslucent">@color/accent_white_translucent</item>
+		<item name="android:actionBarItemBackground">@drawable/list_selector_light_white</item>
+	</style>
+
+	<style name="Theme.Twidere.ActionBar.Colored.Dark" parent="Theme.Twidere.Dark">
+		<item name="accentColor">@color/accent_white</item>
+		<item name="accentColorTranslucent">@color/accent_white_translucent</item>
+		<item name="android:actionBarItemBackground">@drawable/list_selector_white</item>
 	</style>
 
 	<style name="Theme.Twidere.Dark.Dialog" parent="android:Theme.Holo.Dialog">
@@ -288,6 +308,8 @@
 		<item name="android:windowMinWidthMinor">@android:dimen/dialog_min_width_minor</item>
 	</style>
 
+	<style name="Theme.Twidere.Light.DarkActionBar.Compose.DarkIcon"/>
+
 	<style name="Theme.Twidere.Colored.DarkActionBar.Compose">
 		<item name="android:windowNoTitle">true</item>
 		<item name="android:windowActionBar">false</item>
@@ -300,6 +322,8 @@
 		<item name="android:windowMinWidthMajor">@android:dimen/dialog_min_width_major</item>
 		<item name="android:windowMinWidthMinor">@android:dimen/dialog_min_width_minor</item>
 	</style>
+
+	<style name="Theme.Twidere.Colored.DarkActionBar.Compose.DarkIcon"/>
 
 	<style name="Theme.Twidere.Colored.Compose">
 		<item name="android:windowNoTitle">true</item>
@@ -454,6 +478,8 @@
 		<item name="cardItemMessageProfileImageOutgoingBackground">@drawable/bg_card_item_message_profile_image_outgoing_light</item>
 		<item name="listMenuOverflowButton">@drawable/ic_menu_moreoverflow_card_light</item>
 	</style>
+
+	<style name="Theme.Twidere.Settings.Light.DarkActionBar.DarkIcon"/>
 
 	<style name="Theme.Twidere.Wizard" parent="Theme.Twidere.Settings.Light">
 		<item name="android:windowNoTitle">true</item>

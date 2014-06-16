@@ -258,7 +258,7 @@ public class UserListDetailsFragment extends BaseSupportListFragment implements 
 
 	@Override
 	public void onCreateOptionsMenu(final Menu menu, final MenuInflater inflater) {
-		inflater.inflate(R.menu.menu_user_user_list, menu);
+		inflater.inflate(R.menu.menu_user_list, menu);
 	}
 
 	@Override
@@ -272,8 +272,8 @@ public class UserListDetailsFragment extends BaseSupportListFragment implements 
 		mDescriptionContainer = mHeaderView.findViewById(R.id.description_container);
 		mMoreOptionsButton = mHeaderView.findViewById(R.id.more_options);
 		mListContainer = super.onCreateView(inflater, container, savedInstanceState);
-		final View containerView = inflater.inflate(R.layout.list_with_error_message, null);
-		((FrameLayout) containerView.findViewById(R.id.list_container)).addView(mListContainer);
+		final View containerView = inflater.inflate(R.layout.fragment_details_page, null);
+		((FrameLayout) containerView.findViewById(R.id.details_container)).addView(mListContainer);
 		mErrorRetryContainer = containerView.findViewById(R.id.error_retry_container);
 		mRetryButton = (Button) containerView.findViewById(R.id.retry);
 		mErrorMessageView = (TextView) containerView.findViewById(R.id.error_message);
@@ -558,7 +558,6 @@ public class UserListDetailsFragment extends BaseSupportListFragment implements 
 		private final long mAccountId, mUserId;
 		private final int mListId;
 		private final String mScreenName, mListName;
-		private final boolean mHiresProfileImage;
 
 		private ParcelableUserListLoader(final Context context, final boolean omitIntentExtra, final Bundle extras,
 				final long accountId, final int listId, final String listName, final long userId,
@@ -571,7 +570,6 @@ public class UserListDetailsFragment extends BaseSupportListFragment implements 
 			mListId = listId;
 			mScreenName = screenName;
 			mListName = listName;
-			mHiresProfileImage = context.getResources().getBoolean(R.bool.hires_profile_image);
 		}
 
 		@Override
@@ -592,8 +590,7 @@ public class UserListDetailsFragment extends BaseSupportListFragment implements 
 					list = twitter.showUserList(mListName, mScreenName);
 				} else
 					return SingleResponse.nullInstance();
-				return new SingleResponse<ParcelableUserList>(new ParcelableUserList(list, mAccountId,
-						mHiresProfileImage), null);
+				return new SingleResponse<ParcelableUserList>(new ParcelableUserList(list, mAccountId), null);
 			} catch (final TwitterException e) {
 				return new SingleResponse<ParcelableUserList>(null, e);
 			}

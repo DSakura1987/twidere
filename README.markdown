@@ -1,3 +1,5 @@
+#Twidere for Android moved to [Twidere-Android](https://github.com/mariotaku/Twidere-Android)!
+
 #Twidere - Twitter client, ∞#
 
 Twidere is a powerful twitter client for Android 1.6+ [<sup><font color=red>1</font></sup>](#note1) , which gives you a full Holo experience and nearly full Twitter's feature.

@@ -35,6 +35,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.UriMatcher;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -48,8 +49,10 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.PorterDuff;
 import android.graphics.PorterDuff.Mode;
 import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.NinePatchDrawable;
@@ -69,9 +72,13 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.util.LongSparseArray;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
+import android.text.SpannableStringBuilder;
+import android.text.TextUtils;
 import android.text.format.DateFormat;
 import android.text.format.DateUtils;
 import android.text.format.Time;
+import android.text.style.CharacterStyle;
+import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.Menu;
@@ -83,6 +90,7 @@ import android.view.Window;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.webkit.MimeTypeMap;
+import android.webkit.URLUtil;
 import android.widget.AbsListView;
 import android.widget.ListAdapter;
 import android.widget.ListView;
@@ -99,6 +107,7 @@ import edu.ucdavis.earlybird.UCDService;
 import org.apache.http.NameValuePair;
 import org.json.JSONException;
 import org.mariotaku.gallery3d.ImageViewerGLActivity;
+import org.mariotaku.jsonserializer.JSONSerializer;
 import org.mariotaku.querybuilder.AllColumns;
 import org.mariotaku.querybuilder.Columns;
 import org.mariotaku.querybuilder.Columns.Column;
@@ -116,11 +125,14 @@ import org.mariotaku.twidere.activity.support.MapViewerActivity;
 import org.mariotaku.twidere.adapter.iface.IBaseAdapter;
 import org.mariotaku.twidere.adapter.iface.IBaseCardAdapter;
 import org.mariotaku.twidere.app.TwidereApplication;
+import org.mariotaku.twidere.content.iface.ITwidereContextWrapper;
 import org.mariotaku.twidere.fragment.support.DirectMessagesConversationFragment;
 import org.mariotaku.twidere.fragment.support.IncomingFriendshipsFragment;
+import org.mariotaku.twidere.fragment.support.MutesUsersListFragment;
 import org.mariotaku.twidere.fragment.support.SavedSearchesListFragment;
 import org.mariotaku.twidere.fragment.support.SearchFragment;
 import org.mariotaku.twidere.fragment.support.SensitiveContentWarningDialogFragment;
+import org.mariotaku.twidere.fragment.support.StatusFavoritersListFragment;
 import org.mariotaku.twidere.fragment.support.StatusFragment;
 import org.mariotaku.twidere.fragment.support.StatusRepliesListFragment;
 import org.mariotaku.twidere.fragment.support.StatusRetweetersListFragment;
@@ -148,6 +160,7 @@ import org.mariotaku.twidere.model.ParcelableLocation;
 import org.mariotaku.twidere.model.ParcelableStatus;
 import org.mariotaku.twidere.model.ParcelableUser;
 import org.mariotaku.twidere.model.ParcelableUserList;
+import org.mariotaku.twidere.model.TwidereParcelable;
 import org.mariotaku.twidere.provider.TweetStore;
 import org.mariotaku.twidere.provider.TweetStore.Accounts;
 import org.mariotaku.twidere.provider.TweetStore.CacheFiles;
@@ -169,7 +182,8 @@ import org.mariotaku.twidere.provider.TweetStore.Tabs;
 import org.mariotaku.twidere.provider.TweetStore.UnreadCounts;
 import org.mariotaku.twidere.service.RefreshService;
 import org.mariotaku.twidere.util.content.ContentResolverUtils;
-import org.mariotaku.twidere.util.net.HttpClientImpl;
+import org.mariotaku.twidere.util.net.TwidereHostResolverFactory;
+import org.mariotaku.twidere.util.net.TwidereHttpClientFactory;
 
 import twitter4j.DirectMessage;
 import twitter4j.EntitySupport;
@@ -177,6 +191,7 @@ import twitter4j.MediaEntity;
 import twitter4j.RateLimitStatus;
 import twitter4j.Status;
 import twitter4j.Twitter;
+import twitter4j.TwitterConstants;
 import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
 import twitter4j.URLEntity;
@@ -190,7 +205,7 @@ import twitter4j.auth.TwipOModeAuthorization;
 import twitter4j.auth.XAuthAuthorization;
 import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
-import twitter4j.http.HostAddressResolver;
+import twitter4j.http.HostAddressResolverFactory;
 import twitter4j.http.HttpClientWrapper;
 import twitter4j.http.HttpResponse;
 
@@ -218,14 +233,15 @@ import java.util.regex.Pattern;
 
 import javax.net.ssl.SSLException;
 
-public final class Utils implements Constants {
+public final class Utils implements Constants, TwitterConstants {
 
 	private static final String UA_TEMPLATE = "Mozilla/5.0 (Linux; Android %s; %s Build/%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.111 Safari/537.36";
 
 	public static final Pattern PATTERN_XML_RESOURCE_IDENTIFIER = Pattern.compile("res\\/xml\\/([\\w_]+)\\.xml");
-	public static final Pattern PATTERN_RESOURCE_IDENTIFIER = Pattern.compile("@([\\w_]+)\\/([\\w_]+)");
 
+	public static final Pattern PATTERN_RESOURCE_IDENTIFIER = Pattern.compile("@([\\w_]+)\\/([\\w_]+)");
 	private static final UriMatcher CONTENT_PROVIDER_URI_MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
+
 	private static final UriMatcher LINK_HANDLER_URI_MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
 	static {
 		CONTENT_PROVIDER_URI_MATCHER.addURI(TweetStore.AUTHORITY, Accounts.CONTENT_PATH, TABLE_ID_ACCOUNTS);
@@ -306,8 +322,10 @@ public final class Utils implements Constants {
 		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_USERS, null, LINK_ID_USERS);
 		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_STATUSES, null, LINK_ID_STATUSES);
 		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_STATUS_RETWEETERS, null, LINK_ID_STATUS_RETWEETERS);
+		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_STATUS_FAVORITERS, null, LINK_ID_STATUS_FAVORITERS);
 		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_STATUS_REPLIES, null, LINK_ID_STATUS_REPLIES);
 		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_SEARCH, null, LINK_ID_SEARCH);
+		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_MUTES_USERS, null, LINK_ID_MUTES_USERS);
 
 	}
 	private static LongSparseArray<Integer> sAccountColors = new LongSparseArray<Integer>();
@@ -345,6 +363,54 @@ public final class Utils implements Constants {
 			} else {
 				item.setIcon(icon);
 			}
+		}
+	}
+
+	public static void addIntentToMenuForExtension(final Context context, final Menu menu, final int groupId,
+			final String action, final String parelableKey, final String parelableJSONKey,
+			final TwidereParcelable parcelable) {
+		if (context == null || menu == null || action == null || parelableKey == null || parcelable == null) return;
+		final PackageManager pm = context.getPackageManager();
+		final Resources res = context.getResources();
+		final float density = res.getDisplayMetrics().density;
+		final int padding = Math.round(density * 4);
+		final Intent queryIntent = new Intent(action);
+		queryIntent.setExtrasClassLoader(context.getClassLoader());
+		final List<ResolveInfo> activities = pm.queryIntentActivities(queryIntent, PackageManager.GET_META_DATA);
+		for (final ResolveInfo info : activities) {
+			final Intent intent = new Intent(queryIntent);
+			if (isExtensionUseJSON(info)) {
+				intent.putExtra(parelableJSONKey, JSONSerializer.toJSONObjectString(parcelable));
+			} else {
+				intent.putExtra(parelableKey, parcelable);
+			}
+			intent.setClassName(info.activityInfo.packageName, info.activityInfo.name);
+			final MenuItem item = menu.add(groupId, Menu.NONE, Menu.NONE, info.loadLabel(pm));
+			item.setIntent(intent);
+			final Drawable metaDataDrawable = getMetadataDrawable(pm, info.activityInfo, METADATA_KEY_EXTENSION_ICON);
+			int actionIconColor;
+			if (context instanceof ITwidereContextWrapper) {
+				final int themeResId = ((ITwidereContextWrapper) context).getThemeResourceId();
+				actionIconColor = ThemeUtils.getActionIconColor(themeResId);
+			} else {
+				actionIconColor = ThemeUtils.getActionIconColor(context);
+			}
+			if (metaDataDrawable != null) {
+				metaDataDrawable.mutate();
+				metaDataDrawable.setColorFilter(actionIconColor, PorterDuff.Mode.MULTIPLY);
+				item.setIcon(metaDataDrawable);
+			} else {
+				final Drawable icon = info.loadIcon(pm);
+				final int iw = icon.getIntrinsicWidth(), ih = icon.getIntrinsicHeight();
+				if (iw > 0 && ih > 0) {
+					final Drawable iconWithPadding = new PaddingDrawable(icon, padding);
+					iconWithPadding.setBounds(0, 0, iw, ih);
+					item.setIcon(iconWithPadding);
+				} else {
+					item.setIcon(icon);
+				}
+			}
+
 		}
 	}
 
@@ -411,7 +477,7 @@ public final class Utils implements Constants {
 	}
 
 	public static String buildStatusFilterWhereClause(final String table, final String selection,
-			final boolean enable_in_rts) {
+			final boolean enableInRts) {
 		if (table == null) return null;
 		final StringBuilder builder = new StringBuilder();
 		if (selection != null) {
@@ -422,7 +488,7 @@ public final class Utils implements Constants {
 		builder.append("SELECT DISTINCT " + table + "." + Statuses._ID + " FROM " + table);
 		builder.append(" WHERE " + table + "." + Statuses.USER_ID + " IN ( SELECT " + Filters.Users.TABLE_NAME + "."
 				+ Filters.Users.USER_ID + " FROM " + Filters.Users.TABLE_NAME + " )");
-		if (enable_in_rts) {
+		if (enableInRts) {
 			builder.append(" OR " + table + "." + Statuses.RETWEETED_BY_USER_ID + " IN ( SELECT "
 					+ Filters.Users.TABLE_NAME + "." + Filters.Users.USER_ID + " FROM " + Filters.Users.TABLE_NAME
 					+ " )");
@@ -575,6 +641,7 @@ public final class Utils implements Constants {
 		adapter.setLinkHighlightColor(ThemeUtils.getUserLinkTextColor(context));
 		adapter.setNicknameOnly(pref.getBoolean(KEY_NICKNAME_ONLY, false));
 		adapter.setTextSize(pref.getInt(KEY_TEXT_SIZE, getDefaultTextSize(context)));
+		adapter.notifyDataSetChanged();
 	}
 
 	public static void configBaseCardAdapter(final Context context, final IBaseCardAdapter adapter) {
@@ -582,6 +649,7 @@ public final class Utils implements Constants {
 		configBaseAdapter(context, adapter);
 		final SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		adapter.setAnimationEnabled(pref.getBoolean(KEY_CARD_ANIMATION, true));
+		adapter.notifyDataSetChanged();
 	}
 
 	public static void copyStream(final InputStream is, final OutputStream os) throws IOException {
@@ -694,6 +762,10 @@ public final class Utils implements Constants {
 				fragment = new UserBlocksListFragment();
 				break;
 			}
+			case LINK_ID_MUTES_USERS: {
+				fragment = new MutesUsersListFragment();
+				break;
+			}
 			case LINK_ID_DIRECT_MESSAGES_CONVERSATION: {
 				fragment = new DirectMessagesConversationFragment();
 				final String paramRecipientId = uri.getQueryParameter(QUERY_PARAM_RECIPIENT_ID);
@@ -802,6 +874,14 @@ public final class Utils implements Constants {
 			}
 			case LINK_ID_STATUS_RETWEETERS: {
 				fragment = new StatusRetweetersListFragment();
+				if (!args.containsKey(EXTRA_STATUS_ID)) {
+					final String param_status_id = uri.getQueryParameter(QUERY_PARAM_STATUS_ID);
+					args.putLong(EXTRA_STATUS_ID, ParseUtils.parseLong(param_status_id));
+				}
+				break;
+			}
+			case LINK_ID_STATUS_FAVORITERS: {
+				fragment = new StatusFavoritersListFragment();
 				if (!args.containsKey(EXTRA_STATUS_ID)) {
 					final String param_status_id = uri.getQueryParameter(QUERY_PARAM_STATUS_ID);
 					args.putLong(EXTRA_STATUS_ID, ParseUtils.parseLong(param_status_id));
@@ -1412,10 +1492,7 @@ public final class Utils implements Constants {
 	}
 
 	public static String getBiggerTwitterProfileImage(final String url) {
-		if (url == null) return null;
-		if (PATTERN_TWITTER_PROFILE_IMAGES.matcher(url).matches())
-			return replaceLast(url, "_" + TWITTER_PROFILE_IMAGES_AVAILABLE_SIZES, "_bigger");
-		return url;
+		return getTwitterProfileImageOfSize(url, "bigger");
 	}
 
 	public static Bitmap getBitmap(final Drawable drawable) {
@@ -1511,22 +1588,21 @@ public final class Utils implements Constants {
 		return getDefaultTwitterInstance(context, include_entities, true, true);
 	}
 
-	public static Twitter getDefaultTwitterInstance(final Context context, final boolean include_entities,
-			final boolean include_retweets) {
+	public static Twitter getDefaultTwitterInstance(final Context context, final boolean includeEntities,
+			final boolean includeRetweets) {
 		if (context == null) return null;
-		return getDefaultTwitterInstance(context, include_entities, include_retweets, true);
+		return getDefaultTwitterInstance(context, includeEntities, includeRetweets, !MIUIUtils.isMIUI());
 	}
 
-	public static Twitter getDefaultTwitterInstance(final Context context, final boolean include_entities,
-			final boolean include_retweets, final boolean use_httpclient) {
+	public static Twitter getDefaultTwitterInstance(final Context context, final boolean includeEntities,
+			final boolean includeRetweets, final boolean apacheHttp) {
 		if (context == null) return null;
-		return getTwitterInstance(context, getDefaultAccountId(context), include_entities, include_retweets,
-				use_httpclient);
+		return getTwitterInstance(context, getDefaultAccountId(context), includeEntities, includeRetweets, apacheHttp);
 	}
 
-	public static String getDisplayName(final Context context, final long user_id, final String name,
-			final String screen_name) {
-		return getDisplayName(context, user_id, name, screen_name, false);
+	public static String getDisplayName(final Context context, final long userId, final String name,
+			final String screenName) {
+		return getDisplayName(context, userId, name, screenName, false);
 	}
 
 	public static String getDisplayName(final Context context, final long user_id, final String name,
@@ -1587,13 +1663,13 @@ public final class Utils implements Constants {
 		return list.getChildAt(0).getTop();
 	}
 
-	public static HttpClientWrapper getHttpClient(final int timeout_millis, final boolean ignore_ssl_error,
-			final Proxy proxy, final HostAddressResolver resolver, final String user_agent,
-			final boolean twitter_client_header) {
+	public static HttpClientWrapper getHttpClient(final Context context, final int timeoutMillis,
+			final boolean ignoreSslError, final Proxy proxy, final HostAddressResolverFactory resolverFactory,
+			final String userAgent, final boolean twitterClientHeader) {
 		final ConfigurationBuilder cb = new ConfigurationBuilder();
-		cb.setHttpConnectionTimeout(timeout_millis);
-		cb.setIgnoreSSLError(ignore_ssl_error);
-		cb.setIncludeTwitterClientHeader(twitter_client_header);
+		cb.setHttpConnectionTimeout(timeoutMillis);
+		cb.setIgnoreSSLError(ignoreSslError);
+		cb.setIncludeTwitterClientHeader(twitterClientHeader);
 		if (proxy != null && !Proxy.NO_PROXY.equals(proxy)) {
 			final SocketAddress address = proxy.address();
 			if (address instanceof InetSocketAddress) {
@@ -1601,22 +1677,23 @@ public final class Utils implements Constants {
 				cb.setHttpProxyPort(((InetSocketAddress) address).getPort());
 			}
 		}
-		cb.setHostAddressResolver(resolver);
-		if (user_agent != null) {
-			cb.setUserAgent(user_agent);
+		cb.setHostAddressResolverFactory(resolverFactory);
+		if (userAgent != null) {
+			cb.setHttpUserAgent(userAgent);
 		}
-		// cb.setHttpClientImplementation(HttpClientImpl.class);
+		cb.setHttpClientFactory(new TwidereHttpClientFactory(context));
 		return new HttpClientWrapper(cb.build());
 	}
 
 	public static HttpClientWrapper getImageLoaderHttpClient(final Context context) {
 		if (context == null) return null;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		final int timeout_millis = prefs.getInt(KEY_CONNECTION_TIMEOUT, 10000) * 1000;
+		final int timeoutMillis = prefs.getInt(KEY_CONNECTION_TIMEOUT, 10000) * 1000;
 		final Proxy proxy = getProxy(context);
-		final String user_agent = generateBrowserUserAgent();
-		final HostAddressResolver resolver = TwidereApplication.getInstance(context).getHostAddressResolver();
-		return getHttpClient(timeout_millis, true, proxy, resolver, user_agent, false);
+		final String userAgent = generateBrowserUserAgent();
+		final HostAddressResolverFactory resolverFactory = new TwidereHostResolverFactory(
+				TwidereApplication.getInstance(context));
+		return getHttpClient(context, timeoutMillis, true, proxy, resolverFactory, userAgent, false);
 	}
 
 	public static String getImageMimeType(final File image) {
@@ -1638,28 +1715,26 @@ public final class Utils implements Constants {
 	public static String getImagePathFromUri(final Context context, final Uri uri) {
 		if (context == null || uri == null) return null;
 
-		final String media_uri_start = ParseUtils.parseString(MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+		final String mediaUriStart = ParseUtils.parseString(MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
 
-		if (ParseUtils.parseString(uri).startsWith(media_uri_start)) {
+		if (ParseUtils.parseString(uri).startsWith(mediaUriStart)) {
 
 			final String[] proj = { MediaStore.Images.Media.DATA };
 			final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), uri, proj, null, null, null);
 
 			if (cur == null) return null;
 
-			final int column_index = cur.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+			final int idxData = cur.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
 
 			cur.moveToFirst();
 			try {
-				return cur.getString(column_index);
+				return cur.getString(idxData);
 			} finally {
 				cur.close();
 			}
 		} else {
 			final String path = uri.getPath();
-			if (path != null) {
-				if (new File(path).exists()) return path;
-			}
+			if (path != null && new File(path).exists()) return path;
 		}
 		return null;
 	}
@@ -1682,6 +1757,28 @@ public final class Utils implements Constants {
 			if (in_reply_to_user_id == entity.getId()) return entity.getName();
 		}
 		return orig.getInReplyToScreenName();
+	}
+
+	public static CharSequence getKeywordBoldedText(final CharSequence orig, final String... keywords) {
+		return getKeywordHighlightedText(orig, new StyleSpan(Typeface.BOLD), keywords);
+	}
+
+	public static CharSequence getKeywordHighlightedText(final CharSequence orig, final CharacterStyle style,
+			final String... keywords) {
+		if (keywords == null || keywords.length == 0 || orig == null) return orig;
+		final SpannableStringBuilder sb = SpannableStringBuilder.valueOf(orig);
+		final StringBuilder patternBuilder = new StringBuilder();
+		for (int i = 0, j = keywords.length; i < j; i++) {
+			if (i != 0) {
+				patternBuilder.append('|');
+			}
+			patternBuilder.append(Pattern.quote(keywords[i]));
+		}
+		final Matcher m = Pattern.compile(patternBuilder.toString(), Pattern.CASE_INSENSITIVE).matcher(orig);
+		while (m.find()) {
+			sb.setSpan(style, m.start(), m.end(), SpannableStringBuilder.SPAN_INCLUSIVE_INCLUSIVE);
+		}
+		return sb;
 	}
 
 	public static String getLinkHighlightOption(final Context context) {
@@ -1789,10 +1886,7 @@ public final class Utils implements Constants {
 	}
 
 	public static String getNormalTwitterProfileImage(final String url) {
-		if (url == null) return null;
-		if (PATTERN_TWITTER_PROFILE_IMAGES.matcher(url).matches())
-			return replaceLast(url, "_" + TWITTER_PROFILE_IMAGES_AVAILABLE_SIZES, "_normal");
-		return url;
+		return getTwitterProfileImageOfSize(url, "normal");
 	}
 
 	public static Uri getNotificationUri(final int tableId, final Uri def) {
@@ -1894,20 +1988,17 @@ public final class Utils implements Constants {
 	}
 
 	public static String getReasonablySmallTwitterProfileImage(final String url) {
-		if (url == null) return null;
-		if (PATTERN_TWITTER_PROFILE_IMAGES.matcher(url).matches())
-			return replaceLast(url, "_" + TWITTER_PROFILE_IMAGES_AVAILABLE_SIZES, "_reasonably_small");
-		return url;
+		return getTwitterProfileImageOfSize(url, "reasonably_small");
 	}
 
-	public static HttpResponse getRedirectedHttpResponse(final HttpClientWrapper client, final String url)
-			throws TwitterException {
+	public static HttpResponse getRedirectedHttpResponse(final HttpClientWrapper client, final String url,
+			final String signUrl, final Authorization auth) throws TwitterException {
 		if (url == null) return null;
 		final ArrayList<String> urls = new ArrayList<String>();
 		urls.add(url);
 		HttpResponse resp;
 		try {
-			resp = client.get(url, url);
+			resp = client.get(url, signUrl, auth);
 		} catch (final TwitterException te) {
 			if (isRedirected(te.getStatusCode())) {
 				resp = te.getHttpResponse();
@@ -2083,19 +2174,91 @@ public final class Utils implements Constants {
 		return date.getTime();
 	}
 
+	public static Authorization getTwitterAuthorization(final Context context, final long accountId) {
+
+		final String where = Where.equals(new Column(Accounts.ACCOUNT_ID), accountId).getSQL();
+		final Cursor c = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
+				Accounts.COLUMNS, where.toString(), null, null);
+		if (c == null) return null;
+		try {
+			if (!c.moveToFirst()) return null;
+
+			switch (c.getInt(c.getColumnIndexOrThrow(Accounts.AUTH_TYPE))) {
+				case Accounts.AUTH_TYPE_OAUTH:
+				case Accounts.AUTH_TYPE_XAUTH: {
+					final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME,
+							Context.MODE_PRIVATE);
+					// Here I use old consumer key/secret because it's default
+					// key for older
+					// versions
+					final String pref_consumer_key = prefs.getString(KEY_CONSUMER_KEY, TWITTER_CONSUMER_KEY);
+					final String pref_consumer_secret = prefs.getString(KEY_CONSUMER_SECRET, TWITTER_CONSUMER_SECRET);
+					final ConfigurationBuilder cb = new ConfigurationBuilder();
+					final String rest_base_url = c.getString(c.getColumnIndex(Accounts.REST_BASE_URL));
+					final String signing_rest_base_url = c.getString(c.getColumnIndex(Accounts.SIGNING_REST_BASE_URL));
+					final String oauth_base_url = c.getString(c.getColumnIndex(Accounts.OAUTH_BASE_URL));
+					final String signing_oauth_base_url = c
+							.getString(c.getColumnIndex(Accounts.SIGNING_OAUTH_BASE_URL));
+					final String consumer_key = trim(c.getString(c.getColumnIndex(Accounts.CONSUMER_KEY)));
+					final String consumer_secret = trim(c.getString(c.getColumnIndex(Accounts.CONSUMER_SECRET)));
+					if (!isEmpty(rest_base_url)) {
+						cb.setRestBaseURL(rest_base_url);
+					}
+					if (!isEmpty(signing_rest_base_url)) {
+						cb.setSigningRestBaseURL(signing_rest_base_url);
+					}
+					if (!isEmpty(oauth_base_url)) {
+						cb.setOAuthBaseURL(oauth_base_url);
+					}
+					if (!isEmpty(signing_oauth_base_url)) {
+						cb.setSigningOAuthBaseURL(signing_oauth_base_url);
+					}
+					if (!isEmpty(consumer_key) && !isEmpty(consumer_secret)) {
+						cb.setOAuthConsumerKey(consumer_key);
+						cb.setOAuthConsumerSecret(consumer_secret);
+					} else if (!isEmpty(pref_consumer_key) && !isEmpty(pref_consumer_secret)) {
+						cb.setOAuthConsumerKey(pref_consumer_key);
+						cb.setOAuthConsumerSecret(pref_consumer_secret);
+					} else {
+						cb.setOAuthConsumerKey(TWITTER_CONSUMER_KEY);
+						cb.setOAuthConsumerSecret(TWITTER_CONSUMER_SECRET);
+					}
+					final OAuthAuthorization auth = new OAuthAuthorization(cb.build());
+					final String token = c.getString(c.getColumnIndexOrThrow(Accounts.OAUTH_TOKEN));
+					final String tokenSecret = c.getString(c.getColumnIndexOrThrow(Accounts.OAUTH_TOKEN_SECRET));
+					auth.setOAuthAccessToken(new AccessToken(token, tokenSecret));
+					return auth;
+				}
+				case Accounts.AUTH_TYPE_BASIC: {
+					final String screenName = c.getString(c.getColumnIndexOrThrow(Accounts.SCREEN_NAME));
+					final String username = c.getString(c.getColumnIndexOrThrow(Accounts.BASIC_AUTH_USERNAME));
+					final String loginName = username != null ? username : screenName;
+					final String password = c.getString(c.getColumnIndexOrThrow(Accounts.BASIC_AUTH_PASSWORD));
+					if (isEmpty(loginName) || isEmpty(password)) return null;
+					return new BasicAuthorization(loginName, password);
+				}
+				default: {
+					return null;
+				}
+			}
+		} finally {
+			c.close();
+		}
+	}
+
 	public static String getTwitterErrorMessage(final Context context, final CharSequence action,
 			final TwitterException te) {
 		if (context == null) return null;
 		if (te == null) return context.getString(R.string.error_unknown_error);
 		if (te.exceededRateLimitation()) {
 			final RateLimitStatus status = te.getRateLimitStatus();
-			final long sec_until_reset = status.getSecondsUntilReset() * 1000;
-			final String next_reset_time = ParseUtils.parseString(getRelativeTimeSpanString(System.currentTimeMillis()
-					+ sec_until_reset));
-			if (isEmpty(action)) return context.getString(R.string.error_message_rate_limit, next_reset_time.trim());
-			return context.getString(R.string.error_message_rate_limit_with_action, action, next_reset_time.trim());
+			final long secUntilReset = status.getSecondsUntilReset() * 1000;
+			final String nextResetTime = ParseUtils.parseString(getRelativeTimeSpanString(System.currentTimeMillis()
+					+ secUntilReset));
+			if (isEmpty(action)) return context.getString(R.string.error_message_rate_limit, nextResetTime.trim());
+			return context.getString(R.string.error_message_rate_limit_with_action, action, nextResetTime.trim());
 		} else if (te.getErrorCode() > 0) {
-			final String msg = TwitterErrorCodes.getErrorMessage(context, te.getErrorCode());
+			final String msg = StatusCodeMessageUtils.getTwitterErrorMessage(context, te.getErrorCode());
 			return getErrorMessage(context, action, msg != null ? msg : trimLineBreak(te.getMessage()));
 		} else if (te.getCause() instanceof SSLException) {
 			final String msg = te.getCause().getMessage();
@@ -2113,113 +2276,128 @@ public final class Utils implements Constants {
 
 	public static String getTwitterErrorMessage(final Context context, final TwitterException te) {
 		if (te == null) return null;
-		final String msg = TwitterErrorCodes.getErrorMessage(context, te.getErrorCode());
-		if (isEmpty(msg)) return te.getMessage();
-		return msg;
+		if (StatusCodeMessageUtils.containsTwitterError(te.getErrorCode()))
+			return StatusCodeMessageUtils.getTwitterErrorMessage(context, te.getErrorCode());
+		else if (StatusCodeMessageUtils.containsHttpStatus(te.getStatusCode()))
+			return StatusCodeMessageUtils.getHttpStatusMessage(context, te.getStatusCode());
+		else
+			return te.getMessage();
 	}
 
 	public static Twitter getTwitterInstance(final Context context, final long account_id,
 			final boolean include_entities) {
-		return getTwitterInstance(context, account_id, include_entities, true, true);
+		return getTwitterInstance(context, account_id, include_entities, true, !MIUIUtils.isMIUI());
 	}
 
-	public static Twitter getTwitterInstance(final Context context, final long account_id,
-			final boolean include_entities, final boolean include_retweets) {
-		return getTwitterInstance(context, account_id, include_entities, include_retweets, true);
+	public static Twitter getTwitterInstance(final Context context, final long accountId,
+			final boolean includeEntities, final boolean includeRetweets) {
+		return getTwitterInstance(context, accountId, includeEntities, includeRetweets, !MIUIUtils.isMIUI());
 	}
 
-	public static Twitter getTwitterInstance(final Context context, final long account_id,
-			final boolean include_entities, final boolean include_retweets, final boolean use_apache_httpclient) {
+	public static Twitter getTwitterInstance(final Context context, final long accountId,
+			final boolean includeEntities, final boolean includeRetweets, final boolean apacheHttp) {
 		if (context == null) return null;
 		final TwidereApplication app = TwidereApplication.getInstance(context);
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		final int connection_timeout = prefs.getInt(KEY_CONNECTION_TIMEOUT, 10) * 1000;
-		final boolean enable_gzip_compressing = prefs.getBoolean(KEY_GZIP_COMPRESSING, true);
-		final boolean ignore_ssl_error = prefs.getBoolean(KEY_IGNORE_SSL_ERROR, false);
-		final boolean enable_proxy = prefs.getBoolean(KEY_ENABLE_PROXY, false);
+		final boolean enableGzip = prefs.getBoolean(KEY_GZIP_COMPRESSING, true);
+		final boolean ignoreSslError = prefs.getBoolean(KEY_IGNORE_SSL_ERROR, false);
+		final boolean enableProxy = prefs.getBoolean(KEY_ENABLE_PROXY, false);
 		// Here I use old consumer key/secret because it's default key for older
 		// versions
 		final String pref_consumer_key = prefs.getString(KEY_CONSUMER_KEY, TWITTER_CONSUMER_KEY);
 		final String pref_consumer_secret = prefs.getString(KEY_CONSUMER_SECRET, TWITTER_CONSUMER_SECRET);
-		final StringBuilder where = new StringBuilder();
-		where.append(Accounts.ACCOUNT_ID + " = " + account_id);
+		final String where = Where.equals(new Column(Accounts.ACCOUNT_ID), accountId).getSQL();
 		final Cursor c = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
 				Accounts.COLUMNS, where.toString(), null, null);
 		if (c == null) return null;
 		try {
-			if (c.getCount() > 0) {
-				c.moveToFirst();
-				final ConfigurationBuilder cb = new ConfigurationBuilder();
-				cb.setHostAddressResolver(app.getHostAddressResolver());
-				if (use_apache_httpclient) {
-					cb.setHttpClientImplementation(HttpClientImpl.class);
-				}
-				cb.setHttpConnectionTimeout(connection_timeout);
-				setUserAgent(context, cb);
-				cb.setGZIPEnabled(enable_gzip_compressing);
-				cb.setIgnoreSSLError(ignore_ssl_error);
-				if (enable_proxy) {
-					final String proxy_host = prefs.getString(KEY_PROXY_HOST, null);
-					final int proxy_port = ParseUtils.parseInt(prefs.getString(KEY_PROXY_PORT, "-1"));
-					if (!isEmpty(proxy_host) && proxy_port > 0) {
-						cb.setHttpProxyHost(proxy_host);
-						cb.setHttpProxyPort(proxy_port);
-					}
-				}
-				final String rest_base_url = c.getString(c.getColumnIndex(Accounts.REST_BASE_URL));
-				final String signing_rest_base_url = c.getString(c.getColumnIndex(Accounts.SIGNING_REST_BASE_URL));
-				final String oauth_base_url = c.getString(c.getColumnIndex(Accounts.OAUTH_BASE_URL));
-				final String signing_oauth_base_url = c.getString(c.getColumnIndex(Accounts.SIGNING_OAUTH_BASE_URL));
-				final String consumer_key = trim(c.getString(c.getColumnIndex(Accounts.CONSUMER_KEY)));
-				final String consumer_secret = trim(c.getString(c.getColumnIndex(Accounts.CONSUMER_SECRET)));
-				if (!isEmpty(rest_base_url)) {
-					cb.setRestBaseURL(rest_base_url);
-				}
-				if (!isEmpty(signing_rest_base_url)) {
-					cb.setSigningRestBaseURL(signing_rest_base_url);
-				}
-				if (!isEmpty(oauth_base_url)) {
-					cb.setOAuthBaseURL(oauth_base_url);
-				}
-				if (!isEmpty(signing_oauth_base_url)) {
-					cb.setSigningOAuthBaseURL(signing_oauth_base_url);
-				}
-				cb.setIncludeEntitiesEnabled(include_entities);
-				cb.setIncludeRTsEnabled(include_retweets);
-				switch (c.getInt(c.getColumnIndexOrThrow(Accounts.AUTH_TYPE))) {
-					case Accounts.AUTH_TYPE_OAUTH:
-					case Accounts.AUTH_TYPE_XAUTH: {
-						if (!isEmpty(consumer_key) && !isEmpty(consumer_secret)) {
-							cb.setOAuthConsumerKey(consumer_key);
-							cb.setOAuthConsumerSecret(consumer_secret);
-						} else if (!isEmpty(pref_consumer_key) && !isEmpty(pref_consumer_secret)) {
-							cb.setOAuthConsumerKey(pref_consumer_key);
-							cb.setOAuthConsumerSecret(pref_consumer_secret);
-						} else {
-							cb.setOAuthConsumerKey(TWITTER_CONSUMER_KEY);
-							cb.setOAuthConsumerSecret(TWITTER_CONSUMER_SECRET);
-						}
-						final String token = c.getString(c.getColumnIndexOrThrow(Accounts.OAUTH_TOKEN));
-						final String tokenSecret = c.getString(c.getColumnIndexOrThrow(Accounts.OAUTH_TOKEN_SECRET));
-						if (isEmpty(token) || isEmpty(tokenSecret)) return null;
-						return new TwitterFactory(cb.build()).getInstance(new AccessToken(token, tokenSecret));
-					}
-					case Accounts.AUTH_TYPE_BASIC: {
-						final String screenName = c.getString(c.getColumnIndexOrThrow(Accounts.SCREEN_NAME));
-						final String password = c.getString(c.getColumnIndexOrThrow(Accounts.BASIC_AUTH_PASSWORD));
-						if (isEmpty(screenName) || isEmpty(password)) return null;
-						return new TwitterFactory(cb.build()).getInstance(new BasicAuthorization(screenName, password));
-					}
-					case Accounts.AUTH_TYPE_TWIP_O_MODE: {
-						return new TwitterFactory(cb.build()).getInstance(new TwipOModeAuthorization());
-					}
-					default:
+			if (!c.moveToFirst()) return null;
+			final ConfigurationBuilder cb = new ConfigurationBuilder();
+			cb.setHostAddressResolverFactory(new TwidereHostResolverFactory(app));
+			if (apacheHttp) {
+				cb.setHttpClientFactory(new TwidereHttpClientFactory(app));
+			}
+			cb.setHttpConnectionTimeout(connection_timeout);
+			setUserAgent(context, cb);
+			cb.setGZIPEnabled(enableGzip);
+			cb.setIgnoreSSLError(ignoreSslError);
+			if (enableProxy) {
+				final String proxy_host = prefs.getString(KEY_PROXY_HOST, null);
+				final int proxy_port = ParseUtils.parseInt(prefs.getString(KEY_PROXY_PORT, "-1"));
+				if (!isEmpty(proxy_host) && proxy_port > 0) {
+					cb.setHttpProxyHost(proxy_host);
+					cb.setHttpProxyPort(proxy_port);
 				}
 			}
-			return null;
+			final String rest_base_url = c.getString(c.getColumnIndex(Accounts.REST_BASE_URL));
+			final String signing_rest_base_url = c.getString(c.getColumnIndex(Accounts.SIGNING_REST_BASE_URL));
+			final String oauth_base_url = c.getString(c.getColumnIndex(Accounts.OAUTH_BASE_URL));
+			final String signing_oauth_base_url = c.getString(c.getColumnIndex(Accounts.SIGNING_OAUTH_BASE_URL));
+			final String consumer_key = trim(c.getString(c.getColumnIndex(Accounts.CONSUMER_KEY)));
+			final String consumer_secret = trim(c.getString(c.getColumnIndex(Accounts.CONSUMER_SECRET)));
+			if (!isEmpty(rest_base_url)) {
+				cb.setRestBaseURL(rest_base_url);
+			}
+			if (!isEmpty(signing_rest_base_url)) {
+				cb.setSigningRestBaseURL(signing_rest_base_url);
+			}
+			if (!isEmpty(oauth_base_url)) {
+				cb.setOAuthBaseURL(oauth_base_url);
+			}
+			if (!isEmpty(signing_oauth_base_url)) {
+				cb.setSigningOAuthBaseURL(signing_oauth_base_url);
+			}
+			cb.setIncludeEntitiesEnabled(includeEntities);
+			cb.setIncludeRTsEnabled(includeRetweets);
+			switch (c.getInt(c.getColumnIndexOrThrow(Accounts.AUTH_TYPE))) {
+				case Accounts.AUTH_TYPE_OAUTH:
+				case Accounts.AUTH_TYPE_XAUTH: {
+					if (!isEmpty(consumer_key) && !isEmpty(consumer_secret)) {
+						cb.setOAuthConsumerKey(consumer_key);
+						cb.setOAuthConsumerSecret(consumer_secret);
+					} else if (!isEmpty(pref_consumer_key) && !isEmpty(pref_consumer_secret)) {
+						cb.setOAuthConsumerKey(pref_consumer_key);
+						cb.setOAuthConsumerSecret(pref_consumer_secret);
+					} else {
+						cb.setOAuthConsumerKey(TWITTER_CONSUMER_KEY);
+						cb.setOAuthConsumerSecret(TWITTER_CONSUMER_SECRET);
+					}
+					final String jtapi_hostname = trim(c.getString(c.getColumnIndex(Accounts.JTAPI_HOSTNAME)));
+					if (!isEmpty(jtapi_hostname)) {
+						cb.setUploadBaseURL(String.format("https://upload.%s/1.1/", jtapi_hostname));
+						cb.setSigningUploadBaseURL(DEFAULT_SIGNING_UPLOAD_BASE_URL);
+					}
+					final String token = c.getString(c.getColumnIndexOrThrow(Accounts.OAUTH_TOKEN));
+					final String tokenSecret = c.getString(c.getColumnIndexOrThrow(Accounts.OAUTH_TOKEN_SECRET));
+					if (isEmpty(token) || isEmpty(tokenSecret)) return null;
+					return new TwitterFactory(cb.build()).getInstance(new AccessToken(token, tokenSecret));
+				}
+				case Accounts.AUTH_TYPE_BASIC: {
+					final String screenName = c.getString(c.getColumnIndexOrThrow(Accounts.SCREEN_NAME));
+					final String username = c.getString(c.getColumnIndexOrThrow(Accounts.BASIC_AUTH_USERNAME));
+					final String loginName = username != null ? username : screenName;
+					final String password = c.getString(c.getColumnIndexOrThrow(Accounts.BASIC_AUTH_PASSWORD));
+					if (isEmpty(loginName) || isEmpty(password)) return null;
+					return new TwitterFactory(cb.build()).getInstance(new BasicAuthorization(loginName, password));
+				}
+				case Accounts.AUTH_TYPE_TWIP_O_MODE: {
+					return new TwitterFactory(cb.build()).getInstance(new TwipOModeAuthorization());
+				}
+				default: {
+					return null;
+				}
+			}
 		} finally {
 			c.close();
 		}
+	}
+
+	public static String getTwitterProfileImageOfSize(final String url, final String size) {
+		if (url == null) return null;
+		if (PATTERN_TWITTER_PROFILE_IMAGES.matcher(url).matches())
+			return replaceLast(url, "_" + TWITTER_PROFILE_IMAGES_AVAILABLE_SIZES, String.format("_%s", size));
+		return url;
 	}
 
 	public static String getUnescapedStatusString(final String string) {
@@ -2497,6 +2675,11 @@ public final class Utils implements Constants {
 				&& networkInfo.isConnected();
 	}
 
+	public static boolean isPlainListStyle(final Context context) {
+		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
+		return prefs != null && prefs.getBoolean(KEY_PLAIN_LIST_STYLE, false);
+	}
+
 	public static boolean isRedirected(final int code) {
 		return code == 301 || code == 302 || code == 307;
 	}
@@ -2546,13 +2729,9 @@ public final class Utils implements Constants {
 		return o.outHeight > 0 && o.outWidth > 0;
 	}
 
-	public static boolean isValidUrl(final CharSequence url) {
-		try {
-			new URL(ParseUtils.parseString(url));
-		} catch (final Exception e) {
-			return false;
-		}
-		return true;
+	public static boolean isValidUrl(final CharSequence text) {
+		if (TextUtils.isEmpty(text)) return false;
+		return URLUtil.isValidUrl(text.toString());
 	}
 
 	public static final int matcherEnd(final Matcher matcher, final int group) {
@@ -2600,7 +2779,8 @@ public final class Utils implements Constants {
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
-	public static void openImage(final Context context, final String uri, final boolean isPossiblySensitive) {
+	public static void openImage(final Context context, final long accountId, final String uri,
+			final boolean isPossiblySensitive) {
 		if (context == null || uri == null) return;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		if (context instanceof FragmentActivity && isPossiblySensitive
@@ -2609,18 +2789,20 @@ public final class Utils implements Constants {
 			final FragmentManager fm = activity.getSupportFragmentManager();
 			final DialogFragment fragment = new SensitiveContentWarningDialogFragment();
 			final Bundle args = new Bundle();
+			args.putLong(EXTRA_ACCOUNT_ID, accountId);
 			args.putParcelable(EXTRA_URI, Uri.parse(uri));
 			fragment.setArguments(args);
 			fragment.show(fm, "sensitive_content_warning");
 		} else {
-			openImageDirectly(context, uri);
+			openImageDirectly(context, accountId, uri);
 		}
 	}
 
-	public static void openImageDirectly(final Context context, final String uri) {
+	public static void openImageDirectly(final Context context, final long accountId, final String uri) {
 		if (context == null || uri == null) return;
 		final Intent intent = new Intent(INTENT_ACTION_VIEW_IMAGE);
 		intent.setData(Uri.parse(uri));
+		intent.putExtra(EXTRA_ACCOUNT_ID, accountId);
 		intent.setClass(context, ImageViewerGLActivity.class);
 		if (context instanceof Activity) {
 			SwipebackActivityUtils.startSwipebackActivity((Activity) context, intent);
@@ -2653,6 +2835,16 @@ public final class Utils implements Constants {
 		} else {
 			context.startActivity(intent);
 		}
+	}
+
+	public static void openMutesUsers(final Activity activity, final long account_id) {
+		if (activity == null) return;
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_MUTES_USERS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
 	public static void openSavedSearches(final Activity activity, final long account_id) {
@@ -2715,6 +2907,17 @@ public final class Utils implements Constants {
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
+	public static void openStatusFavoriters(final Activity activity, final long accountId, final long statusId) {
+		if (activity == null) return;
+		final Uri.Builder builder = new Uri.Builder();
+		builder.scheme(SCHEME_TWIDERE);
+		builder.authority(AUTHORITY_STATUS_FAVORITERS);
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+		builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(statusId));
+		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
+	}
+
 	public static void openStatusReplies(final Activity activity, final long accountId, final long statusId,
 			final String screenName) {
 		if (activity == null) return;
@@ -2728,23 +2931,23 @@ public final class Utils implements Constants {
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
-	public static void openStatusRetweeters(final Activity activity, final long account_id, final long status_id) {
+	public static void openStatusRetweeters(final Activity activity, final long accountId, final long statusId) {
 		if (activity == null) return;
 		final Uri.Builder builder = new Uri.Builder();
 		builder.scheme(SCHEME_TWIDERE);
 		builder.authority(AUTHORITY_STATUS_RETWEETERS);
-		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-		builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+		builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(statusId));
 		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
-	public static void openTweetSearch(final Activity activity, final long account_id, final String query) {
+	public static void openTweetSearch(final Activity activity, final long accountId, final String query) {
 		if (activity == null) return;
 		final Uri.Builder builder = new Uri.Builder();
 		builder.scheme(SCHEME_TWIDERE);
 		builder.authority(AUTHORITY_SEARCH);
-		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
 		builder.appendQueryParameter(QUERY_PARAM_TYPE, QUERY_PARAM_VALUE_TWEETS);
 		if (query != null) {
 			builder.appendQueryParameter(QUERY_PARAM_QUERY, query);
@@ -2842,7 +3045,7 @@ public final class Utils implements Constants {
 	public static void openUserListDetails(final Activity activity, final ParcelableUserList userList) {
 		if (activity == null || userList == null) return;
 		final long accountId = userList.account_id, userId = userList.user_id;
-		final int listId = userList.id;
+		final long listId = userList.id;
 		final Bundle extras = new Bundle();
 		extras.putParcelable(EXTRA_USER_LIST, userList);
 		final Uri.Builder builder = new Uri.Builder();
@@ -2857,24 +3060,24 @@ public final class Utils implements Constants {
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
-	public static void openUserListMembers(final Activity activity, final long account_id, final int list_id,
-			final long user_id, final String screen_name, final String list_name) {
+	public static void openUserListMembers(final Activity activity, final long accountId, final long listId,
+			final long userId, final String screenName, final String listName) {
 		if (activity == null) return;
 		final Uri.Builder builder = new Uri.Builder();
 		builder.scheme(SCHEME_TWIDERE);
 		builder.authority(AUTHORITY_USER_LIST_MEMBERS);
-		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-		if (list_id > 0) {
-			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+		if (listId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(listId));
 		}
-		if (user_id > 0) {
-			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
+		if (userId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(userId));
 		}
-		if (screen_name != null) {
-			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		if (screenName != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screenName);
 		}
-		if (list_name != null) {
-			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
+		if (listName != null) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, listName);
 		}
 		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
@@ -2919,24 +3122,24 @@ public final class Utils implements Constants {
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
 	}
 
-	public static void openUserListSubscribers(final Activity activity, final long account_id, final int list_id,
-			final long user_id, final String screen_name, final String list_name) {
+	public static void openUserListSubscribers(final Activity activity, final long accountId, final long listId,
+			final long userId, final String screenName, final String listName) {
 		if (activity == null) return;
 		final Uri.Builder builder = new Uri.Builder();
 		builder.scheme(SCHEME_TWIDERE);
 		builder.authority(AUTHORITY_USER_LISTS);
-		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-		if (list_id > 0) {
-			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+		if (listId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(listId));
 		}
-		if (user_id > 0) {
-			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
+		if (userId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(userId));
 		}
-		if (screen_name != null) {
-			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		if (screenName != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screenName);
 		}
-		if (list_name != null) {
-			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
+		if (listName != null) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, listName);
 		}
 		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
@@ -2947,24 +3150,24 @@ public final class Utils implements Constants {
 		openUserListSubscribers(activity, list.account_id, list.id, list.user_id, list.user_screen_name, list.name);
 	}
 
-	public static void openUserListTimeline(final Activity activity, final long account_id, final int list_id,
-			final long user_id, final String screen_name, final String list_name) {
+	public static void openUserListTimeline(final Activity activity, final long accountId, final long listId,
+			final long userId, final String screenName, final String listName) {
 		if (activity == null) return;
 		final Uri.Builder builder = new Uri.Builder();
 		builder.scheme(SCHEME_TWIDERE);
 		builder.authority(AUTHORITY_USER_LIST_TIMELINE);
-		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-		if (list_id > 0) {
-			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(list_id));
+		builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(accountId));
+		if (listId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_ID, String.valueOf(listId));
 		}
-		if (user_id > 0) {
-			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(user_id));
+		if (userId > 0) {
+			builder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(userId));
 		}
-		if (screen_name != null) {
-			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
+		if (screenName != null) {
+			builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screenName);
 		}
-		if (list_name != null) {
-			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
+		if (listName != null) {
+			builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, listName);
 		}
 		final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
 		SwipebackActivityUtils.startSwipebackActivity(activity, intent);
@@ -3177,10 +3380,8 @@ public final class Utils implements Constants {
 			setMenuItemAvailability(menu, MENU_TRANSLATE, isOfficialKey);
 		}
 		menu.removeGroup(MENU_GROUP_STATUS_EXTENSION);
-		final Intent extensionIntent = new Intent(INTENT_ACTION_EXTENSION_OPEN_STATUS);
-		extensionIntent.setExtrasClassLoader(context.getClassLoader());
-		extensionIntent.putExtra(EXTRA_STATUS, status);
-		addIntentToMenu(context, menu, extensionIntent, MENU_GROUP_STATUS_EXTENSION);
+		addIntentToMenuForExtension(context, menu, MENU_GROUP_STATUS_EXTENSION, INTENT_ACTION_EXTENSION_OPEN_STATUS,
+				EXTRA_STATUS, EXTRA_STATUS_JSON, status);
 		final MenuItem shareItem = menu.findItem(R.id.share_submenu);
 		final Menu shareSubmenu = shareItem != null && shareItem.hasSubMenu() ? shareItem.getSubMenu() : null;
 		if (shareSubmenu != null) {
@@ -3222,7 +3423,7 @@ public final class Utils implements Constants {
 			cb.setClientVersion(pi.versionName);
 			cb.setClientName(APP_NAME);
 			cb.setClientURL(APP_PROJECT_URL);
-			cb.setUserAgent(APP_NAME + " " + APP_PROJECT_URL + " / " + version_name
+			cb.setHttpUserAgent(APP_NAME + " " + APP_PROJECT_URL + " / " + version_name
 					+ (gzip_compressing ? " (gzip)" : ""));
 		} catch (final PackageManager.NameNotFoundException e) {
 
@@ -3369,8 +3570,9 @@ public final class Utils implements Constants {
 							.currentTimeMillis() + sec_until_reset));
 					message = context.getString(R.string.error_message_rate_limit_with_action, action,
 							next_reset_time.trim());
-				} else if (te.getErrorCode() > 0) {
-					final String msg = TwitterErrorCodes.getErrorMessage(context, te.getErrorCode());
+				} else if (isErrorCodeMessageSupported(te)) {
+					final String msg = StatusCodeMessageUtils
+							.getMessage(context, te.getStatusCode(), te.getErrorCode());
 					message = context.getString(R.string.error_message_with_action, action, msg != null ? msg
 							: trimLineBreak(te.getMessage()));
 				} else if (te.getCause() instanceof SSLException) {
@@ -3497,25 +3699,50 @@ public final class Utils implements Constants {
 		return in.size() != out.size();
 	}
 
+	private static Drawable getMetadataDrawable(final PackageManager pm, final ActivityInfo info, final String key) {
+		if (pm == null || info == null || info.metaData == null || key == null || !info.metaData.containsKey(key))
+			return null;
+		final Drawable d = pm.getDrawable(info.packageName, info.metaData.getInt(key), info.applicationInfo);
+		return d;
+	}
+
+	private static boolean isErrorCodeMessageSupported(final TwitterException te) {
+		if (te == null) return false;
+		return StatusCodeMessageUtils.containsHttpStatus(te.getStatusCode())
+				|| StatusCodeMessageUtils.containsTwitterError(te.getErrorCode());
+	}
+
+	private static boolean isExtensionUseJSON(final ResolveInfo info) {
+		if (info == null || info.activityInfo == null) return true;
+		final ActivityInfo activityInfo = info.activityInfo;
+		if (activityInfo.metaData != null && activityInfo.metaData.containsKey(METADATA_KEY_EXTENSION_USE_JSON))
+			return activityInfo.metaData.getBoolean(METADATA_KEY_EXTENSION_USE_JSON);
+		final ApplicationInfo appInfo = activityInfo.applicationInfo;
+		if (appInfo == null) return true;
+		if (appInfo.metaData != null && appInfo.metaData.containsKey(METADATA_KEY_EXTENSION_USE_JSON))
+			return appInfo.metaData.getBoolean(METADATA_KEY_EXTENSION_USE_JSON);
+		return true;
+	}
+
 	private static void parseEntities(final HtmlBuilder builder, final EntitySupport entities) {
-		final URLEntity[] urls = entities.getURLEntities();
 		// Format media.
 		final MediaEntity[] medias = entities.getMediaEntities();
 		if (medias != null) {
 			for (final MediaEntity media : medias) {
-				final URL media_url = media.getMediaURL();
-				if (media_url != null) {
-					builder.addLink(ParseUtils.parseString(media_url), media.getDisplayURL(), media.getStart(),
-							media.getEnd());
+				final int start = media.getStart(), end = media.getEnd();
+				final URL mediaUrl = media.getMediaURL();
+				if (mediaUrl != null && start >= 0 && end >= 0) {
+					builder.addLink(ParseUtils.parseString(mediaUrl), media.getDisplayURL(), start, end);
 				}
 			}
 		}
+		final URLEntity[] urls = entities.getURLEntities();
 		if (urls != null) {
 			for (final URLEntity url : urls) {
-				final URL expanded_url = url.getExpandedURL();
-				if (expanded_url != null) {
-					builder.addLink(ParseUtils.parseString(expanded_url), url.getDisplayURL(), url.getStart(),
-							url.getEnd());
+				final int start = url.getStart(), end = url.getEnd();
+				final URL expandedUrl = url.getExpandedURL();
+				if (expandedUrl != null && start >= 0 && end >= 0) {
+					builder.addLink(ParseUtils.parseString(expandedUrl), url.getDisplayURL(), start, end);
 				}
 			}
 		}

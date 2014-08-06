@@ -18,14 +18,13 @@
   <string name="load_more_automatically_summary">Memuatkan lebih kandungan (e.g. gambar, peta, status) secara automatik</string>
   <string name="quote_format_summary">\"[TEKS]\" = teks Tweet\n\"[NAMA] = nama pengguna Twitter</string>
   <string name="overwrite_confirm">Fail telah wujud, tindihkan?</string>
-  <string name="mute_user">Bisukan pengguna</string>
-  <string name="user_muted">Pengguna ditambah ke dalam senarai tapis. Anda tidak akan melihat tweet dari pengguna ini di dalam senarai garis masa/sebutan anda.</string>
+  <string name="twitter_mute_user">Bisukan pengguna</string>
+  <string name="message_user_muted">Pengguna ditambah ke dalam senarai tapis. Anda tidak akan melihat tweet dari pengguna ini di dalam senarai garis masa/sebutan anda.</string>
   <string name="load_images">Memuatkan gambar</string>
   <string name="image_uploader_default">Lalai (Twitter)</string>
   <string name="error_message_image_upload_failed">Gagal memuat naik imej.</string>
   <string name="error_message_image_uploader_not_found">Pemuat naik imej tidak ditemui, mungkin telah dibuang.</string>
   <string name="tweet_shortener">Penyingkat tweet</string>
-  <string name="status_shortener_default">Tiada (batalkan penghantaran)</string>
   <string name="error_message_status_too_long">Tweet terlalu panjang.</string>
   <string name="error_message_tweet_shorten_failed">Singkatan tweet gagal.</string>
   <string name="error_message_tweet_shortener_not_found">Penyingkat tweet tidak ditemui, mungkin telah dibuang.</string>

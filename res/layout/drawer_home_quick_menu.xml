@@ -5,4 +5,11 @@
 	android:layout_width="match_parent"
 	android:layout_height="match_parent">
 
+	<fragment
+		android:id="@+id/right_drawer"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		class="org.mariotaku.twidere.fragment.support.QuickMenuFragment"
+		tools:layout="@layout/fragment_quick_menu"/>
+
 </org.mariotaku.twidere.view.RightDrawerFrameLayout>

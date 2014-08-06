@@ -39,7 +39,7 @@ import android.widget.TextView;
 
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.adapter.ArrayAdapter;
-import org.mariotaku.twidere.fragment.iface.IDialogFragmentCallback;
+import org.mariotaku.twidere.fragment.iface.ISupportDialogFragmentCallback;
 
 public final class DataExportImportTypeSelectorDialogFragment extends BaseSupportDialogFragment implements
 		OnMultiChoiceClickListener, OnClickListener, OnShowListener, OnItemClickListener {
@@ -52,7 +52,7 @@ public final class DataExportImportTypeSelectorDialogFragment extends BaseSuppor
 		super.onCancel(dialog);
 		final FragmentActivity a = getActivity();
 		if (a instanceof Callback) {
-			((Callback) a).onCancelled();
+			((Callback) a).onCancelled(this);
 		}
 	}
 
@@ -103,7 +103,7 @@ public final class DataExportImportTypeSelectorDialogFragment extends BaseSuppor
 		super.onDismiss(dialog);
 		final FragmentActivity a = getActivity();
 		if (a instanceof Callback) {
-			((Callback) a).onDismissed();
+			((Callback) a).onDismissed(this);
 		}
 	}
 
@@ -158,7 +158,7 @@ public final class DataExportImportTypeSelectorDialogFragment extends BaseSuppor
 		positiveButton.setEnabled(getCheckedFlags() != 0);
 	}
 
-	public static interface Callback extends IDialogFragmentCallback {
+	public static interface Callback extends ISupportDialogFragmentCallback {
 		void onPositiveButtonClicked(String path, int flags);
 	}
 

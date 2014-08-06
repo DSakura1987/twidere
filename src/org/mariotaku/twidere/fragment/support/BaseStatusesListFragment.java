@@ -45,7 +45,6 @@ import android.widget.ImageView.ScaleType;
 import android.widget.ListView;
 
 import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.activity.support.StatusMenuDialogFragment;
 import org.mariotaku.twidere.adapter.iface.IBaseCardAdapter.MenuButtonClickListener;
 import org.mariotaku.twidere.adapter.iface.IStatusesAdapter;
 import org.mariotaku.twidere.model.Account;
@@ -128,17 +127,22 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 	@Override
 	public void onActivityCreated(final Bundle savedInstanceState) {
 		super.onActivityCreated(savedInstanceState);
+		final Context context = getActivity();
 		mAsyncTaskManager = getAsyncTaskManager();
 		mPreferences = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-		mPositionManager = new PositionManager(getActivity());
+		mPositionManager = new PositionManager(context);
 		mMultiSelectManager = getMultiSelectManager();
 		mListView = getListView();
-		mAdapter = newAdapterInstance();
+		final boolean plainListStyle = mPreferences.getBoolean(KEY_PLAIN_LIST_STYLE, false);
+		final boolean compactCards = mPreferences.getBoolean(KEY_COMPACT_CARDS, false);
+		mAdapter = newAdapterInstance(compactCards, plainListStyle);
 		mAdapter.setMenuButtonClickListener(this);
 		setListAdapter(null);
 		setListHeaderFooters(mListView);
 		setListAdapter(mAdapter);
-		mListView.setDivider(null);
+		if (!plainListStyle) {
+			mListView.setDivider(null);
+		}
 		mListView.setSelector(android.R.color.transparent);
 		mListView.setOnItemLongClickListener(this);
 		setListShown(false);
@@ -214,7 +218,7 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 	}
 
 	@Override
-	public final void onLoadFinished(final Loader<Data> loader, final Data data) {
+	public void onLoadFinished(final Loader<Data> loader, final Data data) {
 		if (getActivity() == null || getView() == null) return;
 		setListShown(true);
 		setRefreshComplete();
@@ -378,18 +382,19 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 		super.onResume();
 		mListView.setFastScrollEnabled(mPreferences.getBoolean(KEY_FAST_SCROLL_THUMB, false));
 		configBaseCardAdapter(getActivity(), mAdapter);
-		final boolean display_image_preview = mPreferences.getBoolean(KEY_DISPLAY_IMAGE_PREVIEW, false);
-		final boolean display_sensitive_contents = mPreferences.getBoolean(KEY_DISPLAY_SENSITIVE_CONTENTS, false);
+		final boolean displayImagePreview = mPreferences.getBoolean(KEY_DISPLAY_IMAGE_PREVIEW, false);
+		final boolean displaySensitiveContents = mPreferences.getBoolean(KEY_DISPLAY_SENSITIVE_CONTENTS, false);
 		final boolean indicateMyStatus = mPreferences.getBoolean(KEY_INDICATE_MY_STATUS, true);
 		final String cardHighlightOption = mPreferences.getString(KEY_CARD_HIGHLIGHT_OPTION,
 				DEFAULT_CARD_HIGHLIGHT_OPTION);
 		final String previewScaleType = Utils.getNonEmptyString(mPreferences, KEY_IMAGE_PREVIEW_SCALE_TYPE,
 				ScaleType.CENTER_CROP.name());
-		mAdapter.setDisplayImagePreview(display_image_preview);
+		mAdapter.setDisplayImagePreview(displayImagePreview);
 		mAdapter.setImagePreviewScaleType(previewScaleType);
-		mAdapter.setDisplaySensitiveContents(display_sensitive_contents);
+		mAdapter.setDisplaySensitiveContents(displaySensitiveContents);
 		mAdapter.setIndicateMyStatusDisabled(isMyTimeline() || !indicateMyStatus);
 		mAdapter.setCardHighlightOption(cardHighlightOption);
+		mAdapter.notifyDataSetChanged();
 		mLoadMoreAutomatically = mPreferences.getBoolean(KEY_LOAD_MORE_AUTOMATICALLY, false);
 	}
 
@@ -429,6 +434,7 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 				Utils.clearListViewChoices(mListView);
 			}
 		}
+		updateRefreshState();
 	}
 
 	@Override
@@ -470,7 +476,7 @@ abstract class BaseStatusesListFragment<Data> extends BasePullToRefreshListFragm
 
 	protected abstract void loadMoreStatuses();
 
-	protected abstract IStatusesAdapter<Data> newAdapterInstance();
+	protected abstract IStatusesAdapter<Data> newAdapterInstance(boolean compact, boolean plain);
 
 	@Override
 	protected void onReachedBottom() {

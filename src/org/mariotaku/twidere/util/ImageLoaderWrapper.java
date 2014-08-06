@@ -31,6 +31,7 @@ import com.nostra13.universalimageloader.core.assist.ImageLoadingListener;
 
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.util.imageloader.AccountExtra;
 
 public class ImageLoaderWrapper implements Constants {
 
@@ -77,6 +78,14 @@ public class ImageLoaderWrapper implements Constants {
 
 	public void displayPreviewImage(final ImageView view, final String url, final ImageLoadingHandler loadingHandler) {
 		mImageLoader.displayImage(url, view, mImageDisplayOptions, loadingHandler, loadingHandler);
+	}
+
+	public void displayPreviewImageWithCredentials(final ImageView view, final String url, final long accountId,
+			final ImageLoadingHandler loadingHandler) {
+		final DisplayImageOptions.Builder b = new DisplayImageOptions.Builder();
+		b.cloneFrom(mImageDisplayOptions);
+		b.extraForDownloader(new AccountExtra(accountId));
+		mImageLoader.displayImage(url, view, b.build(), loadingHandler, loadingHandler);
 	}
 
 	public void displayProfileBanner(final ImageView view, final String base_url, final int width) {

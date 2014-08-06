@@ -39,7 +39,8 @@ import org.mariotaku.twidere.fragment.support.ActivitiesByFriendsFragment;
 import org.mariotaku.twidere.fragment.support.DirectMessagesFragment;
 import org.mariotaku.twidere.fragment.support.HomeTimelineFragment;
 import org.mariotaku.twidere.fragment.support.InvalidTabFragment;
-import org.mariotaku.twidere.fragment.support.MentionsFragment;
+import org.mariotaku.twidere.fragment.support.MentionsTimelineFragment;
+import org.mariotaku.twidere.fragment.support.RetweetsOfMeFragment;
 import org.mariotaku.twidere.fragment.support.SearchStatusesFragment;
 import org.mariotaku.twidere.fragment.support.StaggeredHomeTimelineFragment;
 import org.mariotaku.twidere.fragment.support.TrendsSuggectionsFragment;
@@ -47,6 +48,7 @@ import org.mariotaku.twidere.fragment.support.UserFavoritesFragment;
 import org.mariotaku.twidere.fragment.support.UserListTimelineFragment;
 import org.mariotaku.twidere.fragment.support.UserTimelineFragment;
 import org.mariotaku.twidere.model.CustomTabConfiguration;
+import org.mariotaku.twidere.model.CustomTabConfiguration.ExtraConfiguration;
 import org.mariotaku.twidere.model.SupportTabSpec;
 import org.mariotaku.twidere.provider.TweetStore.Tabs;
 
@@ -66,8 +68,9 @@ public class CustomTabUtils implements Constants {
 				HomeTimelineFragment.class, R.string.home, R.drawable.ic_iconic_action_home,
 				CustomTabConfiguration.ACCOUNT_OPTIONAL, CustomTabConfiguration.FIELD_TYPE_NONE, 0, false));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_MENTIONS_TIMELINE, new CustomTabConfiguration(
-				MentionsFragment.class, R.string.mentions, R.drawable.ic_iconic_action_mention,
-				CustomTabConfiguration.ACCOUNT_OPTIONAL, CustomTabConfiguration.FIELD_TYPE_NONE, 1, false));
+				MentionsTimelineFragment.class, R.string.mentions, R.drawable.ic_iconic_action_mention,
+				CustomTabConfiguration.ACCOUNT_OPTIONAL, CustomTabConfiguration.FIELD_TYPE_NONE, 1, false,
+				ExtraConfiguration.newBoolean(EXTRA_MY_FOLLOWING_ONLY, R.string.my_following_only, false)));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_DIRECT_MESSAGES, new CustomTabConfiguration(
 				DirectMessagesFragment.class, R.string.direct_messages, R.drawable.ic_iconic_action_message,
 				CustomTabConfiguration.ACCOUNT_OPTIONAL, CustomTabConfiguration.FIELD_TYPE_NONE, 2, false));
@@ -89,16 +92,19 @@ public class CustomTabUtils implements Constants {
 				CustomTabConfiguration.ACCOUNT_REQUIRED, CustomTabConfiguration.FIELD_TYPE_USER_LIST, 7));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_ACTIVITIES_ABOUT_ME, new CustomTabConfiguration(
 				ActivitiesAboutMeFragment.class, R.string.activities_about_me, R.drawable.ic_iconic_action_user,
-				CustomTabConfiguration.ACCOUNT_REQUIRED, CustomTabConfiguration.FIELD_TYPE_NONE, 8));
+				CustomTabConfiguration.ACCOUNT_OPTIONAL, CustomTabConfiguration.FIELD_TYPE_NONE, 8));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_ACTIVITIES_BY_FRIENDS, new CustomTabConfiguration(
 				ActivitiesByFriendsFragment.class, R.string.activities_by_friends,
 				R.drawable.ic_iconic_action_accounts, CustomTabConfiguration.ACCOUNT_REQUIRED,
 				CustomTabConfiguration.FIELD_TYPE_NONE, 9));
+		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_RETWEETS_OF_ME, new CustomTabConfiguration(
+				RetweetsOfMeFragment.class, R.string.retweets_of_me, R.drawable.ic_iconic_action_retweet,
+				CustomTabConfiguration.ACCOUNT_REQUIRED, CustomTabConfiguration.FIELD_TYPE_NONE, 10));
 		if (Utils.hasStaggeredTimeline()) {
 			CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_STAGGERED_HOME_TIMELINE, new CustomTabConfiguration(
 					StaggeredHomeTimelineFragment.class, R.string.staggered_home_timeline,
 					R.drawable.ic_iconic_action_staggered, CustomTabConfiguration.ACCOUNT_OPTIONAL,
-					CustomTabConfiguration.FIELD_TYPE_NONE, 10, false));
+					CustomTabConfiguration.FIELD_TYPE_NONE, 11, false));
 		}
 
 		CUSTOM_TABS_ICON_NAME_MAP.put("accounts", R.drawable.ic_iconic_action_accounts);
@@ -137,18 +143,20 @@ public class CustomTabUtils implements Constants {
 		final ContentResolver resolver = context.getContentResolver();
 		final Cursor cur = resolver.query(Tabs.CONTENT_URI, Tabs.COLUMNS, Tabs.POSITION + " = " + position, null,
 				Tabs.DEFAULT_SORT_ORDER);
-		final int idx_name = cur.getColumnIndex(Tabs.NAME), idx_icon = cur.getColumnIndex(Tabs.ICON), idx_type = cur
-				.getColumnIndex(Tabs.TYPE), idx_arguments = cur.getColumnIndex(Tabs.ARGUMENTS);
+		final int idxName = cur.getColumnIndex(Tabs.NAME), idxIcon = cur.getColumnIndex(Tabs.ICON), idxType = cur
+				.getColumnIndex(Tabs.TYPE), idxArguments = cur.getColumnIndex(Tabs.ARGUMENTS), idxExtras = cur
+				.getColumnIndex(Tabs.EXTRAS);
 		try {
 			if (cur.getCount() == 0) return null;
 			cur.moveToFirst();
-			final String type = cur.getString(idx_type);
+			final String type = cur.getString(idxType);
 			final CustomTabConfiguration conf = getTabConfiguration(type);
 			if (conf == null) return null;
-			final String icon_type = cur.getString(idx_icon);
-			final String name = cur.getString(idx_name);
-			final Bundle args = ParseUtils.jsonToBundle(cur.getString(idx_arguments));
+			final String icon_type = cur.getString(idxIcon);
+			final String name = cur.getString(idxName);
+			final Bundle args = ParseUtils.jsonToBundle(cur.getString(idxArguments));
 			args.putInt(EXTRA_TAB_POSITION, position);
+			args.putBundle(EXTRA_EXTRAS, ParseUtils.jsonToBundle(cur.getString(idxExtras)));
 			final Class<? extends Fragment> fragment = conf.getFragmentClass();
 			return new SupportTabSpec(name != null ? name : getTabTypeName(context, type), getTabIconObject(icon_type),
 					type, fragment, args, position);
@@ -162,11 +170,11 @@ public class CustomTabUtils implements Constants {
 		final ContentResolver resolver = context.getContentResolver();
 		final Cursor cur = resolver.query(Tabs.CONTENT_URI, Tabs.COLUMNS, Tabs.POSITION + " = " + position, null,
 				Tabs.DEFAULT_SORT_ORDER);
-		final int idx_type = cur.getColumnIndex(Tabs.TYPE);
+		final int idxType = cur.getColumnIndex(Tabs.TYPE);
 		try {
 			if (cur.getCount() == 0) return null;
 			cur.moveToFirst();
-			final String type = cur.getString(idx_type);
+			final String type = cur.getString(idxType);
 			return getTabConfiguration(type);
 		} finally {
 			cur.close();
@@ -217,16 +225,17 @@ public class CustomTabUtils implements Constants {
 		if (cur == null) return Collections.emptyList();
 		final ArrayList<SupportTabSpec> tabs = new ArrayList<SupportTabSpec>();
 		cur.moveToFirst();
-		final int idx_name = cur.getColumnIndex(Tabs.NAME), idxIcon = cur.getColumnIndex(Tabs.ICON), idxType = cur
-				.getColumnIndex(Tabs.TYPE), idxArguments = cur.getColumnIndex(Tabs.ARGUMENTS), idxPosition = cur
-				.getColumnIndex(Tabs.POSITION);
+		final int idxName = cur.getColumnIndex(Tabs.NAME), idxIcon = cur.getColumnIndex(Tabs.ICON), idxType = cur
+				.getColumnIndex(Tabs.TYPE), idxArguments = cur.getColumnIndex(Tabs.ARGUMENTS), idxExtras = cur
+				.getColumnIndex(Tabs.EXTRAS), idxPosition = cur.getColumnIndex(Tabs.POSITION);
 		while (!cur.isAfterLast()) {
 			final String type = cur.getString(idxType);
 			final int position = cur.getInt(idxPosition);
 			final String iconType = cur.getString(idxIcon);
-			final String name = cur.getString(idx_name);
+			final String name = cur.getString(idxName);
 			final Bundle args = ParseUtils.jsonToBundle(cur.getString(idxArguments));
 			args.putInt(EXTRA_TAB_POSITION, position);
+			args.putBundle(EXTRA_EXTRAS, ParseUtils.jsonToBundle(cur.getString(idxExtras)));
 			final CustomTabConfiguration conf = getTabConfiguration(type);
 			final Class<? extends Fragment> cls = conf != null ? conf.getFragmentClass() : InvalidTabFragment.class;
 			tabs.add(new SupportTabSpec(name != null ? name : getTabTypeName(context, type),
@@ -243,6 +252,7 @@ public class CustomTabUtils implements Constants {
 	}
 
 	public static CustomTabConfiguration getTabConfiguration(final String key) {
+		if (key == null) return null;
 		return CUSTOM_TABS_CONFIGURATION_MAP.get(key);
 	}
 

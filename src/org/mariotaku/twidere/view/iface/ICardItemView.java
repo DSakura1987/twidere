@@ -37,6 +37,7 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.graphic.PaddingDrawable;
 import org.mariotaku.twidere.util.ThemeUtils;
 
 public interface ICardItemView extends IColorLabelView {
@@ -73,6 +74,7 @@ public interface ICardItemView extends IColorLabelView {
 		private Drawable mItemSelector;
 		private Drawable mActivatedIndicator;
 		private Drawable mOverflowIcon;
+		private Drawable mPaddedOverflowIcon;
 
 		private boolean mIsGap;
 
@@ -147,10 +149,13 @@ public interface ICardItemView extends IColorLabelView {
 				mActivatedIndicator.setBounds(l, t, r, b);
 			}
 			if (mOverflowIcon != null) {
-				final int iw = mOverflowIcon.getIntrinsicWidth();
-				final int ih = mOverflowIcon.getIntrinsicHeight();
+				mPaddedOverflowIcon = new PaddingDrawable(mOverflowIcon, paddingTop, 0, paddingRight, 0);
+				final int iw = mPaddedOverflowIcon.getIntrinsicWidth();
+				final int ih = mPaddedOverflowIcon.getIntrinsicHeight();
 				mOverflowIconBounds.set(w - iw, 0, w, ih);
-				mOverflowIcon.setBounds(mOverflowIconBounds);
+				mPaddedOverflowIcon.setBounds(mOverflowIconBounds);
+			} else {
+				mPaddedOverflowIcon = null;
 			}
 		}
 
@@ -162,18 +167,19 @@ public interface ICardItemView extends IColorLabelView {
 
 		public void drawGap(final Canvas canvas) {
 			if (mIsGap) {
-				final int centerX = mView.getWidth() / 2, centerY = mView.getHeight() / 2;
+				final int centerX = canvas.getWidth() / 2, centerY = canvas.getHeight() / 2;
 				if (mCardGapText != null) {
 					mGapTextPaint.getTextBounds(mCardGapText, 0, mCardGapText.length(), mGapTextBounds);
-					canvas.drawText(mCardGapText, centerX - mGapTextBounds.width() / 2,
-							centerY + mGapTextBounds.height() / 2, mGapTextPaint);
+					final float xPos = centerX - mGapTextBounds.width() / 2;
+					final float yPos = centerY - (mGapTextPaint.descent() + mGapTextPaint.ascent()) / 2;
+					canvas.drawText(mCardGapText, xPos, yPos, mGapTextPaint);
 				}
 			}
 		}
 
 		public void drawOverflowIcon(final Canvas canvas) {
-			if (mOverflowIcon != null && mOnOverflowIconClickListener != null) {
-				mOverflowIcon.draw(canvas);
+			if (mPaddedOverflowIcon != null && mOnOverflowIconClickListener != null) {
+				mPaddedOverflowIcon.draw(canvas);
 			}
 		}
 
@@ -203,6 +209,7 @@ public interface ICardItemView extends IColorLabelView {
 		}
 
 		public boolean isOverflowIconClicked(final MotionEvent ev) {
+			if (mOverflowIcon == null || mOnOverflowIconClickListener == null) return false;
 			final int x = Math.round(ev.getX()), y = Math.round(ev.getY());
 			if (mOverflowIconBounds.contains(x, y)) return true;
 			return false;
@@ -355,6 +362,9 @@ public interface ICardItemView extends IColorLabelView {
 
 			@Override
 			public boolean onDown(final MotionEvent e) {
+				final Drawable d = mDrawingHelper.mPaddedOverflowIcon;
+				final OnOverflowIconClickListener l = mDrawingHelper.mOnOverflowIconClickListener;
+				if (d == null || l == null) return false;
 				return true;
 			}
 
@@ -377,7 +387,7 @@ public interface ICardItemView extends IColorLabelView {
 
 			@Override
 			public void onShowPress(final MotionEvent e) {
-				final Drawable d = mDrawingHelper.mOverflowIcon;
+				final Drawable d = mDrawingHelper.mPaddedOverflowIcon;
 				final int c = mDrawingHelper.mThemeColor;
 				if (d != null) {
 					d.setColorFilter(c, PorterDuff.Mode.SRC_ATOP);
@@ -399,7 +409,7 @@ public interface ICardItemView extends IColorLabelView {
 			}
 
 			private boolean clearHighlight() {
-				final Drawable d = mDrawingHelper.mOverflowIcon;
+				final Drawable d = mDrawingHelper.mPaddedOverflowIcon;
 				if (d != null) {
 					d.clearColorFilter();
 					return true;

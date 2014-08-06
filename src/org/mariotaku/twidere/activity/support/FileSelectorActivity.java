@@ -24,6 +24,7 @@ import static android.os.Environment.getExternalStorageDirectory;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.DialogFragment;
 
 import org.mariotaku.twidere.fragment.support.FileSelectorDialogFragment;
 import org.mariotaku.twidere.util.ThemeUtils;
@@ -38,14 +39,14 @@ public class FileSelectorActivity extends BaseSupportDialogActivity implements F
 	}
 
 	@Override
-	public void onCancelled() {
+	public void onCancelled(final DialogFragment df) {
 		if (!isFinishing()) {
 			finish();
 		}
 	}
 
 	@Override
-	public void onDismissed() {
+	public void onDismissed(final DialogFragment df) {
 		if (!isFinishing()) {
 			finish();
 		}

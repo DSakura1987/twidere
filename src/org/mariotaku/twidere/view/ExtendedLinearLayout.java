@@ -24,9 +24,9 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.widget.LinearLayout;
 
-import org.mariotaku.twidere.view.iface.IExtendedViewGroup;
+import org.mariotaku.twidere.view.iface.IExtendedView;
 
-public class ExtendedLinearLayout extends LinearLayout implements IExtendedViewGroup {
+public class ExtendedLinearLayout extends LinearLayout implements IExtendedView {
 
 	private TouchInterceptor mTouchInterceptor;
 	private OnSizeChangedListener mOnSizeChangedListener;
@@ -42,6 +42,15 @@ public class ExtendedLinearLayout extends LinearLayout implements IExtendedViewG
 	public ExtendedLinearLayout(final Context context, final AttributeSet attrs, final int defStyle) {
 		// Workaround for pre-Honeycomb devices.
 		super(context, attrs);
+	}
+
+	@Override
+	public final boolean dispatchTouchEvent(final MotionEvent event) {
+		if (mTouchInterceptor != null) {
+			final boolean ret = mTouchInterceptor.dispatchTouchEvent(this, event);
+			if (ret) return true;
+		}
+		return super.dispatchTouchEvent(event);
 	}
 
 	@Override

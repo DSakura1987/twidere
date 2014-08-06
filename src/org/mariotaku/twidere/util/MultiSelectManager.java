@@ -33,13 +33,23 @@ public class MultiSelectManager implements Constants {
 	private final NoDuplicatesArrayList<Long> mSelectedUserIds = new NoDuplicatesArrayList<Long>();
 	private final NoDuplicatesArrayList<Callback> mCallbacks = new NoDuplicatesArrayList<Callback>();
 	private final ItemsList mSelectedItems = new ItemsList(this);
+	private long mAccountId;
 
 	public void clearSelectedItems() {
 		mSelectedItems.clear();
 	}
 
+	public long getAccountId() {
+		if (mAccountId <= 0) return getFirstSelectAccountId(mSelectedItems);
+		return mAccountId;
+	}
+
 	public int getCount() {
 		return mSelectedItems.size();
+	}
+
+	public long getFirstSelectAccountId() {
+		return getFirstSelectAccountId(mSelectedItems);
 	}
 
 	public List<Object> getSelectedItems() {
@@ -71,6 +81,10 @@ public class MultiSelectManager implements Constants {
 		return mSelectedItems.add(item);
 	}
 
+	public void setAccountId(final long accountId) {
+		mAccountId = accountId;
+	}
+
 	public void unregisterCallback(final Callback callback) {
 		mCallbacks.remove(callback);
 	}
@@ -83,6 +97,7 @@ public class MultiSelectManager implements Constants {
 		for (final Callback callback : mCallbacks) {
 			callback.onItemsCleared();
 		}
+		mAccountId = -1;
 	}
 
 	private void onItemSelected(final Object object) {

@@ -80,6 +80,9 @@ public abstract class AccountsListPreference extends PreferenceCategory implemen
 			setupPreference(preference, account);
 			addPreference(preference);
 		}
+		final Preference preference = new Preference(getContext());
+		preference.setLayoutResource(R.layout.settings_layout_click_to_config);
+		addPreference(preference);
 	}
 
 	@Override
@@ -215,7 +218,7 @@ public abstract class AccountsListPreference extends PreferenceCategory implemen
 
 		@Override
 		protected List<Account> doInBackground(final Void... params) {
-			return Account.getAccounts(mPreference.getContext(), false);
+			return Account.getAccountsList(mPreference.getContext(), false);
 		}
 
 		@Override

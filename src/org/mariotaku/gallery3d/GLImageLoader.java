@@ -41,6 +41,7 @@ import org.mariotaku.twidere.app.TwidereApplication;
 import org.mariotaku.twidere.util.Exif;
 import org.mariotaku.twidere.util.ImageValidator;
 import org.mariotaku.twidere.util.ParseUtils;
+import org.mariotaku.twidere.util.imageloader.AccountExtra;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -57,10 +58,12 @@ public class GLImageLoader extends AsyncTaskLoader<GLImageLoader.Result> impleme
 	private final DiscCacheAware mDiscCache;
 
 	private final float mFallbackSize;
+	private final long mAccountId;
 
-	public GLImageLoader(final Context context, final DownloadListener listener, final Uri uri) {
+	public GLImageLoader(final Context context, final DownloadListener listener, final long accountId, final Uri uri) {
 		super(context);
 		mHandler = new Handler();
+		mAccountId = accountId;
 		mUri = uri;
 		mListener = listener;
 		final TwidereApplication app = TwidereApplication.getInstance(context);
@@ -92,7 +95,7 @@ public class GLImageLoader extends AsyncTaskLoader<GLImageLoader.Result> impleme
 				// from SD cache
 				if (ImageValidator.checkImageValidity(cacheFile)) return decodeImageInternal(cacheFile);
 
-				final InputStream is = mDownloader.getStream(url, null);
+				final InputStream is = mDownloader.getStream(url, new AccountExtra(mAccountId));
 				if (is == null) return Result.nullInstance();
 				final long length = is.available();
 				mHandler.post(new DownloadStartRunnable(this, mListener, length));

@@ -23,13 +23,14 @@ import static org.mariotaku.twidere.util.HtmlEscapeHelper.toPlainText;
 
 import android.content.ContentValues;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mariotaku.jsonserializer.JSONSerializer;
 import org.mariotaku.twidere.TwidereConstants;
+import org.mariotaku.twidere.model.Account;
 import org.mariotaku.twidere.model.ParcelableDirectMessage;
 import org.mariotaku.twidere.model.ParcelableLocation;
+import org.mariotaku.twidere.model.ParcelableMedia;
 import org.mariotaku.twidere.model.ParcelableStatus;
 import org.mariotaku.twidere.model.ParcelableStatusUpdate;
 import org.mariotaku.twidere.model.ParcelableUser;
@@ -57,31 +58,58 @@ import java.util.List;
 
 public final class ContentValuesCreator implements TwidereConstants {
 
-	public static ContentValues makeAccountContentValues(final Configuration conf, final String basic_password,
-			final AccessToken access_token, final User user, final int auth_type, final int color) {
+	public static ContentValues makeAccountContentValuesBasic(final Configuration conf, final String basicUsername,
+			final String basicPassword, final User user, final int color) {
 		if (user == null || user.getId() <= 0) return null;
 		final ContentValues values = new ContentValues();
-		switch (auth_type) {
-			case Accounts.AUTH_TYPE_TWIP_O_MODE: {
-				break;
-			}
-			case Accounts.AUTH_TYPE_BASIC: {
-				if (basic_password == null) return null;
-				values.put(Accounts.BASIC_AUTH_PASSWORD, basic_password);
-				break;
-			}
-			case Accounts.AUTH_TYPE_OAUTH:
-			case Accounts.AUTH_TYPE_XAUTH: {
-				if (access_token == null) return null;
-				if (user.getId() != access_token.getUserId()) return null;
-				values.put(Accounts.OAUTH_TOKEN, access_token.getToken());
-				values.put(Accounts.OAUTH_TOKEN_SECRET, access_token.getTokenSecret());
-				values.put(Accounts.CONSUMER_KEY, conf.getOAuthConsumerKey());
-				values.put(Accounts.CONSUMER_SECRET, conf.getOAuthConsumerSecret());
-				break;
-			}
-		}
-		values.put(Accounts.AUTH_TYPE, auth_type);
+		if (basicUsername == null || basicPassword == null) return null;
+		values.put(Accounts.BASIC_AUTH_USERNAME, basicUsername);
+		values.put(Accounts.BASIC_AUTH_PASSWORD, basicPassword);
+		values.put(Accounts.AUTH_TYPE, Accounts.AUTH_TYPE_BASIC);
+		values.put(Accounts.ACCOUNT_ID, user.getId());
+		values.put(Accounts.SCREEN_NAME, user.getScreenName());
+		values.put(Accounts.NAME, user.getName());
+		values.put(Accounts.PROFILE_IMAGE_URL, ParseUtils.parseString(user.getProfileImageUrlHttps()));
+		values.put(Accounts.PROFILE_BANNER_URL, ParseUtils.parseString(user.getProfileBannerImageUrl()));
+		values.put(Accounts.COLOR, color);
+		values.put(Accounts.IS_ACTIVATED, 1);
+		values.put(Accounts.REST_BASE_URL, conf.getRestBaseURL());
+		values.put(Accounts.SIGNING_REST_BASE_URL, conf.getSigningRestBaseURL());
+		values.put(Accounts.OAUTH_BASE_URL, conf.getOAuthBaseURL());
+		values.put(Accounts.SIGNING_OAUTH_BASE_URL, conf.getSigningOAuthBaseURL());
+		return values;
+	}
+
+	public static ContentValues makeAccountContentValuesOAuth(final Configuration conf, final AccessToken accessToken,
+			final User user, final int authType, final int color, final String jtapiHostname) {
+		if (user == null || user.getId() <= 0 || accessToken == null || user.getId() != accessToken.getUserId())
+			return null;
+		final ContentValues values = new ContentValues();
+		values.put(Accounts.OAUTH_TOKEN, accessToken.getToken());
+		values.put(Accounts.OAUTH_TOKEN_SECRET, accessToken.getTokenSecret());
+		values.put(Accounts.CONSUMER_KEY, conf.getOAuthConsumerKey());
+		values.put(Accounts.CONSUMER_SECRET, conf.getOAuthConsumerSecret());
+		values.put(Accounts.AUTH_TYPE, authType);
+		values.put(Accounts.ACCOUNT_ID, user.getId());
+		values.put(Accounts.SCREEN_NAME, user.getScreenName());
+		values.put(Accounts.NAME, user.getName());
+		values.put(Accounts.PROFILE_IMAGE_URL, ParseUtils.parseString(user.getProfileImageUrlHttps()));
+		values.put(Accounts.PROFILE_BANNER_URL, ParseUtils.parseString(user.getProfileBannerImageUrl()));
+		values.put(Accounts.COLOR, color);
+		values.put(Accounts.IS_ACTIVATED, 1);
+		values.put(Accounts.REST_BASE_URL, conf.getRestBaseURL());
+		values.put(Accounts.SIGNING_REST_BASE_URL, conf.getSigningRestBaseURL());
+		values.put(Accounts.OAUTH_BASE_URL, conf.getOAuthBaseURL());
+		values.put(Accounts.SIGNING_OAUTH_BASE_URL, conf.getSigningOAuthBaseURL());
+		values.put(Accounts.SIGNING_OAUTH_BASE_URL, conf.getSigningOAuthBaseURL());
+		values.put(Accounts.JTAPI_HOSTNAME, jtapiHostname);
+		return values;
+	}
+
+	public static ContentValues makeAccountContentValuesTWIP(final Configuration conf, final User user, final int color) {
+		if (user == null || user.getId() <= 0) return null;
+		final ContentValues values = new ContentValues();
+		values.put(Accounts.AUTH_TYPE, Accounts.AUTH_TYPE_TWIP_O_MODE);
 		values.put(Accounts.ACCOUNT_ID, user.getId());
 		values.put(Accounts.SCREEN_NAME, user.getScreenName());
 		values.put(Accounts.NAME, user.getName());
@@ -139,8 +167,10 @@ public final class ContentValuesCreator implements TwidereConstants {
 		values.put(DirectMessages.MESSAGE_TIMESTAMP, message.getCreatedAt().getTime());
 		values.put(DirectMessages.SENDER_ID, sender.getId());
 		values.put(DirectMessages.RECIPIENT_ID, recipient.getId());
-		values.put(DirectMessages.TEXT_HTML, Utils.formatDirectMessageText(message));
+		final String text_html = Utils.formatDirectMessageText(message);
+		values.put(DirectMessages.TEXT_HTML, text_html);
 		values.put(DirectMessages.TEXT_PLAIN, message.getText());
+		values.put(DirectMessages.TEXT_UNESCAPED, toPlainText(text_html));
 		values.put(DirectMessages.IS_OUTGOING, is_outgoing);
 		values.put(DirectMessages.SENDER_NAME, sender.getName());
 		values.put(DirectMessages.SENDER_SCREEN_NAME, sender.getScreenName());
@@ -148,6 +178,11 @@ public final class ContentValuesCreator implements TwidereConstants {
 		values.put(DirectMessages.RECIPIENT_SCREEN_NAME, recipient.getScreenName());
 		values.put(DirectMessages.SENDER_PROFILE_IMAGE_URL, sender_profile_image_url);
 		values.put(DirectMessages.RECIPIENT_PROFILE_IMAGE_URL, recipient_profile_image_url);
+		final ParcelableMedia[] medias = ParcelableMedia.fromEntities(message);
+		if (medias != null) {
+			values.put(DirectMessages.MEDIAS, JSONSerializer.toJSONArrayString(medias));
+			values.put(DirectMessages.FIRST_MEDIA, medias[0].url);
+		}
 		return values;
 	}
 
@@ -168,6 +203,10 @@ public final class ContentValuesCreator implements TwidereConstants {
 		values.put(DirectMessages.RECIPIENT_SCREEN_NAME, message.recipient_screen_name);
 		values.put(DirectMessages.SENDER_PROFILE_IMAGE_URL, message.sender_profile_image_url);
 		values.put(DirectMessages.RECIPIENT_PROFILE_IMAGE_URL, message.recipient_profile_image_url);
+		if (message.medias != null) {
+			values.put(Statuses.MEDIAS, JSONSerializer.toJSONArrayString(message.medias));
+			values.put(Statuses.FIRST_MEDIA, message.medias[0].url);
+		}
 		return values;
 	}
 
@@ -267,32 +306,34 @@ public final class ContentValuesCreator implements TwidereConstants {
 		}
 		values.put(Statuses.IS_RETWEET, is_retweet);
 		values.put(Statuses.IS_FAVORITE, status.isFavorited());
-		values.put(Statuses.MEDIA_LINK, MediaPreviewUtils.getSupportedFirstLink(status));
-		final JSONArray json = JSONSerializer.toJSONArray(ParcelableUserMention.fromUserMentionEntities(status
-				.getUserMentionEntities()));
-		if (json != null) {
-			values.put(Statuses.MENTIONS, json.toString());
+		final ParcelableMedia[] medias = ParcelableMedia.fromEntities(status);
+		if (medias != null) {
+			values.put(Statuses.MEDIAS, JSONSerializer.toJSONArrayString(medias));
+			values.put(Statuses.FIRST_MEDIA, medias[0].url);
+		}
+		final ParcelableUserMention[] mentions = ParcelableUserMention.fromStatus(status);
+		if (mentions != null) {
+			values.put(Statuses.MENTIONS, JSONSerializer.toJSONArrayString(mentions));
 		}
 		return values;
 	}
 
 	public static ContentValues makeStatusDraftContentValues(final ParcelableStatusUpdate status) {
-		return makeStatusDraftContentValues(status, status.account_ids);
+		return makeStatusDraftContentValues(status, Account.getAccountIds(status.accounts));
 	}
 
 	public static ContentValues makeStatusDraftContentValues(final ParcelableStatusUpdate status,
-			final long[] account_ids) {
+			final long[] accountIds) {
 		final ContentValues values = new ContentValues();
 		values.put(Drafts.ACTION_TYPE, Drafts.ACTION_UPDATE_STATUS);
 		values.put(Drafts.TEXT, status.text);
-		values.put(Drafts.ACCOUNT_IDS, ArrayUtils.toString(account_ids, ',', false));
+		values.put(Drafts.ACCOUNT_IDS, ArrayUtils.toString(accountIds, ',', false));
 		values.put(Drafts.IN_REPLY_TO_STATUS_ID, status.in_reply_to_status_id);
 		values.put(Drafts.LOCATION, ParcelableLocation.toString(status.location));
 		values.put(Drafts.IS_POSSIBLY_SENSITIVE, status.is_possibly_sensitive);
 		values.put(Drafts.TIMESTAMP, System.currentTimeMillis());
-		if (status.media_uri != null) {
-			values.put(Drafts.MEDIA_TYPE, status.media_type);
-			values.put(Drafts.MEDIA_URI, ParseUtils.parseString(status.media_uri));
+		if (status.medias != null) {
+			values.put(Drafts.MEDIAS, JSONSerializer.toJSONArrayString(status.medias));
 		}
 		return values;
 	}

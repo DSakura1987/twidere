@@ -46,7 +46,6 @@ import org.mariotaku.twidere.util.ParseUtils;
 import org.mariotaku.twidere.util.ThemeUtils;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -154,11 +153,10 @@ public class AddStatusFilterDialogFragment extends BaseSupportDialogFragment imp
 				}
 			}
 		}
-		final Collection<String> hashtags = mExtractor.extractHashtags(status.text_plain);
-		if (hashtags != null) {
-			for (final String hashtag : hashtags) {
-				list.add(new FilterItemInfo(FilterItemInfo.FILTER_TYPE_KEYWORD, hashtag));
-			}
+		final HashSet<String> hashtags = new HashSet<String>();
+		hashtags.addAll(mExtractor.extractHashtags(status.text_plain));
+		for (final String hashtag : hashtags) {
+			list.add(new FilterItemInfo(FilterItemInfo.FILTER_TYPE_KEYWORD, hashtag));
 		}
 		final String source = HtmlEscapeHelper.toPlainText(status.source);
 		list.add(new FilterItemInfo(FilterItemInfo.FILTER_TYPE_SOURCE, source));

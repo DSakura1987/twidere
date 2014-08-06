@@ -25,7 +25,6 @@ import static org.mariotaku.twidere.model.ParcelableLocation.isValidLocation;
 import static org.mariotaku.twidere.util.ParseUtils.parseString;
 import static org.mariotaku.twidere.util.ThemeUtils.getActionBarBackground;
 import static org.mariotaku.twidere.util.ThemeUtils.getComposeThemeResource;
-import static org.mariotaku.twidere.util.ThemeUtils.getUserThemeColor;
 import static org.mariotaku.twidere.util.ThemeUtils.getWindowContentOverlayForCompose;
 import static org.mariotaku.twidere.util.UserColorNicknameUtils.getUserColor;
 import static org.mariotaku.twidere.util.Utils.addIntentToMenu;
@@ -42,7 +41,6 @@ import static org.mariotaku.twidere.util.Utils.getQuoteStatus;
 import static org.mariotaku.twidere.util.Utils.getShareStatus;
 import static org.mariotaku.twidere.util.Utils.getStatusTypeIconRes;
 import static org.mariotaku.twidere.util.Utils.getUserTypeIconRes;
-import static org.mariotaku.twidere.util.Utils.openImageDirectly;
 import static org.mariotaku.twidere.util.Utils.showErrorMessage;
 import static org.mariotaku.twidere.util.Utils.showMenuItemToast;
 
@@ -50,7 +48,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.ActivityNotFoundException;
-import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -58,9 +55,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
-import android.graphics.PorterDuff.Mode;
 import android.graphics.Rect;
-import android.graphics.drawable.Drawable;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
@@ -68,6 +63,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Parcelable;
 import android.provider.MediaStore;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.util.LongSparseArray;
@@ -86,6 +82,7 @@ import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -103,6 +100,7 @@ import com.twitter.Extractor;
 import de.keyboardsurfer.android.widget.crouton.Crouton;
 import de.keyboardsurfer.android.widget.crouton.CroutonStyle;
 
+import org.mariotaku.dynamicgridview.DraggableArrayAdapter;
 import org.mariotaku.menucomponent.widget.MenuBar;
 import org.mariotaku.menucomponent.widget.PopupMenu;
 import org.mariotaku.twidere.R;
@@ -112,21 +110,23 @@ import org.mariotaku.twidere.fragment.support.BaseSupportDialogFragment;
 import org.mariotaku.twidere.model.Account;
 import org.mariotaku.twidere.model.DraftItem;
 import org.mariotaku.twidere.model.ParcelableLocation;
+import org.mariotaku.twidere.model.ParcelableMedia;
+import org.mariotaku.twidere.model.ParcelableMediaUpdate;
 import org.mariotaku.twidere.model.ParcelableStatus;
 import org.mariotaku.twidere.model.ParcelableStatusUpdate;
 import org.mariotaku.twidere.model.ParcelableUser;
-import org.mariotaku.twidere.provider.TweetStore.CacheFiles;
+import org.mariotaku.twidere.preference.ServicePickerPreference;
 import org.mariotaku.twidere.provider.TweetStore.Drafts;
 import org.mariotaku.twidere.task.AsyncTask;
 import org.mariotaku.twidere.util.ArrayUtils;
 import org.mariotaku.twidere.util.AsyncTwitterWrapper;
 import org.mariotaku.twidere.util.ContentValuesCreator;
 import org.mariotaku.twidere.util.ImageLoaderWrapper;
+import org.mariotaku.twidere.util.MathUtils;
 import org.mariotaku.twidere.util.ParseUtils;
 import org.mariotaku.twidere.util.SharedPreferencesWrapper;
 import org.mariotaku.twidere.util.ThemeUtils;
 import org.mariotaku.twidere.util.TwidereValidator;
-import org.mariotaku.twidere.util.Utils;
 import org.mariotaku.twidere.util.accessor.ViewAccessor;
 import org.mariotaku.twidere.view.StatusTextCountView;
 import org.mariotaku.twidere.view.holder.StatusViewHolder;
@@ -136,7 +136,10 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.TreeSet;
 
 public class ComposeActivity extends BaseSupportDialogActivity implements TextWatcher, LocationListener,
 		OnMenuItemClickListener, OnClickListener, OnEditorActionListener, OnItemClickListener, OnItemLongClickListener,
@@ -150,6 +153,8 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 
 	private static final String EXTRA_ORIGINAL_TEXT = "original_text";
 
+	private static final String EXTRA_TEMP_URI = "temp_uri";
+
 	private TwidereValidator mValidator;
 	private final Extractor mExtractor = new Extractor();
 
@@ -159,11 +164,10 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	private ParcelableLocation mRecentLocation;
 
 	private ContentResolver mResolver;
-	private ImageLoaderWrapper mImageLoader;
 	private AsyncTask<Void, Void, ?> mTask;
 	private PopupMenu mPopupMenu;
 	private TextView mTitleView, mSubtitleView;
-	private ImageView mImageThumbnailPreview;
+	private GridView mMediasPreviewGrid;
 
 	private MenuBar mBottomMenuBar, mActionMenuBar;
 	private IColorLabelView mColorIndicator;
@@ -172,24 +176,24 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	private Gallery mAccountSelector;
 	private View mAccountSelectorDivider, mBottomSendDivider;
 	private View mBottomMenuContainer;
+	private View mSendView, mBottomSendView;
+	private StatusTextCountView mSendTextCountView, mBottomSendTextCountView;
+
+	private MediaPreviewAdapter mMediaPreviewAdapter;
 	private AccountSelectorAdapter mAccountSelectorAdapter;
 
 	private boolean mIsPossiblySensitive, mShouldSaveAccounts;
 
 	private long[] mAccountIds, mSendAccountIds;
 
-	private int mMediaType;
-
-	private Uri mMediaUri, mTempPhotoUri;
-	private boolean mImageUploaderUsed, mTweetShortenerUsed;
+	private Uri mTempPhotoUri;
+	private boolean mImageUploaderUsed, mStatusShortenerUsed;
 	private ParcelableStatus mInReplyToStatus;
 
 	private ParcelableUser mMentionUser;
 	private DraftItem mDraftItem;
 	private long mInReplyToStatusId;
 	private String mOriginalText;
-	private View mSendView, mBottomSendView;
-	private StatusTextCountView mSendTextCountView, mBottomSendTextCountView;
 
 	private boolean mBottomSendButton;
 
@@ -223,29 +227,21 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	public boolean handleMenuItem(final MenuItem item) {
 		switch (item.getItemId()) {
 			case MENU_TAKE_PHOTO: {
-				if (mMediaType != ATTACHED_IMAGE_TYPE_PHOTO) {
-					takePhoto();
-				} else {
-					new DeleteImageTask(this).execute();
-				}
+				takePhoto();
 				break;
 			}
 			case MENU_ADD_IMAGE: {
-				if (mMediaType != ATTACHED_IMAGE_TYPE_IMAGE) {
-					pickImage();
-				} else {
-					new DeleteImageTask(this).execute();
-				}
+				pickImage();
 				break;
 			}
 			case MENU_ADD_LOCATION: {
-				final boolean attach_location = mPreferences.getBoolean(KEY_ATTACH_LOCATION, false);
-				if (!attach_location) {
+				final boolean attachLocation = mPreferences.getBoolean(KEY_ATTACH_LOCATION, false);
+				if (!attachLocation) {
 					getLocation();
 				} else {
 					mLocationManager.removeUpdates(this);
 				}
-				mPreferences.edit().putBoolean(KEY_ATTACH_LOCATION, !attach_location).commit();
+				mPreferences.edit().putBoolean(KEY_ATTACH_LOCATION, !attachLocation).commit();
 				setMenu();
 				updateTextCount();
 				break;
@@ -256,10 +252,6 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 			}
 			case MENU_DELETE: {
 				new DeleteImageTask(this).execute();
-				break;
-			}
-			case MENU_IMAGE: {
-				openImageDirectly(this, ParseUtils.parseString(mMediaUri));
 				break;
 			}
 			case MENU_TOGGLE_SENSITIVE: {
@@ -300,13 +292,18 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 							}
 							startActivityForResult(intent, REQUEST_EXTENSION_COMPOSE);
 						} else if (INTENT_ACTION_EXTENSION_EDIT_IMAGE.equals(action)) {
-							final ComponentName cmp = intent.getComponent();
-							if (cmp == null || !hasMedia()) return false;
-							final String name = new File(mMediaUri.getPath()).getName();
-							final Uri data = Uri.withAppendedPath(CacheFiles.CONTENT_URI, Uri.encode(name));
-							intent.setData(data);
-							grantUriPermission(cmp.getPackageName(), data, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-							startActivityForResult(intent, REQUEST_EDIT_IMAGE);
+							// final ComponentName cmp = intent.getComponent();
+							// if (cmp == null || !hasMedia()) return false;
+							// final String name = new
+							// File(mMediaUri.getPath()).getName();
+							// final Uri data =
+							// Uri.withAppendedPath(CacheFiles.CONTENT_URI,
+							// Uri.encode(name));
+							// intent.setData(data);
+							// grantUriPermission(cmp.getPackageName(), data,
+							// Intent.FLAG_GRANT_READ_URI_PERMISSION);
+							// startActivityForResult(intent,
+							// REQUEST_EDIT_IMAGE);
 						} else {
 							startActivity(intent);
 						}
@@ -326,15 +323,16 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		switch (requestCode) {
 			case REQUEST_TAKE_PHOTO: {
 				if (resultCode == Activity.RESULT_OK) {
-					mTask = new CopyImageTask(this, mMediaUri, mTempPhotoUri, createTempImageUri(),
-							ATTACHED_IMAGE_TYPE_PHOTO).execute();
+					mTask = new AddMediaTask(this, mTempPhotoUri, createTempImageUri(), ParcelableMedia.TYPE_IMAGE,
+							true).execute();
+					mTempPhotoUri = null;
 				}
 				break;
 			}
 			case REQUEST_PICK_IMAGE: {
 				if (resultCode == Activity.RESULT_OK) {
 					final Uri src = intent.getData();
-					mTask = new CopyImageTask(this, mMediaUri, src, createTempImageUri(), ATTACHED_IMAGE_TYPE_IMAGE)
+					mTask = new AddMediaTask(this, src, createTempImageUri(), ParcelableMedia.TYPE_IMAGE, false)
 							.execute();
 				}
 				break;
@@ -343,8 +341,6 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 				if (resultCode == Activity.RESULT_OK) {
 					final Uri uri = intent.getData();
 					if (uri != null) {
-						mMediaUri = uri;
-						reloadAttachedImageThumbnail();
 					} else {
 						break;
 					}
@@ -364,8 +360,6 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 						mEditText.append(append);
 					}
 					if (imageUri != null) {
-						mMediaUri = imageUri;
-						reloadAttachedImageThumbnail();
 					}
 					setMenu();
 					updateTextCount();
@@ -406,7 +400,12 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 				break;
 			}
 			case R.id.send: {
-				updateStatus();
+				if (isQuotingProtectedStatus()) {
+					new RetweetProtectedStatusWarnFragment().show(getSupportFragmentManager(),
+							"retweet_protected_status_warning_message");
+				} else {
+					updateStatus();
+				}
 				break;
 			}
 		}
@@ -420,7 +419,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		mEditText = (EditText) findViewById(R.id.edit_text);
 		mTitleView = (TextView) findViewById(R.id.actionbar_title);
 		mSubtitleView = (TextView) findViewById(R.id.actionbar_subtitle);
-		mImageThumbnailPreview = (ImageView) findViewById(R.id.image_thumbnail_preview);
+		mMediasPreviewGrid = (GridView) findViewById(R.id.medias_thumbnail_preview);
 		mBottomMenuBar = (MenuBar) findViewById(R.id.bottom_menu);
 		mBottomMenuContainer = findViewById(R.id.bottom_menu_container);
 		mActionMenuBar = (MenuBar) findViewById(R.id.action_menu);
@@ -504,8 +503,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	@Override
 	public void onSaveInstanceState(final Bundle outState) {
 		outState.putLongArray(EXTRA_ACCOUNT_IDS, mSendAccountIds);
-		outState.putInt(EXTRA_ATTACHED_IMAGE_TYPE, mMediaType);
-		outState.putParcelable(EXTRA_IMAGE_URI, mMediaUri);
+		outState.putParcelableArrayList(EXTRA_MEDIAS, new ArrayList<Parcelable>(getMediasList()));
 		outState.putBoolean(EXTRA_IS_POSSIBLY_SENSITIVE, mIsPossiblySensitive);
 		outState.putParcelable(EXTRA_STATUS, mInReplyToStatus);
 		outState.putLong(EXTRA_STATUS_ID, mInReplyToStatusId);
@@ -513,6 +511,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		outState.putParcelable(EXTRA_DRAFT, mDraftItem);
 		outState.putBoolean(EXTRA_SHOULD_SAVE_ACCOUNTS, mShouldSaveAccounts);
 		outState.putString(EXTRA_ORIGINAL_TEXT, mOriginalText);
+		outState.putParcelable(EXTRA_TEMP_URI, mTempPhotoUri);
 		super.onSaveInstanceState(outState);
 	}
 
@@ -542,16 +541,21 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		return super.onTouchEvent(event);
 	}
 
+	public void removeAllMedia(final List<ParcelableMediaUpdate> list) {
+		mMediaPreviewAdapter.removeAll(list);
+		updateMediasPreview();
+	}
+
 	public void saveToDrafts() {
 		final String text = mEditText != null ? ParseUtils.parseString(mEditText.getText()) : null;
 		final ParcelableStatusUpdate.Builder builder = new ParcelableStatusUpdate.Builder();
-		builder.accountIds(mSendAccountIds);
+		builder.accounts(Account.getAccounts(this, mSendAccountIds));
 		builder.text(text);
 		builder.inReplyToStatusId(mInReplyToStatusId);
 		builder.location(mRecentLocation);
 		builder.isPossiblySensitive(mIsPossiblySensitive);
 		if (hasMedia()) {
-			builder.media(mMediaUri, mMediaType);
+			builder.medias(getMedias());
 		}
 		final ContentValues values = ContentValuesCreator.makeStatusDraftContentValues(builder.build());
 		mResolver.insert(Drafts.CONTENT_URI, values);
@@ -566,7 +570,6 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		mBottomSendButton = mPreferences.getBoolean(KEY_BOTTOM_SEND_BUTTON, false);
 		mTwitterWrapper = getTwidereApplication().getTwitterWrapper();
 		mResolver = getContentResolver();
-		mImageLoader = getTwidereApplication().getImageLoaderWrapper();
 		mValidator = new TwidereValidator(this);
 		setContentView(getLayoutInflater().inflate(R.layout.activity_compose, null));
 		setProgressBarIndeterminateVisibility(false);
@@ -591,20 +594,26 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		mAccountSelector.setScrollAfterItemClickEnabled(false);
 		mAccountSelector.setScrollRightSpacingEnabled(false);
 
+		mMediaPreviewAdapter = new MediaPreviewAdapter(this);
+		mMediasPreviewGrid.setAdapter(mMediaPreviewAdapter);
+
 		final Intent intent = getIntent();
 
 		if (savedInstanceState != null) {
 			// Restore from previous saved state
 			mSendAccountIds = savedInstanceState.getLongArray(EXTRA_ACCOUNT_IDS);
-			mMediaType = savedInstanceState.getInt(EXTRA_ATTACHED_IMAGE_TYPE, ATTACHED_IMAGE_TYPE_NONE);
 			mIsPossiblySensitive = savedInstanceState.getBoolean(EXTRA_IS_POSSIBLY_SENSITIVE);
-			mMediaUri = savedInstanceState.getParcelable(EXTRA_IMAGE_URI);
+			final ArrayList<ParcelableMediaUpdate> mediasList = savedInstanceState.getParcelableArrayList(EXTRA_MEDIAS);
+			if (mediasList != null) {
+				addMedias(mediasList);
+			}
 			mInReplyToStatus = savedInstanceState.getParcelable(EXTRA_STATUS);
 			mInReplyToStatusId = savedInstanceState.getLong(EXTRA_STATUS_ID);
 			mMentionUser = savedInstanceState.getParcelable(EXTRA_USER);
 			mDraftItem = savedInstanceState.getParcelable(EXTRA_DRAFT);
 			mShouldSaveAccounts = savedInstanceState.getBoolean(EXTRA_SHOULD_SAVE_ACCOUNTS);
 			mOriginalText = savedInstanceState.getString(EXTRA_ORIGINAL_TEXT);
+			mTempPhotoUri = savedInstanceState.getParcelable(EXTRA_TEMP_URI);
 		} else {
 			// The activity was first created
 			final int notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
@@ -626,8 +635,6 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		if (!setComposeTitle(intent)) {
 			setTitle(R.string.compose);
 		}
-
-		reloadAttachedImageThumbnail();
 
 		final boolean useBottomMenu = isSingleAccount() || !mBottomSendButton;
 		if (useBottomMenu) {
@@ -677,15 +684,14 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		mBottomMenuBar.setMaxItemsShown(maxItemsShown);
 		setMenu();
 		updateAccountSelection();
+		updateMediasPreview();
 	}
 
 	@Override
 	protected void onStart() {
 		super.onStart();
-		final String uploader_component = mPreferences.getString(KEY_IMAGE_UPLOADER, null);
-		final String shortener_component = mPreferences.getString(KEY_TWEET_SHORTENER, null);
-		mImageUploaderUsed = !isEmpty(uploader_component);
-		mTweetShortenerUsed = !isEmpty(shortener_component);
+		mImageUploaderUsed = !ServicePickerPreference.isNoneValue(mPreferences.getString(KEY_MEDIA_UPLOADER, null));
+		mStatusShortenerUsed = !ServicePickerPreference.isNoneValue(mPreferences.getString(KEY_STATUS_SHORTENER, null));
 		setMenu();
 		updateTextCount();
 		final int text_size = mPreferences.getInt(KEY_TEXT_SIZE, getDefaultTextSize(this));
@@ -705,6 +711,21 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	protected void onTitleChanged(final CharSequence title, final int color) {
 		super.onTitleChanged(title, color);
 		mTitleView.setText(title);
+	}
+
+	private void addMedia(final ParcelableMediaUpdate media) {
+		mMediaPreviewAdapter.add(media);
+		updateMediasPreview();
+	}
+
+	private void addMedias(final List<ParcelableMediaUpdate> medias) {
+		mMediaPreviewAdapter.addAll(medias);
+		updateMediasPreview();
+	}
+
+	private void clearMedia() {
+		mMediaPreviewAdapter.clear();
+		updateMediasPreview();
 	}
 
 	private Uri createTempImageUri() {
@@ -740,21 +761,29 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		return provider != null;
 	}
 
+	private ParcelableMediaUpdate[] getMedias() {
+		final List<ParcelableMediaUpdate> list = getMediasList();
+		return list.toArray(new ParcelableMediaUpdate[list.size()]);
+	}
+
+	private List<ParcelableMediaUpdate> getMediasList() {
+		return mMediaPreviewAdapter.getAsList();
+	}
+
 	private boolean handleDefaultIntent(final Intent intent) {
 		if (intent == null) return false;
 		final String action = intent.getAction();
 		mShouldSaveAccounts = !Intent.ACTION_SEND.equals(action) && !Intent.ACTION_SEND_MULTIPLE.equals(action);
 		final Uri data = intent.getData();
-		if (data != null) {
-			mMediaUri = data;
+		final CharSequence extraSubject = intent.getCharSequenceExtra(Intent.EXTRA_SUBJECT);
+		final CharSequence extraText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
+		final Uri extraStream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+		if (extraStream != null) {
+			new AddMediaTask(this, extraStream, createTempImageUri(), ParcelableMedia.TYPE_IMAGE, false).execute();
+		} else if (data != null) {
+			new AddMediaTask(this, data, createTempImageUri(), ParcelableMedia.TYPE_IMAGE, false).execute();
 		}
-		final CharSequence extra_subject = intent.getCharSequenceExtra(Intent.EXTRA_SUBJECT);
-		final CharSequence extra_text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
-		final Uri extra_stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-		if (extra_stream != null) {
-			new CopyImageTask(this, mMediaUri, extra_stream, createTempImageUri(), ATTACHED_IMAGE_TYPE_IMAGE).execute();
-		}
-		mEditText.setText(getShareStatus(this, extra_subject, extra_text));
+		mEditText.setText(getShareStatus(this, extraSubject, extraText));
 		final int selection_end = mEditText.length();
 		mEditText.setSelection(selection_end);
 		return true;
@@ -766,8 +795,9 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		final int selection_end = mEditText.length();
 		mEditText.setSelection(selection_end);
 		mSendAccountIds = draft.account_ids;
-		mMediaUri = draft.media_uri != null ? Uri.parse(draft.media_uri) : null;
-		mMediaType = draft.media_type;
+		if (draft.medias != null) {
+			addMedias(Arrays.asList(draft.medias));
+		}
 		mIsPossiblySensitive = draft.is_possibly_sensitive;
 		mInReplyToStatusId = draft.in_reply_to_status_id;
 		return true;
@@ -832,7 +862,8 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		if (!isEmpty(status.retweeted_by_screen_name)) {
 			mEditText.append("@" + status.retweeted_by_screen_name + " ");
 		}
-		final Collection<String> mentions = mExtractor.extractMentionedScreennames(status.text_plain);
+		final Collection<String> mentions = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+		mentions.addAll(mExtractor.extractMentionedScreennames(status.text_plain));
 		for (final String mention : mentions) {
 			if (mention.equalsIgnoreCase(status.user_screen_name) || mention.equalsIgnoreCase(myScreenName)
 					|| mention.equalsIgnoreCase(status.retweeted_by_screen_name)) {
@@ -864,8 +895,13 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	}
 
 	private boolean hasMedia() {
-		final String path = mMediaUri != null ? mMediaUri.getPath() : null;
-		return path != null && new File(path).exists();
+		return !mMediaPreviewAdapter.isEmpty();
+	}
+
+	private boolean isQuotingProtectedStatus() {
+		if (INTENT_ACTION_QUOTE.equals(getIntent().getAction()) && mInReplyToStatus != null)
+			return mInReplyToStatus.user_is_protected && mInReplyToStatus.account_id != mInReplyToStatus.user_id;
+		return false;
 	}
 
 	private boolean isSingleAccount() {
@@ -880,7 +916,8 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	}
 
 	private void pickImage() {
-		final Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+		final Intent intent = new Intent(Intent.ACTION_PICK);
+		intent.setType("image/*");
 		intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 		try {
 			startActivityForResult(intent, REQUEST_PICK_IMAGE);
@@ -889,15 +926,8 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		}
 	}
 
-	private void reloadAttachedImageThumbnail() {
-		final boolean has_media = hasMedia();
-		mImageThumbnailPreview.setVisibility(has_media ? View.VISIBLE : View.GONE);
-		mImageLoader.displayPreviewImage(mImageThumbnailPreview, has_media ? mMediaUri.toString() : null);
-	}
-
 	private void setCommonMenu(final Menu menu) {
 		final boolean hasMedia = hasMedia();
-		final int activatedColor = getUserThemeColor(this);
 		// final MenuItem itemAddImageSubmenu =
 		// menu.findItem(R.id.add_image_submenu);
 		// if (itemAddImageSubmenu != null) {
@@ -909,41 +939,14 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		// iconAddImage.clearColorFilter();
 		// }
 		// }
-		final MenuItem itemAddImage = menu.findItem(MENU_ADD_IMAGE);
-		if (itemAddImage != null) {
-			final Drawable iconAddImage = itemAddImage.getIcon().mutate();
-			if (mMediaType == ATTACHED_IMAGE_TYPE_IMAGE) {
-				iconAddImage.setColorFilter(activatedColor, Mode.SRC_ATOP);
-				itemAddImage.setTitle(R.string.remove_image);
-			} else {
-				iconAddImage.clearColorFilter();
-				itemAddImage.setTitle(R.string.add_image);
-			}
-		}
-		final MenuItem itemTakePhoto = menu.findItem(MENU_TAKE_PHOTO);
-		if (itemTakePhoto != null) {
-			final Drawable iconTakePhoto = itemTakePhoto.getIcon().mutate();
-			if (mMediaType == ATTACHED_IMAGE_TYPE_PHOTO) {
-				iconTakePhoto.setColorFilter(activatedColor, Mode.SRC_ATOP);
-				itemTakePhoto.setTitle(R.string.remove_photo);
-			} else {
-				iconTakePhoto.clearColorFilter();
-				itemTakePhoto.setTitle(R.string.take_photo);
-			}
-		}
 		final MenuItem itemAttachLocation = menu.findItem(MENU_ADD_LOCATION);
 		if (itemAttachLocation != null) {
-			final Drawable iconAttachLocation = itemAttachLocation.getIcon().mutate();
-			final boolean attach_location = mPreferences.getBoolean(KEY_ATTACH_LOCATION, false);
-			if (attach_location && getLocation()) {
-				iconAttachLocation.setColorFilter(activatedColor, Mode.SRC_ATOP);
-				itemAttachLocation.setTitle(R.string.remove_location);
+			final boolean attachLocation = mPreferences.getBoolean(KEY_ATTACH_LOCATION, false);
+			if (attachLocation && getLocation()) {
 				itemAttachLocation.setChecked(true);
 			} else {
 				setProgressVisibility(false);
 				mPreferences.edit().putBoolean(KEY_ATTACH_LOCATION, false).commit();
-				iconAttachLocation.clearColorFilter();
-				itemAttachLocation.setTitle(R.string.add_location);
 				itemAttachLocation.setChecked(false);
 			}
 		}
@@ -951,28 +954,14 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		if (viewItem != null) {
 			viewItem.setVisible(mInReplyToStatus != null);
 		}
-		for (int i = 0, j = menu.size(); i < j; i++) {
-			final MenuItem item = menu.getItem(i);
-			if (item.getGroupId() == MENU_GROUP_IMAGE_EXTENSION) {
-				item.setVisible(hasMedia);
-				item.setEnabled(hasMedia);
-			}
-		}
+		menu.setGroupEnabled(MENU_GROUP_IMAGE_EXTENSION, hasMedia);
+		menu.setGroupVisible(MENU_GROUP_IMAGE_EXTENSION, hasMedia);
 		final MenuItem itemToggleSensitive = menu.findItem(MENU_TOGGLE_SENSITIVE);
 		if (itemToggleSensitive != null) {
 			itemToggleSensitive.setVisible(hasMedia);
-			if (hasMedia) {
-				final Drawable iconToggleSensitive = itemToggleSensitive.getIcon().mutate();
-				if (mIsPossiblySensitive) {
-					itemToggleSensitive.setTitle(R.string.remove_sensitive_mark);
-					iconToggleSensitive.setColorFilter(activatedColor, Mode.SRC_ATOP);
-				} else {
-					itemToggleSensitive.setTitle(R.string.mark_as_sensitive);
-					iconToggleSensitive.clearColorFilter();
-				}
-			}
+			itemToggleSensitive.setEnabled(hasMedia);
+			itemToggleSensitive.setChecked(hasMedia && mIsPossiblySensitive);
 		}
-		Utils.setMenuItemAvailability(menu, MENU_DELETE_SUBMENU, hasMedia);
 	}
 
 	private boolean setComposeTitle(final Intent intent) {
@@ -1049,12 +1038,19 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		mColorIndicator.drawEnd(getAccountColors(this, mSendAccountIds));
 	}
 
+	private void updateMediasPreview() {
+		final int count = mMediaPreviewAdapter.getCount();
+		final Resources res = getResources();
+		final int maxColumns = res.getInteger(R.integer.grid_column_image_preview);
+		mMediasPreviewGrid.setNumColumns(MathUtils.clamp(count, maxColumns, 1));
+	}
+
 	private void updateStatus() {
 		if (isFinishing()) return;
 		final boolean hasMedia = hasMedia();
 		final String text = mEditText != null ? ParseUtils.parseString(mEditText.getText()) : null;
 		final int tweetLength = mValidator.getTweetLength(text), maxLength = mValidator.getMaxTweetLength();
-		if (!mTweetShortenerUsed && tweetLength > maxLength) {
+		if (!mStatusShortenerUsed && tweetLength > maxLength) {
 			mEditText.setError(getString(R.string.error_message_status_too_long));
 			final int text_length = mEditText.length();
 			mEditText.setSelection(text_length - (tweetLength - maxLength), text_length);
@@ -1078,26 +1074,24 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		final boolean linkToQuotedTweet = mPreferences.getBoolean(KEY_LINK_TO_QUOTED_TWEET, true);
 		final long inReplyToStatusId = !isQuote || linkToQuotedTweet ? mInReplyToStatusId : -1;
 		final boolean isPossiblySensitive = hasMedia && mIsPossiblySensitive;
-		mTwitterWrapper.updateStatusAsync(mSendAccountIds, text, statusLocation, mMediaUri, mMediaType,
-				inReplyToStatusId, isPossiblySensitive);
+		mTwitterWrapper.updateStatusAsync(mSendAccountIds, text, statusLocation, getMedias(), inReplyToStatusId,
+				isPossiblySensitive);
 		if (mPreferences.getBoolean(KEY_NO_CLOSE_AFTER_TWEET_SENT, false)
 				&& (mInReplyToStatus == null || mInReplyToStatusId <= 0)) {
-			mMediaType = ATTACHED_IMAGE_TYPE_NONE;
 			mIsPossiblySensitive = false;
 			mShouldSaveAccounts = true;
-			mMediaUri = null;
 			mTempPhotoUri = null;
 			mInReplyToStatus = null;
 			mMentionUser = null;
 			mDraftItem = null;
 			mInReplyToStatusId = -1;
 			mOriginalText = null;
+			mEditText.setText(null);
+			clearMedia();
 			final Intent intent = new Intent(INTENT_ACTION_COMPOSE);
 			setIntent(intent);
 			setComposeTitle(intent);
 			handleIntent(intent);
-			reloadAttachedImageThumbnail();
-			mEditText.setText(null);
 			setMenu();
 			updateTextCount();
 		} else {
@@ -1114,6 +1108,34 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 					new String[] { FAKE_IMAGE_LINK }, textOrig) : textOrig + " " + FAKE_IMAGE_LINK : textOrig;
 			final int validatedCount = text != null ? mValidator.getTweetLength(text) : 0;
 			textCountView.setTextCount(validatedCount);
+		}
+	}
+
+	public static class RetweetProtectedStatusWarnFragment extends BaseSupportDialogFragment implements
+			DialogInterface.OnClickListener {
+
+		@Override
+		public void onClick(final DialogInterface dialog, final int which) {
+			final Activity activity = getActivity();
+			switch (which) {
+				case DialogInterface.BUTTON_POSITIVE: {
+					if (activity instanceof ComposeActivity) {
+						((ComposeActivity) activity).updateStatus();
+					}
+					break;
+				}
+			}
+
+		}
+
+		@Override
+		public Dialog onCreateDialog(final Bundle savedInstanceState) {
+			final Context wrapped = ThemeUtils.getDialogThemedContext(getActivity());
+			final AlertDialog.Builder builder = new AlertDialog.Builder(wrapped);
+			builder.setMessage(R.string.quote_protected_status_warning_message);
+			builder.setPositiveButton(R.string.send_anyway, this);
+			builder.setNegativeButton(android.R.string.cancel, null);
+			return builder.create();
 		}
 	}
 
@@ -1189,6 +1211,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 			final String retweeted_by_screen_name = status.retweeted_by_screen_name;
 
 			final boolean is_my_status = status.account_id == status.user_id;
+			final boolean hasMedia = status.medias != null && status.medias.length > 0;
 			mHolder.setUserColor(getUserColor(getActivity(), status.user_id, true));
 			mHolder.setHighlightColor(getCardHighlightColor(false, status.is_favorite, status.is_retweet));
 
@@ -1197,8 +1220,8 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 			mHolder.name.setCompoundDrawablesWithIntrinsicBounds(0, 0,
 					getUserTypeIconRes(status.user_is_verified, status.user_is_protected), 0);
 			mHolder.time.setTime(status.timestamp);
-			final int type_icon = getStatusTypeIconRes(status.is_favorite, isValidLocation(status.location),
-					status.has_media, status.is_possibly_sensitive);
+			final int type_icon = getStatusTypeIconRes(status.is_favorite, isValidLocation(status.location), hasMedia,
+					status.is_possibly_sensitive);
 			mHolder.time.setCompoundDrawablesWithIntrinsicBounds(0, 0, type_icon, 0);
 			mHolder.reply_retweet_status
 					.setVisibility(status.in_reply_to_status_id != -1 || status.is_retweet ? View.VISIBLE : View.GONE);
@@ -1247,7 +1270,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		private final LongSparseArray<Boolean> mAccountSelectStates = new LongSparseArray<Boolean>();
 
 		public AccountSelectorAdapter(final Context context) {
-			super(context, R.layout.gallery_item_compose_account, Account.getAccounts(context, false));
+			super(context, R.layout.gallery_item_compose_account, Account.getAccountsList(context, false));
 		}
 
 		public void clearAccountSelection() {
@@ -1284,18 +1307,20 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 
 	}
 
-	private static class CopyImageTask extends AsyncTask<Void, Void, Boolean> {
+	private static class AddMediaTask extends AsyncTask<Void, Void, Boolean> {
 
 		private final ComposeActivity activity;
-		private final int image_type;
-		private final Uri old, src, dst;
+		private final int media_type;
+		private final Uri src, dst;
+		private final boolean delete_src;
 
-		CopyImageTask(final ComposeActivity activity, final Uri old, final Uri src, final Uri dst, final int image_type) {
+		AddMediaTask(final ComposeActivity activity, final Uri src, final Uri dst, final int media_type,
+				final boolean delete_src) {
 			this.activity = activity;
-			this.old = old;
 			this.src = src;
 			this.dst = dst;
-			this.image_type = image_type;
+			this.media_type = media_type;
+			this.delete_src = delete_src;
 		}
 
 		@Override
@@ -1306,10 +1331,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 				final OutputStream os = resolver.openOutputStream(dst);
 				copyStream(is, os);
 				os.close();
-				if (old != null && !old.equals(dst) && ContentResolver.SCHEME_FILE.equals(old.getScheme())) {
-					new File(old.getPath()).delete();
-				}
-				if (ContentResolver.SCHEME_FILE.equals(src.getScheme()) && image_type == ATTACHED_IMAGE_TYPE_PHOTO) {
+				if (ContentResolver.SCHEME_FILE.equals(src.getScheme()) && delete_src) {
 					new File(src.getPath()).delete();
 				}
 			} catch (final Exception e) {
@@ -1321,9 +1343,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		@Override
 		protected void onPostExecute(final Boolean result) {
 			activity.setProgressVisibility(false);
-			activity.mMediaUri = dst;
-			activity.mMediaType = image_type;
-			activity.reloadAttachedImageThumbnail();
+			activity.addMedia(new ParcelableMediaUpdate(dst.toString(), media_type));
 			activity.setMenu();
 			activity.updateTextCount();
 			if (!result) {
@@ -1337,26 +1357,22 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		}
 	}
 
-	private static class DeleteImageTask extends AsyncTask<Uri, Void, Boolean> {
+	private static class DeleteImageTask extends AsyncTask<Void, Void, Boolean> {
 
 		final ComposeActivity activity;
+		private final ParcelableMediaUpdate[] medias;
 
-		DeleteImageTask(final ComposeActivity activity) {
+		DeleteImageTask(final ComposeActivity activity, final ParcelableMediaUpdate... medias) {
 			this.activity = activity;
+			this.medias = medias;
 		}
 
 		@Override
-		protected Boolean doInBackground(final Uri... params) {
-			if (params == null) return false;
+		protected Boolean doInBackground(final Void... params) {
+			if (medias == null) return false;
 			try {
-				final Uri uri = activity.mMediaUri;
-				if (uri != null && ContentResolver.SCHEME_FILE.equals(uri.getScheme())) {
-					new File(uri.getPath()).delete();
-				}
-				for (final Uri target : params) {
-					if (target == null) {
-						continue;
-					}
+				for (final ParcelableMediaUpdate media : medias) {
+					final Uri target = Uri.parse(media.uri);
 					if (ContentResolver.SCHEME_FILE.equals(target.getScheme())) {
 						new File(target.getPath()).delete();
 					}
@@ -1370,11 +1386,8 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		@Override
 		protected void onPostExecute(final Boolean result) {
 			activity.setProgressVisibility(false);
-			activity.mMediaUri = null;
-			activity.mMediaType = ATTACHED_IMAGE_TYPE_NONE;
-			activity.mIsPossiblySensitive = false;
+			activity.removeAllMedia(Arrays.asList(medias));
 			activity.setMenu();
-			activity.reloadAttachedImageThumbnail();
 			if (!result) {
 				Crouton.showText(activity, R.string.error_occurred, CroutonStyle.ALERT);
 			}
@@ -1396,11 +1409,13 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 
 		@Override
 		protected Void doInBackground(final Void... params) {
-			final Uri uri = activity.mMediaUri;
 			try {
-				if (uri == null) return null;
-				if (ContentResolver.SCHEME_FILE.equals(uri.getScheme())) {
-					new File(uri.getPath()).delete();
+				for (final ParcelableMediaUpdate media : activity.getMediasList()) {
+					final Uri uri = Uri.parse(media.uri);
+					if (uri == null) return null;
+					if (ContentResolver.SCHEME_FILE.equals(uri.getScheme())) {
+						new File(uri.getPath()).delete();
+					}
 				}
 			} catch (final Exception e) {
 			}
@@ -1417,5 +1432,25 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		protected void onPreExecute() {
 			activity.setProgressVisibility(true);
 		}
+	}
+
+	private static class MediaPreviewAdapter extends DraggableArrayAdapter<ParcelableMediaUpdate> {
+
+		private final ImageLoaderWrapper mImageLoader;
+
+		public MediaPreviewAdapter(final Context context) {
+			super(context, R.layout.grid_item_media_editor);
+			mImageLoader = TwidereApplication.getInstance(context).getImageLoaderWrapper();
+		}
+
+		@Override
+		public View getView(final int position, final View convertView, final ViewGroup parent) {
+			final View view = super.getView(position, convertView, parent);
+			final ParcelableMediaUpdate media = getItem(position);
+			final ImageView image = (ImageView) view.findViewById(R.id.image);
+			mImageLoader.displayPreviewImage(image, media.uri);
+			return view;
+		}
+
 	}
 }

@@ -195,12 +195,12 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_NOTIFICATION_RINGTONE = "notification_ringtone";
 	public static final String KEY_NOTIFICATION_LIGHT_COLOR = "notification_light_color";
 	public static final String KEY_SHARE_FORMAT = "share_format";
-	public static final String KEY_IMAGE_UPLOADER = "image_uploader";
 	public static final String KEY_HOME_REFRESH_MENTIONS = "home_refresh_mentions";
 	public static final String KEY_HOME_REFRESH_DIRECT_MESSAGES = "home_refresh_direct_messages";
 	public static final String KEY_HOME_REFRESH_TRENDS = "home_refresh_trends";
 	public static final String KEY_IMAGE_UPLOAD_FORMAT = "image_upload_format";
-	public static final String KEY_TWEET_SHORTENER = "tweet_shortener";
+	public static final String KEY_STATUS_SHORTENER = "status_shortener";
+	public static final String KEY_MEDIA_UPLOADER = "media_uploader";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_SHOW_ABSOLUTE_TIME = "show_absolute_time";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
@@ -252,6 +252,8 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_SIGNING_REST_BASE_URL = "signing_rest_base_url";
 	@Preference(type = STRING, hasDefault = true, defaultString = "https://api.twitter.com/oauth/")
 	public static final String KEY_SIGNING_OAUTH_BASE_URL = "signing_oauth_base_url";
+	@Preference(type = STRING, hasDefault = false)
+	public static final String KEY_JTAPI_HOSTNAME = "jtapi_hostname";
 	@Preference(type = INT, hasDefault = true, defaultInt = Accounts.AUTH_TYPE_OAUTH)
 	public static final String KEY_AUTH_TYPE = "auth_type";
 	@Preference(type = STRING, hasDefault = true, defaultString = TwidereConstants.TWITTER_CONSUMER_KEY_2)
@@ -271,11 +273,13 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_NOTIFICATION_TYPE_HOME = "notification_type_home";
 	public static final String KEY_NOTIFICATION_TYPE_MENTIONS = "notification_type_mentions";
 	public static final String KEY_NOTIFICATION_TYPE_DIRECT_MESSAGES = "notification_type_direct_messages";
+	public static final String KEY_MY_FOLLOWING_ONLY = "my_following_only";
+
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_COMPACT_CARDS = "compact_cards";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_LONG_CLICK_TO_OPEN_MENU = "long_click_to_open_menu";
-	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = true)
+	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_SWIPE_BACK = "swipe_back";
 	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
 	public static final String KEY_FORCE_USING_PRIVATE_APIS = "force_using_private_apis";
@@ -286,6 +290,12 @@ public interface SharedPreferenceConstants {
 	public static final String KEY_FALLBACK_TWITTER_LINK_HANDLER = "fallback_twitter_link_handler";
 	@Preference(type = STRING, hasDefault = true, defaultString = "CENTER_CROP")
 	public static final String KEY_IMAGE_PREVIEW_SCALE_TYPE = "image_preview_scale_type";
+	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = false)
+	public static final String KEY_PLAIN_LIST_STYLE = "plain_list_style";
+	@Preference(type = BOOLEAN, hasDefault = true, defaultBoolean = true)
+	public static final String KEY_DARK_DRAWER = "dark_drawer";
+
+	public static final String KEY_QUICK_MENU_EXPANDED = "quick_menu_expanded";
 
 	@Preference(type = STRING)
 	public static final String KEY_TRANSLATION_DESTINATION = "translation_destination";

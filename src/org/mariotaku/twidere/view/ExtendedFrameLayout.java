@@ -24,9 +24,9 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.widget.FrameLayout;
 
-import org.mariotaku.twidere.view.iface.IExtendedViewGroup;
+import org.mariotaku.twidere.view.iface.IExtendedView;
 
-public class ExtendedFrameLayout extends FrameLayout implements IExtendedViewGroup {
+public class ExtendedFrameLayout extends FrameLayout implements IExtendedView {
 
 	private TouchInterceptor mTouchInterceptor;
 	private OnSizeChangedListener mOnSizeChangedListener;
@@ -44,11 +44,12 @@ public class ExtendedFrameLayout extends FrameLayout implements IExtendedViewGro
 	}
 
 	@Override
-	public final boolean dispatchTouchEvent(final MotionEvent ev) {
+	public final boolean dispatchTouchEvent(final MotionEvent event) {
 		if (mTouchInterceptor != null) {
-			mTouchInterceptor.dispatchTouchEvent(this, ev);
+			final boolean ret = mTouchInterceptor.dispatchTouchEvent(this, event);
+			if (ret) return true;
 		}
-		return super.dispatchTouchEvent(ev);
+		return super.dispatchTouchEvent(event);
 	}
 
 	@Override

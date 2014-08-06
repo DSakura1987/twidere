@@ -22,6 +22,7 @@ package org.mariotaku.twidere.adapter;
 import static org.mariotaku.twidere.util.Utils.configBaseCardAdapter;
 import static org.mariotaku.twidere.util.Utils.findDirectMessageInDatabases;
 import static org.mariotaku.twidere.util.Utils.formatToLongTimeString;
+import static org.mariotaku.twidere.util.Utils.openImage;
 import static org.mariotaku.twidere.util.Utils.openUserProfile;
 
 import android.app.Activity;
@@ -31,27 +32,32 @@ import android.text.Html;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.widget.ImageView.ScaleType;
 
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.adapter.iface.IDirectMessagesAdapter;
 import org.mariotaku.twidere.app.TwidereApplication;
 import org.mariotaku.twidere.model.ParcelableDirectMessage;
 import org.mariotaku.twidere.util.ImageLoaderWrapper;
+import org.mariotaku.twidere.util.ImageLoadingHandler;
 import org.mariotaku.twidere.util.MultiSelectManager;
 import org.mariotaku.twidere.view.holder.DirectMessageConversationViewHolder;
 
+import java.util.Locale;
+
 public class DirectMessagesConversationAdapter extends BaseCursorAdapter implements IDirectMessagesAdapter,
 		OnClickListener {
+	private ScaleType mImagePreviewScaleType;
 
 	private final ImageLoaderWrapper mImageLoader;
 	private final Context mContext;
 	private final MultiSelectManager mMultiSelectManager;
-
 	private MenuButtonClickListener mListener;
+	private final ImageLoadingHandler mImageLoadingHandler;
 
 	private boolean mAnimationEnabled = true;
-	private int mMaxAnimationPosition;
 
+	private int mMaxAnimationPosition;
 	private ParcelableDirectMessage.CursorIndices mIndices;
 
 	public DirectMessagesConversationAdapter(final Context context) {
@@ -60,6 +66,8 @@ public class DirectMessagesConversationAdapter extends BaseCursorAdapter impleme
 		final TwidereApplication app = TwidereApplication.getInstance(context);
 		mMultiSelectManager = app.getMultiSelectManager();
 		mImageLoader = app.getImageLoaderWrapper();
+		mImageLoadingHandler = new ImageLoadingHandler(R.id.incoming_image_preview_progress,
+				R.id.outgoing_image_preview_progress);
 		configBaseCardAdapter(context, this);
 	}
 
@@ -67,6 +75,9 @@ public class DirectMessagesConversationAdapter extends BaseCursorAdapter impleme
 	public void bindView(final View view, final Context context, final Cursor cursor) {
 		final int position = cursor.getPosition();
 		final DirectMessageConversationViewHolder holder = (DirectMessageConversationViewHolder) view.getTag();
+
+		final String firstMedia = cursor.getString(mIndices.first_media);
+
 		final boolean displayProfileImage = isDisplayProfileImage();
 		final long accountId = cursor.getLong(mIndices.account_id);
 		final long timestamp = cursor.getLong(mIndices.message_timestamp);
@@ -104,6 +115,35 @@ public class DirectMessagesConversationAdapter extends BaseCursorAdapter impleme
 		}
 		holder.incoming_item_menu.setTag(position);
 		holder.outgoing_item_menu.setTag(position);
+
+		if (firstMedia == null) {
+			holder.outgoing_image_preview_container.setVisibility(View.GONE);
+			holder.incoming_image_preview_container.setVisibility(View.GONE);
+		} else if (is_outgoing) {
+			holder.outgoing_image_preview_container.setVisibility(View.VISIBLE);
+			holder.incoming_image_preview_container.setVisibility(View.GONE);
+			if (mImagePreviewScaleType != null) {
+				holder.outgoing_image_preview.setScaleType(mImagePreviewScaleType);
+			}
+			if (!firstMedia.equals(mImageLoadingHandler.getLoadingUri(holder.outgoing_image_preview))) {
+				holder.outgoing_image_preview.setBackgroundResource(0);
+				mImageLoader.displayPreviewImageWithCredentials(holder.outgoing_image_preview, firstMedia, accountId,
+						mImageLoadingHandler);
+			}
+			holder.outgoing_image_preview.setTag(position);
+		} else {
+			holder.outgoing_image_preview_container.setVisibility(View.GONE);
+			holder.incoming_image_preview_container.setVisibility(View.VISIBLE);
+			if (mImagePreviewScaleType != null) {
+				holder.incoming_image_preview.setScaleType(mImagePreviewScaleType);
+			}
+			if (!firstMedia.equals(mImageLoadingHandler.getLoadingUri(holder.incoming_image_preview))) {
+				holder.incoming_image_preview.setBackgroundResource(0);
+				mImageLoader.displayPreviewImageWithCredentials(holder.incoming_image_preview, firstMedia, accountId,
+						mImageLoadingHandler);
+			}
+			holder.incoming_image_preview.setTag(position);
+		}
 		super.bindView(view, context, cursor);
 	}
 
@@ -130,11 +170,13 @@ public class DirectMessagesConversationAdapter extends BaseCursorAdapter impleme
 		final Object tag = view.getTag();
 		if (!(tag instanceof DirectMessageConversationViewHolder)) {
 			final DirectMessageConversationViewHolder holder = new DirectMessageConversationViewHolder(view);
-			view.setTag(holder);
 			holder.incoming_profile_image.setOnClickListener(this);
 			holder.outgoing_profile_image.setOnClickListener(this);
 			holder.incoming_item_menu.setOnClickListener(this);
 			holder.outgoing_item_menu.setOnClickListener(this);
+			holder.incoming_image_preview.setOnClickListener(this);
+			holder.outgoing_image_preview.setOnClickListener(this);
+			view.setTag(holder);
 		}
 		return view;
 	}
@@ -162,13 +204,30 @@ public class DirectMessagesConversationAdapter extends BaseCursorAdapter impleme
 				mListener.onMenuButtonClick(view, position, getItemId(position));
 				break;
 			}
+			case R.id.incoming_image_preview:
+			case R.id.outgoing_image_preview: {
+				if (position == -1) return;
+				final ParcelableDirectMessage message = getDirectMessage(position);
+				if (message == null || message.first_media == null) return;
+				openImage(mContext, message.account_id, message.first_media, false);
+			}
 		}
 	}
 
 	@Override
 	public void setAnimationEnabled(final boolean anim) {
-		if (mAnimationEnabled == anim) return;
 		mAnimationEnabled = anim;
+	}
+
+	@Override
+	public void setDisplayImagePreview(final boolean display) {
+		// Images in DM are always enabled
+	}
+
+	@Override
+	public void setImagePreviewScaleType(final String scaleTypeString) {
+		final ScaleType scaleType = ScaleType.valueOf(scaleTypeString.toUpperCase(Locale.US));
+		mImagePreviewScaleType = scaleType;
 	}
 
 	@Override

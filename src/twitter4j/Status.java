@@ -43,6 +43,8 @@ public interface Status extends Comparable<Status>, TwitterResponse, EntitySuppo
 
 	long getCurrentUserRetweet();
 
+	long getFavoriteCount();
+
 	/**
 	 * Returns The location that this tweet refers to if available.
 	 * 

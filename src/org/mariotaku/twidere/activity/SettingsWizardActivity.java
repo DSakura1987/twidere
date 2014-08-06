@@ -54,7 +54,7 @@ import org.mariotaku.twidere.fragment.BasePreferenceFragment;
 import org.mariotaku.twidere.fragment.ProgressDialogFragment;
 import org.mariotaku.twidere.fragment.support.DirectMessagesFragment;
 import org.mariotaku.twidere.fragment.support.HomeTimelineFragment;
-import org.mariotaku.twidere.fragment.support.MentionsFragment;
+import org.mariotaku.twidere.fragment.support.MentionsTimelineFragment;
 import org.mariotaku.twidere.model.CustomTabConfiguration;
 import org.mariotaku.twidere.model.SupportTabSpec;
 import org.mariotaku.twidere.preference.WizardPageHeaderPreference;
@@ -289,7 +289,7 @@ public class SettingsWizardActivity extends Activity implements Constants {
 		@Override
 		public View onCreateView(final LayoutInflater inflater, final ViewGroup container,
 				final Bundle savedInstanceState) {
-			final View view = inflater.inflate(R.layout.wizard_page_finished, container, false);
+			final View view = inflater.inflate(R.layout.fragment_wizard_page_finished, container, false);
 			view.findViewById(R.id.exit_wizard).setOnClickListener(this);
 			return view;
 		}
@@ -515,7 +515,6 @@ public class SettingsWizardActivity extends Activity implements Constants {
 				final ContentValues values = new ContentValues();
 				final CustomTabConfiguration conf = CustomTabUtils.getTabConfiguration(type);
 				values.put(Tabs.TYPE, type);
-				values.put(Tabs.NAME, mActivity.getString(conf.getDefaultTitle()));
 				values.put(Tabs.ICON, CustomTabUtils.findTabIconKey(conf.getDefaultIcon()));
 				values.put(Tabs.POSITION, i++);
 				values_list.add(values);
@@ -563,7 +562,8 @@ public class SettingsWizardActivity extends Activity implements Constants {
 
 		private boolean wasConfigured(final List<SupportTabSpec> tabs) {
 			for (final SupportTabSpec spec : tabs) {
-				if (classEquals(spec.cls, HomeTimelineFragment.class) || classEquals(spec.cls, MentionsFragment.class)
+				if (classEquals(spec.cls, HomeTimelineFragment.class)
+						|| classEquals(spec.cls, MentionsTimelineFragment.class)
 						|| classEquals(spec.cls, DirectMessagesFragment.class)) return true;
 			}
 			return false;

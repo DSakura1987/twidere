@@ -21,6 +21,7 @@ package org.mariotaku.twidere.util;
 
 import android.graphics.Bitmap;
 import android.view.View;
+import android.view.ViewParent;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 
@@ -36,6 +37,15 @@ import java.util.Map;
 public class ImageLoadingHandler implements ImageLoadingListener, ImageLoadingProgressListener {
 
 	private final Map<View, String> mLoadingUris = new HashMap<View, String>();
+	private final int[] mProgressBarIds;
+
+	public ImageLoadingHandler() {
+		this(R.id.image_preview_progress);
+	}
+
+	public ImageLoadingHandler(final int... progressBarIds) {
+		mProgressBarIds = progressBarIds;
+	}
 
 	public String getLoadingUri(final View view) {
 		return mLoadingUris.get(view);
@@ -45,8 +55,7 @@ public class ImageLoadingHandler implements ImageLoadingListener, ImageLoadingPr
 	public void onLoadingCancelled(final String imageUri, final View view) {
 		if (view == null || imageUri == null || imageUri.equals(mLoadingUris.get(view))) return;
 		mLoadingUris.remove(view);
-		final View parent = (View) view.getParent();
-		final View progress = parent.findViewById(R.id.image_preview_progress);
+		final ProgressBar progress = findProgressBar(view.getParent());
 		if (progress != null) {
 			progress.setVisibility(View.GONE);
 		}
@@ -56,8 +65,7 @@ public class ImageLoadingHandler implements ImageLoadingListener, ImageLoadingPr
 	public void onLoadingComplete(final String imageUri, final View view, final Bitmap bitmap) {
 		if (view == null) return;
 		mLoadingUris.remove(view);
-		final View parent = (View) view.getParent();
-		final View progress = parent.findViewById(R.id.image_preview_progress);
+		final ProgressBar progress = findProgressBar(view.getParent());
 		if (progress != null) {
 			progress.setVisibility(View.GONE);
 		}
@@ -82,8 +90,7 @@ public class ImageLoadingHandler implements ImageLoadingListener, ImageLoadingPr
 	public void onLoadingStarted(final String imageUri, final View view) {
 		if (view == null || imageUri == null || imageUri.equals(mLoadingUris.get(view))) return;
 		mLoadingUris.put(view, imageUri);
-		final View parent = (View) view.getParent();
-		final ProgressBar progress = (ProgressBar) parent.findViewById(R.id.image_preview_progress);
+		final ProgressBar progress = findProgressBar(view.getParent());
 		if (progress != null) {
 			progress.setVisibility(View.VISIBLE);
 			progress.setIndeterminate(true);
@@ -94,11 +101,20 @@ public class ImageLoadingHandler implements ImageLoadingListener, ImageLoadingPr
 	@Override
 	public void onProgressUpdate(final String imageUri, final View view, final int current, final int total) {
 		if (total == 0 || view == null) return;
-		final View parent = (View) view.getParent();
-		final ProgressBar progress = (ProgressBar) parent.findViewById(R.id.image_preview_progress);
+		final ProgressBar progress = findProgressBar(view.getParent());
 		if (progress != null) {
 			progress.setIndeterminate(false);
 			progress.setProgress(100 * current / total);
 		}
+	}
+
+	private ProgressBar findProgressBar(final ViewParent viewParent) {
+		if (mProgressBarIds == null || !(viewParent instanceof View)) return null;
+		final View parent = (View) viewParent;
+		for (final int id : mProgressBarIds) {
+			final View progress = parent.findViewById(id);
+			if (progress instanceof ProgressBar) return (ProgressBar) progress;
+		}
+		return null;
 	}
 }

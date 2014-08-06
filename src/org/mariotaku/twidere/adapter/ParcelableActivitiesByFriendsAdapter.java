@@ -34,8 +34,9 @@ import org.mariotaku.twidere.view.holder.ActivityViewHolder;
 
 public class ParcelableActivitiesByFriendsAdapter extends BaseParcelableActivitiesAdapter {
 
-	public ParcelableActivitiesByFriendsAdapter(final Context context) {
-		super(context);
+	public ParcelableActivitiesByFriendsAdapter(final Context context, final boolean compactCards,
+			final boolean plainList) {
+		super(context, compactCards, plainList);
 	}
 
 	@Override

@@ -346,8 +346,8 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 				}
 				case VIRTUAL_TABLE_ID_PERMISSIONS: {
 					final MatrixCursor c = new MatrixCursor(TweetStore.Permissions.MATRIX_COLUMNS);
-					final Map<String, Integer> map = mPermissionsManager.getAll();
-					for (final Map.Entry<String, Integer> item : map.entrySet()) {
+					final Map<String, String> map = mPermissionsManager.getAll();
+					for (final Map.Entry<String, String> item : map.entrySet()) {
 						c.addRow(new Object[] { item.getKey(), item.getValue() });
 					}
 					return c;
@@ -479,8 +479,8 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		builder.setDefaults(defaults);
 	}
 
-	private boolean checkPermission(final int level) {
-		return mPermissionsManager.checkCallingPermission(level);
+	private boolean checkPermission(final String... permissions) {
+		return mPermissionsManager.checkCallingPermission(permissions);
 	}
 
 	private void checkReadPermission(final int id, final String table, final String[] projection) {
@@ -810,8 +810,17 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 			replyIntent.putExtra(EXTRA_NOTIFICATION_ACCOUNT, accountId);
 			replyIntent.putExtra(EXTRA_STATUS, firstItem);
 			replyIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			final Uri.Builder viewProfileBuilder = new Uri.Builder();
+			viewProfileBuilder.scheme(SCHEME_TWIDERE);
+			viewProfileBuilder.authority(AUTHORITY_USER);
+			viewProfileBuilder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(firstItem.account_id));
+			viewProfileBuilder.appendQueryParameter(QUERY_PARAM_USER_ID, String.valueOf(firstItem.user_id));
+			final Intent viewProfileIntent = new Intent(Intent.ACTION_VIEW, viewProfileBuilder.build());
+			viewProfileIntent.setPackage(APP_PACKAGE_NAME);
 			notifBuilder.addAction(R.drawable.ic_action_reply, context.getString(R.string.reply),
 					PendingIntent.getActivity(context, 0, replyIntent, PendingIntent.FLAG_UPDATE_CURRENT));
+			notifBuilder.addAction(R.drawable.ic_action_profile, context.getString(R.string.view_user_profile),
+					PendingIntent.getActivity(context, 0, viewProfileIntent, PendingIntent.FLAG_UPDATE_CURRENT));
 			final NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle(notifBuilder);
 			bigTextStyle.bigText(stripMentionText(firstItem.text_unescaped,
 					getAccountScreenName(context, firstItem.account_id)));
@@ -1005,7 +1014,7 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		return result;
 	}
 
-	private int notifyMentionsInserted(final ContentValues... values) {
+	private int notifyMentionsInserted(final AccountPreferences[] prefs, final ContentValues... values) {
 		if (values == null || values.length == 0) return 0;
 		// Add statuses that not filtered to list for future use.
 		int result = 0;
@@ -1014,7 +1023,10 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 		for (final ContentValues value : values) {
 			final ParcelableStatus status = new ParcelableStatus(value);
 			if (!enabled || !isFiltered(mDatabaseWrapper.getSQLiteDatabase(), status, filtersForRts)) {
-				mNewMentions.add(status);
+				final AccountPreferences pref = AccountPreferences.getAccountPreferences(prefs, status.account_id);
+				if (pref == null || status.user_is_following || !pref.isMyFollowingOnly()) {
+					mNewMentions.add(status);
+				}
 				if (mUnreadMentions.add(new UnreadItem(status.id, status.account_id))) {
 					result++;
 				}
@@ -1091,11 +1103,11 @@ public final class TwidereDataProvider extends ContentProvider implements Consta
 				break;
 			}
 			case TABLE_ID_MENTIONS: {
-				final int notifiedCount = notifyMentionsInserted(values);
-				final List<ParcelableStatus> items = new ArrayList<ParcelableStatus>(mNewMentions);
-				Collections.sort(items);
 				final AccountPreferences[] prefs = AccountPreferences.getNotificationEnabledPreferences(getContext(),
 						getAccountIds(getContext()));
+				final int notifiedCount = notifyMentionsInserted(prefs, values);
+				final List<ParcelableStatus> items = new ArrayList<ParcelableStatus>(mNewMentions);
+				Collections.sort(items);
 				for (final AccountPreferences pref : prefs) {
 					if (pref.isMentionsNotificationEnabled()) {
 						final long accountId = pref.getAccountId();

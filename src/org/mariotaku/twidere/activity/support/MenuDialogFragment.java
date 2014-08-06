@@ -23,8 +23,10 @@ import org.mariotaku.twidere.util.ThemeUtils;
 
 public abstract class MenuDialogFragment extends BaseSupportDialogFragment implements OnItemClickListener {
 
-	@Override
-	public Dialog onCreateDialog(final Bundle savedInstanceState) {
+	private Context mThemedContext;
+
+	public Context getThemedContext() {
+		if (mThemedContext != null) return mThemedContext;
 		final FragmentActivity activity = getActivity();
 		final int themeRes, accentColor;
 		if (activity instanceof IThemedActivity) {
@@ -34,7 +36,12 @@ public abstract class MenuDialogFragment extends BaseSupportDialogFragment imple
 			themeRes = ThemeUtils.getSettingsThemeResource(activity);
 			accentColor = ThemeUtils.getUserThemeColor(activity);
 		}
-		final Context context = ThemeUtils.getThemedContextForActionIcons(activity, themeRes, accentColor);
+		return mThemedContext = ThemeUtils.getThemedContextForActionIcons(activity, themeRes, accentColor);
+	}
+
+	@Override
+	public Dialog onCreateDialog(final Bundle savedInstanceState) {
+		final Context context = getThemedContext();
 		final AlertDialog.Builder builder = new AlertDialog.Builder(context);
 		final MenuAdapter adapter = new MenuAdapter(context);
 		final ListView listView = new ListView(context);

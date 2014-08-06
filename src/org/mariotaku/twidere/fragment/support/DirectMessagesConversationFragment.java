@@ -52,6 +52,7 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView.ScaleType;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -76,6 +77,7 @@ import org.mariotaku.twidere.util.ClipboardUtils;
 import org.mariotaku.twidere.util.ParseUtils;
 import org.mariotaku.twidere.util.ThemeUtils;
 import org.mariotaku.twidere.util.TwidereValidator;
+import org.mariotaku.twidere.util.Utils;
 import org.mariotaku.twidere.util.accessor.ViewAccessor;
 import org.mariotaku.twidere.view.StatusTextCountView;
 
@@ -151,7 +153,7 @@ public class DirectMessagesConversationFragment extends BaseSupportListFragment 
 		}
 		mEditText.addTextChangedListener(this);
 
-		final List<Account> accounts = Account.getAccounts(getActivity(), false);
+		final List<Account> accounts = Account.getAccountsList(getActivity(), false);
 		mAccountSpinner.setAdapter(new AccountsSpinnerAdapter(getActivity(), accounts));
 		mAccountSpinner.setOnItemSelectedListener(this);
 
@@ -313,6 +315,12 @@ public class DirectMessagesConversationFragment extends BaseSupportListFragment 
 	public void onResume() {
 		super.onResume();
 		configBaseCardAdapter(getActivity(), mAdapter);
+		final boolean displayImagePreview = mPreferences.getBoolean(KEY_DISPLAY_IMAGE_PREVIEW, false);
+		final String previewScaleType = Utils.getNonEmptyString(mPreferences, KEY_IMAGE_PREVIEW_SCALE_TYPE,
+				ScaleType.CENTER_CROP.name());
+		mAdapter.setDisplayImagePreview(displayImagePreview);
+		mAdapter.setImagePreviewScaleType(previewScaleType);
+		mAdapter.notifyDataSetChanged();
 	}
 
 	@Override
@@ -404,7 +412,8 @@ public class DirectMessagesConversationFragment extends BaseSupportListFragment 
 		if (mPopupMenu != null && mPopupMenu.isShowing()) {
 			mPopupMenu.dismiss();
 		}
-		mPopupMenu = PopupMenu.getInstance(getActivity(), view);
+		final Context context = ThemeUtils.getThemedContextForActionIcons(getActivity());
+		mPopupMenu = PopupMenu.getInstance(context, view);
 		mPopupMenu.inflate(R.menu.action_direct_message);
 		final Menu menu = mPopupMenu.getMenu();
 		final MenuItem view_profile_item = menu.findItem(MENU_VIEW_PROFILE);

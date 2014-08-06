@@ -31,6 +31,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.ListFragment;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -40,6 +41,7 @@ import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -64,6 +66,8 @@ public class BaseSupportListFragment extends ListFragment implements IBaseFragme
 
 	private LayoutInflater mLayoutInflater;
 
+	private boolean mStoppedPreviously;
+
 	public final TwidereApplication getApplication() {
 		return TwidereApplication.getInstance(getActivity());
 	}
@@ -72,6 +76,16 @@ public class BaseSupportListFragment extends ListFragment implements IBaseFragme
 		final Activity activity = getActivity();
 		if (activity != null) return activity.getContentResolver();
 		return null;
+	}
+
+	@Override
+	public Bundle getExtraConfiguration() {
+		final Bundle args = getArguments();
+		final Bundle extras = new Bundle();
+		if (args != null && args.containsKey(EXTRA_EXTRAS)) {
+			extras.putAll(args.getBundle(EXTRA_EXTRAS));
+		}
+		return extras;
 	}
 
 	@Override
@@ -124,6 +138,7 @@ public class BaseSupportListFragment extends ListFragment implements IBaseFragme
 	public void onActivityCreated(final Bundle savedInstanceState) {
 		super.onActivityCreated(savedInstanceState);
 		mNotReachedBottomBefore = true;
+		mStoppedPreviously = false;
 		mIsInstanceStateSaved = savedInstanceState != null;
 		final ListView lv = getListView();
 		lv.setOnScrollListener(this);
@@ -185,6 +200,7 @@ public class BaseSupportListFragment extends ListFragment implements IBaseFragme
 		final ListView lv = new ListView(getActivity());
 		lv.setId(android.R.id.list);
 		lv.setDrawSelectorOnTop(false);
+		lv.setOnScrollListener(this);
 		lframe.addView(lv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
 				ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -197,6 +213,12 @@ public class BaseSupportListFragment extends ListFragment implements IBaseFragme
 				ViewGroup.LayoutParams.MATCH_PARENT));
 
 		return root;
+	}
+
+	@Override
+	public void onDestroy() {
+		mStoppedPreviously = false;
+		super.onDestroy();
 	}
 
 	@Override
@@ -215,9 +237,15 @@ public class BaseSupportListFragment extends ListFragment implements IBaseFragme
 	public void onPostStart() {
 	}
 
+	public void onRestart() {
+
+	}
+
 	@Override
 	public void onScroll(final AbsListView view, final int firstVisibleItem, final int visibleItemCount,
 			final int totalItemCount) {
+		final ListAdapter adapter = getListAdapter();
+		if (adapter == null) return;
 		final boolean reached = firstVisibleItem + visibleItemCount >= totalItemCount
 				&& totalItemCount >= visibleItemCount;
 
@@ -227,7 +255,7 @@ public class BaseSupportListFragment extends ListFragment implements IBaseFragme
 				mNotReachedBottomBefore = false;
 				return;
 			}
-			if (mReachedBottom && getListAdapter().getCount() > visibleItemCount) {
+			if (mReachedBottom && adapter.getCount() > visibleItemCount) {
 				onReachedBottom();
 			}
 		}
@@ -236,13 +264,31 @@ public class BaseSupportListFragment extends ListFragment implements IBaseFragme
 
 	@Override
 	public void onScrollStateChanged(final AbsListView view, final int scrollState) {
-
+		final FragmentActivity a = getActivity();
+		if (a instanceof HomeActivity) {
+			final HomeActivity home = (HomeActivity) a;
+			if (scrollState == OnScrollListener.SCROLL_STATE_IDLE) {
+				home.showControls();
+			} else {
+				home.hideControls();
+			}
+		}
 	}
 
 	@Override
 	public void onStart() {
 		super.onStart();
 		onPostStart();
+		if (mStoppedPreviously) {
+			onRestart();
+		}
+		mStoppedPreviously = false;
+	}
+
+	@Override
+	public void onStop() {
+		mStoppedPreviously = true;
+		super.onStop();
 	}
 
 	public void registerReceiver(final BroadcastReceiver receiver, final IntentFilter filter) {

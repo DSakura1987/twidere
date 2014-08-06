@@ -70,6 +70,7 @@ import android.widget.FrameLayout.LayoutParams;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import com.jeremyfeinstein.slidingmenu.lib.CustomViewAbove;
 import com.jeremyfeinstein.slidingmenu.lib.CustomViewBehind;
 import com.jeremyfeinstein.slidingmenu.lib.SlidingMenu;
 import com.jeremyfeinstein.slidingmenu.lib.SlidingMenu.CanvasTransformer;
@@ -94,9 +95,10 @@ import org.mariotaku.twidere.provider.TweetStore.Accounts;
 import org.mariotaku.twidere.task.AsyncTask;
 import org.mariotaku.twidere.util.ArrayUtils;
 import org.mariotaku.twidere.util.AsyncTwitterWrapper;
+import org.mariotaku.twidere.util.FlymeUtils;
+import org.mariotaku.twidere.util.HotKeyHandler;
 import org.mariotaku.twidere.util.MathUtils;
 import org.mariotaku.twidere.util.MultiSelectEventHandler;
-import org.mariotaku.twidere.util.SmartBarUtils;
 import org.mariotaku.twidere.util.SwipebackActivityUtils;
 import org.mariotaku.twidere.util.ThemeUtils;
 import org.mariotaku.twidere.util.UnreadCountUtils;
@@ -144,6 +146,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	private NotificationManager mNotificationManager;
 
 	private MultiSelectEventHandler mMultiSelectHandler;
+	private HotKeyHandler mHotKeyHandler;
 
 	private ActionBar mActionBar;
 	private SupportTabsAdapter mPagerAdapter;
@@ -180,6 +183,11 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 
 	public ViewPager getViewPager() {
 		return mViewPager;
+	}
+
+	public void hideControls() {
+		// TODO Auto-generated method stub
+
 	}
 
 	public void notifyAccountsChanged() {
@@ -264,6 +272,9 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 				}
 				break;
 			}
+			default: {
+				if (mHotKeyHandler.handleKey(keyCode, event)) return true;
+			}
 		}
 		return super.onKeyUp(keyCode, event);
 	}
@@ -339,7 +350,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	@Override
 	public boolean onPrepareOptionsMenu(final Menu menu) {
 		if (mViewPager == null || mPagerAdapter == null) return false;
-		final boolean useBottomActionItems = SmartBarUtils.hasSmartBar() && isBottomComposeButton();
+		final boolean useBottomActionItems = FlymeUtils.hasSmartBar() && isBottomComposeButton();
 		setMenuItemAvailability(menu, MENU_ACTIONS, useBottomActionItems);
 		setMenuItemAvailability(menu, MENU_PROGRESS, useBottomActionItems);
 		if (useBottomActionItems) {
@@ -348,16 +359,16 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 			final SupportTabSpec tab = mPagerAdapter.getTab(position);
 			if (tab == null) {
 				title = R.string.compose;
-				icon = R.drawable.ic_iconic_action_new_message;
+				icon = R.drawable.ic_iconic_action_compose;
 			} else {
 				if (classEquals(DirectMessagesFragment.class, tab.cls)) {
 					icon = R.drawable.ic_iconic_action_new_message;
-					title = R.string.compose;
+					title = R.string.new_direct_message;
 				} else if (classEquals(TrendsSuggectionsFragment.class, tab.cls)) {
 					icon = R.drawable.ic_iconic_action_search;
 					title = android.R.string.search_go;
 				} else {
-					icon = R.drawable.ic_iconic_action_new_message;
+					icon = R.drawable.ic_iconic_action_compose;
 					title = R.string.compose;
 				}
 			}
@@ -406,6 +417,11 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	@Override
 	public boolean shouldOverrideActivityAnimation() {
 		return false;
+	}
+
+	public void showControls() {
+		// TODO Auto-generated method stub
+
 	}
 
 	@Override
@@ -459,6 +475,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		mTwitterWrapper = getTwitterWrapper();
 		mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		mMultiSelectHandler = new MultiSelectEventHandler(this);
+		mHotKeyHandler = new HotKeyHandler(this);
 		mMultiSelectHandler.dispatchOnCreate();
 		final Resources res = getResources();
 		final boolean displayIcon = res.getBoolean(R.bool.home_display_icon);
@@ -548,8 +565,15 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	}
 
 	@Override
+	protected void onPause() {
+		sendBroadcast(new Intent(BROADCAST_HOME_ACTIVITY_ONPAUSE));
+		super.onPause();
+	}
+
+	@Override
 	protected void onResume() {
 		super.onResume();
+		sendBroadcast(new Intent(BROADCAST_HOME_ACTIVITY_ONRESUME));
 		mViewPager.setEnabled(!mPreferences.getBoolean(KEY_DISABLE_TAB_SWIPE, false));
 		invalidateOptionsMenu();
 		updateActionsButtonStyle();
@@ -702,7 +726,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	}
 
 	private void setUiOptions(final Window window) {
-		if (SmartBarUtils.hasSmartBar()) {
+		if (FlymeUtils.hasSmartBar()) {
 			if (mBottomComposeButton) {
 				window.setUiOptions(ActivityInfo.UIOPTION_SPLIT_ACTION_BAR_WHEN_NARROW);
 			} else {
@@ -716,9 +740,9 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		final int marginThreshold = getResources().getDimensionPixelSize(R.dimen.default_sliding_menu_margin_threshold);
 		mSlidingMenu.setMode(SlidingMenu.LEFT_RIGHT);
 		mSlidingMenu.setShadowWidthRes(R.dimen.default_sliding_menu_shadow_width);
-		mSlidingMenu.setShadowDrawable(R.drawable.drawer_shadow_left);
-		mSlidingMenu.setSecondaryShadowDrawable(R.drawable.drawer_shadow_right);
-		mSlidingMenu.setBehindWidthRes(R.dimen.left_drawer_width);
+		mSlidingMenu.setShadowDrawable(R.drawable.shadow_left);
+		mSlidingMenu.setSecondaryShadowDrawable(R.drawable.shadow_right);
+		mSlidingMenu.setBehindWidthRes(R.dimen.drawer_width_home);
 		mSlidingMenu.setTouchmodeMarginThreshold(marginThreshold);
 		mSlidingMenu.setFadeDegree(0.5f);
 		mSlidingMenu.attachToActivity(this, SlidingMenu.SLIDING_WINDOW);
@@ -788,7 +812,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		} else {
 			if (classEquals(DirectMessagesFragment.class, tab.cls)) {
 				icon = R.drawable.ic_iconic_action_new_message;
-				title = R.string.compose;
+				title = R.string.new_direct_message;
 			} else if (classEquals(TrendsSuggectionsFragment.class, tab.cls)) {
 				icon = R.drawable.ic_iconic_action_search;
 				title = android.R.string.search_go;
@@ -816,7 +840,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	private void updateActionsButtonStyle() {
 		if (mActionsButton == null || mBottomActionsButton == null) return;
 		final boolean isBottomActionsButton = isBottomComposeButton();
-		final boolean showBottomActionsButton = !SmartBarUtils.hasSmartBar() && isBottomActionsButton;
+		final boolean showBottomActionsButton = !FlymeUtils.hasSmartBar() && isBottomActionsButton;
 		final boolean leftsideComposeButton = mPreferences.getBoolean(KEY_LEFTSIDE_COMPOSE_BUTTON, false);
 		mActionsButton.setVisibility(isBottomActionsButton ? View.GONE : View.VISIBLE);
 		mBottomActionsButton.setVisibility(showBottomActionsButton ? View.VISIBLE : View.GONE);
@@ -842,7 +866,7 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 	}
 
 	private void updateSmartBar() {
-		final boolean useBottomActionItems = SmartBarUtils.hasSmartBar() && isBottomComposeButton();
+		final boolean useBottomActionItems = FlymeUtils.hasSmartBar() && isBottomComposeButton();
 		if (useBottomActionItems) {
 			invalidateOptionsMenu();
 		}
@@ -890,6 +914,11 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 		}
 
 		@Override
+		protected CustomViewAbove newCustomViewAbove(final Context context) {
+			return new MyCustomViewAbove(context, this);
+		}
+
+		@Override
 		protected CustomViewBehind newCustomViewBehind(final Context context) {
 			return new MyCustomViewBehind(context, this);
 		}
@@ -909,6 +938,18 @@ public class HomeActivity extends BaseSupportActivity implements OnClickListener
 			else if (mode == SlidingMenu.LEFT_RIGHT)
 				return x >= left && x <= marginThreshold + left || x <= right && x >= right - marginThreshold;
 			return false;
+		}
+
+		private static class MyCustomViewAbove extends CustomViewAbove {
+
+			private final HomeSlidingMenu mSlidingMenu;
+
+			public MyCustomViewAbove(final Context context, final HomeSlidingMenu slidingMenu) {
+				super(context);
+				mSlidingMenu = slidingMenu;
+
+			}
+
 		}
 
 		private static class MyCustomViewBehind extends CustomViewBehind {

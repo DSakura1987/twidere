@@ -44,7 +44,7 @@ import android.widget.TextView;
 
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.adapter.ArrayAdapter;
-import org.mariotaku.twidere.fragment.iface.IDialogFragmentCallback;
+import org.mariotaku.twidere.fragment.iface.ISupportDialogFragmentCallback;
 import org.mariotaku.twidere.util.ArrayUtils;
 import org.mariotaku.twidere.util.ThemeUtils;
 
@@ -73,7 +73,7 @@ public class FileSelectorDialogFragment extends BaseSupportDialogFragment implem
 		super.onCancel(dialog);
 		final FragmentActivity a = getActivity();
 		if (a instanceof Callback) {
-			((Callback) a).onCancelled();
+			((Callback) a).onCancelled(this);
 		}
 	}
 
@@ -125,7 +125,7 @@ public class FileSelectorDialogFragment extends BaseSupportDialogFragment implem
 		super.onDismiss(dialog);
 		final FragmentActivity a = getActivity();
 		if (a instanceof Callback) {
-			((Callback) a).onDismissed();
+			((Callback) a).onDismissed(this);
 		}
 	}
 
@@ -182,7 +182,7 @@ public class FileSelectorDialogFragment extends BaseSupportDialogFragment implem
 		dialog.setTitle(title);
 	}
 
-	public static interface Callback extends IDialogFragmentCallback {
+	public static interface Callback extends ISupportDialogFragmentCallback {
 
 		void onFilePicked(File file);
 	}

@@ -32,8 +32,6 @@ public interface Configuration extends HttpClientConfiguration, HttpClientWrappe
 
 	String getClientVersion();
 
-	String getHttpClientImplementation();
-
 	String getOAuthAccessTokenURL();
 
 	String getOAuthAuthenticationURL();
@@ -58,7 +56,9 @@ public interface Configuration extends HttpClientConfiguration, HttpClientWrappe
 
 	String getSigningRestBaseURL();
 
-	String getUserAgent();
+	String getSigningUploadBaseURL();
+
+	String getUploadBaseURL();
 
 	boolean isDebugEnabled();
 
@@ -66,8 +66,6 @@ public interface Configuration extends HttpClientConfiguration, HttpClientWrappe
 
 	boolean isIncludeRTsEnabled();
 
-	boolean isProxyConfigured();
-
-	boolean isSSLEnabled();
+	boolean isTwitterClientHeaderIncluded();
 
 }

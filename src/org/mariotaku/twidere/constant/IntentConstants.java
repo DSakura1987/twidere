@@ -109,6 +109,8 @@ public interface IntentConstants {
 	public static final String BROADCAST_MULTI_MUTESTATE_CHANGED = INTENT_PACKAGE_PREFIX + "MULTI_MUTESTATE_CHANGED";
 	public static final String BROADCAST_HOME_ACTIVITY_ONCREATE = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONCREATE";
 	public static final String BROADCAST_HOME_ACTIVITY_ONSTART = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONSTART";
+	public static final String BROADCAST_HOME_ACTIVITY_ONRESUME = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONRESUME";
+	public static final String BROADCAST_HOME_ACTIVITY_ONPAUSE = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONPAUSE";
 	public static final String BROADCAST_HOME_ACTIVITY_ONSTOP = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONSTOP";
 	public static final String BROADCAST_HOME_ACTIVITY_ONDESTROY = INTENT_PACKAGE_PREFIX + "HOME_ACTIVITY_ONDESTROY";
 	public static final String BROADCAST_UNREAD_COUNT_UPDATED = INTENT_PACKAGE_PREFIX + "UNREAD_COUNT_UPDATED";
@@ -147,6 +149,7 @@ public interface IntentConstants {
 	public static final String EXTRA_IDS = "ids";
 	public static final String EXTRA_IS_SHARE = "is_share";
 	public static final String EXTRA_STATUS = "status";
+	public static final String EXTRA_STATUS_JSON = "status_json";
 	public static final String EXTRA_STATUSES = "statuses";
 	public static final String EXTRA_DRAFT = "draft";
 	public static final String EXTRA_FAVORITED = "favorited";
@@ -208,5 +211,8 @@ public interface IntentConstants {
 	public static final String EXTRA_FLAGS = "flags";
 	public static final String EXTRA_INTENT = "intent";
 	public static final String EXTRA_BLACKLIST = "blacklist";
+	public static final String EXTRA_MEDIAS = "medias";
+	public static final String EXTRA_EXTRAS = "extras";
+	public static final String EXTRA_MY_FOLLOWING_ONLY = "my_following_only";
 
 }

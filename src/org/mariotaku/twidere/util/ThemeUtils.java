@@ -31,6 +31,7 @@ import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
+import android.os.Build;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.util.AttributeSet;
@@ -253,6 +254,15 @@ public class ThemeUtils implements Constants {
 		return d;
 	}
 
+	public static Drawable getCardItemMenuOverflowButtonDrawable(final Context context) {
+		final Resources res = getResources(context);
+		final TypedArray a = context.obtainStyledAttributes(new int[] { R.attr.cardOverflowIcon });
+		final Drawable d = a.getDrawable(0);
+		a.recycle();
+		if (d == null) return res.getDrawable(R.drawable.ic_menu_moreoverflow_card_light);
+		return d;
+	}
+
 	public static int getColorBackgroundCacheHint(final Context context) {
 		final TypedArray a = context.obtainStyledAttributes(new int[] { android.R.attr.colorBackgroundCacheHint });
 		final int color = a.getColor(0, Color.TRANSPARENT);
@@ -273,10 +283,6 @@ public class ThemeUtils implements Constants {
 					: R.style.Theme_Twidere_Light_Compose;
 		else if (VALUE_THEME_NAME_DARK.equals(name)) return R.style.Theme_Twidere_Dark_Compose;
 		return R.style.Theme_Twidere_Colored_Compose;
-	}
-
-	public static Context getContextForActionIcons(final Context baseContext, final int baseThemeRes) {
-		return new TwidereContextWrapper(baseContext, getThemeResActionIcons(baseThemeRes));
 	}
 
 	public static boolean getDarkActionBarOption(final Context context) {
@@ -329,6 +335,37 @@ public class ThemeUtils implements Constants {
 		a.recycle();
 		if (d == null) return res.getDrawable(R.drawable.ic_list_menu_moreoverflow_normal_holo_light);
 		return d;
+	}
+
+	public static int getMenuIconColor(final Context context) {
+		return getMenuIconColor(getThemeResource(context));
+	}
+
+	public static int getMenuIconColor(final int themeRes) {
+		switch (themeRes) {
+			case R.style.Theme_Twidere_Light:
+			case R.style.Theme_Twidere_Light_SolidBackground:
+			case R.style.Theme_Twidere_Light_Transparent:
+			case R.style.Theme_Twidere_Light_Compose:
+			case R.style.Theme_Twidere_Light_Dialog:
+			case R.style.Theme_Twidere_Colored:
+			case R.style.Theme_Twidere_Colored_SolidBackground:
+			case R.style.Theme_Twidere_Colored_Transparent:
+			case R.style.Theme_Twidere_Colored_Compose:
+			case R.style.Theme_Twidere_ActionBar_Colored_Light:
+			case R.style.Theme_Twidere_Settings_Light:
+			case R.style.Theme_Twidere_Light_DarkActionBar_DarkIcon:
+			case R.style.Theme_Twidere_Light_DarkActionBar_SolidBackground_DarkIcon:
+			case R.style.Theme_Twidere_Light_DarkActionBar_Transparent_DarkIcon:
+			case R.style.Theme_Twidere_Light_DarkActionBar_Compose_DarkIcon:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_DarkIcon:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_SolidBackground_DarkIcon:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_Transparent_DarkIcon:
+			case R.style.Theme_Twidere_Colored_DarkActionBar_Compose_DarkIcon:
+			case R.style.Theme_Twidere_Settings_Light_DarkActionBar_DarkIcon:
+				return 0x99333333;
+		}
+		return 0xCCFFFFFF;
 	}
 
 	public static int getNoDisplayThemeResource(final Context context) {
@@ -443,6 +480,22 @@ public class ThemeUtils implements Constants {
 
 	public static Context getThemedContext(final Context context, final Resources res) {
 		return new TwidereContextWrapper(context, res);
+	}
+
+	public static Context getThemedContextForActionIcons(final Context context) {
+		final int themeRes, accentColor;
+		if (context instanceof IThemedActivity) {
+			themeRes = ((IThemedActivity) context).getThemeResourceId();
+			accentColor = ((IThemedActivity) context).getThemeColor();
+		} else {
+			themeRes = getSettingsThemeResource(context);
+			accentColor = getUserThemeColor(context);
+		}
+		return new TwidereContextThemeWrapper(context, getThemeResActionIcons(themeRes), accentColor);
+	}
+
+	public static Context getThemedContextForActionIcons(final Context baseContext, final int baseThemeRes) {
+		return new TwidereContextWrapper(baseContext, getThemeResActionIcons(baseThemeRes));
 	}
 
 	public static Context getThemedContextForActionIcons(final Context baseContext, final int baseThemeRes,
@@ -596,7 +649,7 @@ public class ThemeUtils implements Constants {
 	}
 
 	public static Typeface getUserTypeface(final Context context, final Typeface defTypeface) {
-		if (context == null) return Typeface.DEFAULT;
+		if (context == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) return Typeface.DEFAULT;
 		final int fontStyle = defTypeface != null ? defTypeface.getStyle() : Typeface.NORMAL;
 		final String fontFamily = getThemeFontFamily(context);
 		final Typeface tf = Typeface.create(fontFamily, fontStyle);
@@ -659,6 +712,13 @@ public class ThemeUtils implements Constants {
 				return true;
 		}
 		return false;
+	}
+
+	public static boolean isDarkDrawerEnabled(final Context context) {
+		final SharedPreferencesWrapper prefs = SharedPreferencesWrapper.getInstance(context, SHARED_PREFERENCES_NAME,
+				Context.MODE_PRIVATE);
+		if (prefs == null) return false;
+		return prefs.getBoolean(KEY_DARK_DRAWER, true);
 	}
 
 	public static boolean isDarkTheme(final Context context) {

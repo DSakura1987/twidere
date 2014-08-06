@@ -42,6 +42,10 @@ public class ContentLengthInputStream extends InputStream {
 		this.length = length;
 	}
 
+	public ContentLengthInputStream(final String file) throws FileNotFoundException {
+		this(new FileInputStream(file), file.length());
+	}
+
 	@Override
 	public synchronized int available() {
 		return (int) (length - pos);

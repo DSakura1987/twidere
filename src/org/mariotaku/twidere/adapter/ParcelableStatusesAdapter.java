@@ -32,6 +32,7 @@ import static org.mariotaku.twidere.util.Utils.openUserProfile;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Resources;
 import android.database.sqlite.SQLiteDatabase;
 import android.text.Html;
 import android.text.TextUtils;
@@ -63,7 +64,10 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 	private final MultiSelectManager mMultiSelectManager;
 	private final SQLiteDatabase mDatabase;
 	private final ImageLoadingHandler mImageLoadingHandler;
+
 	private MenuButtonClickListener mListener;
+
+	private final boolean mPlainList;
 
 	private boolean mDisplayImagePreview, mGapDisallowed, mMentionsHighlightDisabled, mFavoritesHighlightDisabled,
 			mDisplaySensitiveContents, mIndicateMyStatusDisabled, mIsLastItemFiltered, mFiltersEnabled,
@@ -72,13 +76,15 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 			mFilterRetweetedById;
 	private int mMaxAnimationPosition, mCardHighlightOption;
 	private ScaleType mImagePreviewScaleType;
+	private String[] mHighlightKeywords;
 
 	public ParcelableStatusesAdapter(final Context context) {
-		this(context, Utils.isCompactCards(context));
+		this(context, Utils.isCompactCards(context), Utils.isPlainListStyle(context));
 	}
 
-	public ParcelableStatusesAdapter(final Context context, final boolean compactCards) {
+	public ParcelableStatusesAdapter(final Context context, final boolean compactCards, final boolean plainList) {
 		super(context, getItemResource(compactCards));
+		mPlainList = plainList;
 		mContext = context;
 		final TwidereApplication app = TwidereApplication.getInstance(context);
 		mMultiSelectManager = app.getMultiSelectManager();
@@ -162,6 +168,10 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 			holder.my_profile_image.setOnClickListener(this);
 			holder.image_preview.setOnClickListener(this);
 			holder.content.setOnOverflowIconClickListener(this);
+			if (mPlainList) {
+				((View) holder.content).setPadding(0, 0, 0, 0);
+				holder.content.setItemBackground(null);
+			}
 			view.setTag(holder);
 		}
 
@@ -188,11 +198,15 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 			holder.setAccountColorEnabled(mShowAccountColor);
 
 			if (highlightOption != VALUE_LINK_HIGHLIGHT_OPTION_CODE_NONE) {
-				holder.text.setText(Html.fromHtml(status.text_html));
+				holder.text.setText(Utils.getKeywordBoldedText(Html.fromHtml(status.text_html), mHighlightKeywords));
 				linkify.applyAllLinks(holder.text, status.account_id, status.is_possibly_sensitive);
 				holder.text.setMovementMethod(null);
 			} else {
-				holder.text.setText(status.text_unescaped);
+				if (mHighlightKeywords == null || mHighlightKeywords.length == 0) {
+					holder.text.setText(status.text_unescaped);
+				} else {
+					holder.text.setText(Utils.getKeywordBoldedText(status.text_unescaped, mHighlightKeywords));
+				}
 			}
 
 			if (mShowAccountColor) {
@@ -201,7 +215,13 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 
 			final boolean isMention = ParcelableUserMention.hasMention(status.mentions, status.account_id);
 			final boolean isMyStatus = status.account_id == status.user_id;
-			holder.setUserColor(getUserColor(mContext, status.user_id));
+			final boolean hasMedia = status.first_media != null;
+			if (status.is_retweet) {
+				holder.setUserColor(getUserColor(mContext, status.user_id),
+						getUserColor(mContext, status.retweeted_by_id));
+			} else {
+				holder.setUserColor(getUserColor(mContext, status.user_id));
+			}
 			holder.setHighlightColor(getCardHighlightColor(!mMentionsHighlightDisabled && isMention,
 					!mFavoritesHighlightDisabled && status.is_favorite, status.is_retweet));
 			holder.setTextSize(getTextSize());
@@ -225,7 +245,7 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 			}
 			holder.time.setTime(status.timestamp);
 			holder.setStatusType(!mFavoritesHighlightDisabled && status.is_favorite, isValidLocation(status.location),
-					status.has_media, status.is_possibly_sensitive);
+					hasMedia, status.is_possibly_sensitive);
 			holder.setIsReplyRetweet(status.in_reply_to_status_id > 0, status.is_retweet);
 			if (status.is_retweet) {
 				holder.setRetweetedBy(status.retweet_count, status.retweeted_by_id, status.retweeted_by_name,
@@ -242,7 +262,7 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 				holder.profile_image.setVisibility(View.GONE);
 				holder.my_profile_image.setVisibility(View.GONE);
 			}
-			final boolean hasPreview = mDisplayImagePreview && status.has_media && status.media_link != null;
+			final boolean hasPreview = mDisplayImagePreview && hasMedia;
 			holder.image_preview_container.setVisibility(hasPreview ? View.VISIBLE : View.GONE);
 			if (hasPreview) {
 				if (mImagePreviewScaleType != null) {
@@ -252,10 +272,13 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 					holder.image_preview.setImageDrawable(null);
 					holder.image_preview.setBackgroundResource(R.drawable.image_preview_nsfw);
 					holder.image_preview_progress.setVisibility(View.GONE);
-				} else if (!status.media_link.equals(mImageLoadingHandler.getLoadingUri(holder.image_preview))) {
+				} else if (!status.first_media.equals(mImageLoadingHandler.getLoadingUri(holder.image_preview))) {
 					holder.image_preview.setBackgroundResource(0);
-					loader.displayPreviewImage(holder.image_preview, status.media_link, mImageLoadingHandler);
+					loader.displayPreviewImage(holder.image_preview, status.first_media, mImageLoadingHandler);
 				}
+				final Resources res = mContext.getResources();
+				final int count = status.medias.length;
+				holder.image_preview_count.setText(res.getQuantityString(R.plurals.N_medias, count, count));
 				holder.image_preview.setTag(position);
 			}
 		}
@@ -282,8 +305,8 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 		switch (view.getId()) {
 			case R.id.image_preview: {
 				final ParcelableStatus status = getStatus(position);
-				if (status == null || status.media_link == null) return;
-				openImage(mContext, status.media_link, status.is_possibly_sensitive);
+				if (status == null || status.first_media == null) return;
+				openImage(mContext, status.account_id, status.first_media, status.is_possibly_sensitive);
 				break;
 			}
 			case R.id.my_profile_image:
@@ -312,16 +335,12 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 
 	@Override
 	public void setAnimationEnabled(final boolean anim) {
-		if (mAnimationEnabled == anim) return;
 		mAnimationEnabled = anim;
 	}
 
 	@Override
 	public void setCardHighlightOption(final String option) {
-		final int option_int = getCardHighlightOptionInt(option);
-		if (option_int == mCardHighlightOption) return;
-		mCardHighlightOption = option_int;
-		notifyDataSetChanged();
+		mCardHighlightOption = getCardHighlightOptionInt(option);
 	}
 
 	@Override
@@ -335,23 +354,17 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 
 	@Override
 	public void setDisplayImagePreview(final boolean display) {
-		if (display == mDisplayImagePreview) return;
 		mDisplayImagePreview = display;
-		notifyDataSetChanged();
 	}
 
 	@Override
 	public void setDisplaySensitiveContents(final boolean display) {
-		if (display == mDisplaySensitiveContents) return;
 		mDisplaySensitiveContents = display;
-		notifyDataSetChanged();
 	}
 
 	@Override
 	public void setFavoritesHightlightDisabled(final boolean disable) {
-		if (disable == mFavoritesHighlightDisabled) return;
 		mFavoritesHighlightDisabled = disable;
-		notifyDataSetChanged();
 	}
 
 	@Override
@@ -363,36 +376,34 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 
 	@Override
 	public void setGapDisallowed(final boolean disallowed) {
-		if (mGapDisallowed == disallowed) return;
 		mGapDisallowed = disallowed;
-		notifyDataSetChanged();
 	}
 
 	@Override
-	public void setIgnoredFilterFields(final boolean user, final boolean text_plain, final boolean text_html,
-			final boolean source, final boolean retweeted_by_id) {
-		mFilterIgnoreTextPlain = text_plain;
-		mFilterIgnoreTextHtml = text_html;
+	public void setHighlightKeyword(final String... keywords) {
+		mHighlightKeywords = keywords;
+	}
+
+	@Override
+	public void setIgnoredFilterFields(final boolean user, final boolean textPlain, final boolean textHtml,
+			final boolean source, final boolean retweetedById) {
+		mFilterIgnoreTextPlain = textPlain;
+		mFilterIgnoreTextHtml = textHtml;
 		mFilterIgnoreUser = user;
 		mFilterIgnoreSource = source;
-		mFilterRetweetedById = retweeted_by_id;
+		mFilterRetweetedById = retweetedById;
 		rebuildFilterInfo();
 	}
 
 	@Override
 	public void setImagePreviewScaleType(final String scaleTypeString) {
 		final ScaleType scaleType = ScaleType.valueOf(scaleTypeString.toUpperCase(Locale.US));
-		if (!scaleType.equals(mImagePreviewScaleType)) {
-			mImagePreviewScaleType = scaleType;
-			notifyDataSetChanged();
-		}
+		mImagePreviewScaleType = scaleType;
 	}
 
 	@Override
 	public void setIndicateMyStatusDisabled(final boolean disable) {
-		if (mIndicateMyStatusDisabled == disable) return;
 		mIndicateMyStatusDisabled = disable;
-		notifyDataSetChanged();
 	}
 
 	@Override
@@ -402,9 +413,7 @@ public class ParcelableStatusesAdapter extends BaseArrayAdapter<ParcelableStatus
 
 	@Override
 	public void setMentionsHightlightDisabled(final boolean disable) {
-		if (disable == mMentionsHighlightDisabled) return;
 		mMentionsHighlightDisabled = disable;
-		notifyDataSetChanged();
 	}
 
 	@Override

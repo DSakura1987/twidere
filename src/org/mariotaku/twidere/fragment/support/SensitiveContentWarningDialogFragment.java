@@ -25,7 +25,6 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.DialogInterface.OnClickListener;
 import android.net.Uri;
 import android.os.Bundle;
 
@@ -33,7 +32,8 @@ import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.util.ParseUtils;
 import org.mariotaku.twidere.util.ThemeUtils;
 
-public class SensitiveContentWarningDialogFragment extends BaseSupportDialogFragment implements OnClickListener {
+public class SensitiveContentWarningDialogFragment extends BaseSupportDialogFragment implements
+		DialogInterface.OnClickListener {
 
 	@Override
 	public void onClick(final DialogInterface dialog, final int which) {
@@ -43,7 +43,8 @@ public class SensitiveContentWarningDialogFragment extends BaseSupportDialogFrag
 				final Bundle args = getArguments();
 				if (args == null || context == null) return;
 				final Uri uri = args.getParcelable(EXTRA_URI);
-				openImageDirectly(context, ParseUtils.parseString(uri));
+				final long accountId = args.getLong(EXTRA_ACCOUNT_ID, -1);
+				openImageDirectly(context, accountId, ParseUtils.parseString(uri));
 				break;
 			}
 		}

@@ -42,8 +42,8 @@ import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.fragment.iface.IBasePullToRefreshFragment;
 import org.mariotaku.twidere.fragment.iface.RefreshScrollTopInterface;
 import org.mariotaku.twidere.fragment.iface.SupportFragmentCallback;
+import org.mariotaku.twidere.util.FlymeUtils;
 import org.mariotaku.twidere.util.MultiSelectEventHandler;
-import org.mariotaku.twidere.util.SmartBarUtils;
 
 public class LinkHandlerActivity extends TwidereSwipeBackActivity implements OnClickListener, OnLongClickListener {
 
@@ -162,7 +162,7 @@ public class LinkHandlerActivity extends TwidereSwipeBackActivity implements OnC
 	}
 
 	private void setUiOptions(final Window window, final Uri data) {
-		if (SmartBarUtils.hasSmartBar()) {
+		if (FlymeUtils.hasSmartBar()) {
 			window.setUiOptions(ActivityInfo.UIOPTION_SPLIT_ACTION_BAR_WHEN_NARROW);
 		} else {
 			window.setUiOptions(0);
@@ -201,6 +201,10 @@ public class LinkHandlerActivity extends TwidereSwipeBackActivity implements OnC
 			}
 			case LINK_ID_USER_BLOCKS: {
 				setTitle(R.string.blocked_users);
+				break;
+			}
+			case LINK_ID_MUTES_USERS: {
+				setTitle(R.string.twitter_muted_users);
 				break;
 			}
 			case LINK_ID_DIRECT_MESSAGES_CONVERSATION: {
@@ -252,6 +256,10 @@ public class LinkHandlerActivity extends TwidereSwipeBackActivity implements OnC
 				break;
 			}
 			case LINK_ID_STATUS_RETWEETERS: {
+				setTitle(R.string.users_retweeted_this);
+				break;
+			}
+			case LINK_ID_STATUS_FAVORITERS: {
 				setTitle(R.string.users_retweeted_this);
 				break;
 			}

@@ -20,7 +20,9 @@
 package org.mariotaku.twidere.activity.support;
 
 import static android.text.TextUtils.isEmpty;
-import static org.mariotaku.twidere.util.ContentValuesCreator.makeAccountContentValues;
+import static org.mariotaku.twidere.util.ContentValuesCreator.makeAccountContentValuesBasic;
+import static org.mariotaku.twidere.util.ContentValuesCreator.makeAccountContentValuesOAuth;
+import static org.mariotaku.twidere.util.ContentValuesCreator.makeAccountContentValuesTWIP;
 import static org.mariotaku.twidere.util.Utils.getActivatedAccountIds;
 import static org.mariotaku.twidere.util.Utils.getNonEmptyString;
 import static org.mariotaku.twidere.util.Utils.isUserLoggedIn;
@@ -69,7 +71,8 @@ import org.mariotaku.twidere.util.OAuthPasswordAuthenticator.AuthenticityTokenEx
 import org.mariotaku.twidere.util.OAuthPasswordAuthenticator.WrongUserPassException;
 import org.mariotaku.twidere.util.ParseUtils;
 import org.mariotaku.twidere.util.ThemeUtils;
-import org.mariotaku.twidere.util.net.HttpClientImpl;
+import org.mariotaku.twidere.util.net.TwidereHostResolverFactory;
+import org.mariotaku.twidere.util.net.TwidereHttpClientFactory;
 import org.mariotaku.twidere.view.ColorPickerView;
 
 import twitter4j.Twitter;
@@ -96,6 +99,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 	private String mOAuthBaseURL, mSigningOAuthBaseURL;
 	private String mConsumerKey, mConsumerSecret;
 	private String mUsername, mPassword;
+	private String mJTAPIHostname;
 	private int mAuthType;
 	private Integer mUserColor;
 	private long mLoggedId;
@@ -134,6 +138,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 					mAuthType = data.getIntExtra(Accounts.AUTH_TYPE, Accounts.AUTH_TYPE_OAUTH);
 					mConsumerKey = data.getStringExtra(Accounts.CONSUMER_KEY);
 					mConsumerSecret = data.getStringExtra(Accounts.CONSUMER_SECRET);
+					mJTAPIHostname = data.getStringExtra(Accounts.JTAPI_HOSTNAME);
 					final boolean is_twip_o_mode = mAuthType == Accounts.AUTH_TYPE_TWIP_O_MODE;
 					mUsernamePasswordContainer.setVisibility(is_twip_o_mode ? View.GONE : View.VISIBLE);
 					mSigninSignupContainer.setOrientation(is_twip_o_mode ? LinearLayout.VERTICAL
@@ -263,6 +268,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 				intent.putExtra(Accounts.CONSUMER_KEY, mConsumerKey);
 				intent.putExtra(Accounts.CONSUMER_SECRET, mConsumerSecret);
 				intent.putExtra(Accounts.AUTH_TYPE, mAuthType);
+				intent.putExtra(Accounts.JTAPI_HOSTNAME, mJTAPIHostname);
 				startActivityForResult(intent, REQUEST_EDIT_API);
 				break;
 			}
@@ -306,6 +312,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		outState.putString(Accounts.SIGNING_OAUTH_BASE_URL, mSigningOAuthBaseURL);
 		outState.putString(Accounts.CONSUMER_KEY, mConsumerKey);
 		outState.putString(Accounts.CONSUMER_SECRET, mConsumerSecret);
+		outState.putString(Accounts.JTAPI_HOSTNAME, mJTAPIHostname);
 		outState.putString(Accounts.SCREEN_NAME, mUsername);
 		outState.putString(Accounts.PASSWORD, mPassword);
 		outState.putInt(Accounts.AUTH_TYPE, mAuthType);
@@ -343,6 +350,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 			mUsername = savedInstanceState.getString(Accounts.SCREEN_NAME);
 			mPassword = savedInstanceState.getString(Accounts.PASSWORD);
 			mAuthType = savedInstanceState.getInt(Accounts.AUTH_TYPE);
+			mJTAPIHostname = savedInstanceState.getString(Accounts.JTAPI_HOSTNAME);
 			if (savedInstanceState.containsKey(Accounts.COLOR)) {
 				mUserColor = savedInstanceState.getInt(Accounts.COLOR, Color.TRANSPARENT);
 			}
@@ -369,7 +377,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		saveEditedText();
 		setDefaultAPI();
 		final Configuration conf = getConfiguration();
-		mTask = new SignInTask(this, conf, mUsername, mPassword, mAuthType, mUserColor);
+		mTask = new SignInTask(this, conf, mUsername, mPassword, mAuthType, mUserColor, mJTAPIHostname);
 		mTask.execute();
 	}
 
@@ -384,7 +392,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		final String token = intent.getStringExtra(EXTRA_REQUEST_TOKEN);
 		final String secret = intent.getStringExtra(EXTRA_REQUEST_TOKEN_SECRET);
 		final String verifier = intent.getStringExtra(EXTRA_OAUTH_VERIFIER);
-		mTask = new BrowserSignInTask(this, conf, token, secret, verifier, mUserColor);
+		mTask = new BrowserSignInTask(this, conf, token, secret, verifier, mUserColor, mJTAPIHostname);
 		mTask.execute();
 	}
 
@@ -393,8 +401,8 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		final boolean enable_gzip_compressing = mPreferences.getBoolean(KEY_GZIP_COMPRESSING, false);
 		final boolean ignore_ssl_error = mPreferences.getBoolean(KEY_IGNORE_SSL_ERROR, false);
 		final boolean enable_proxy = mPreferences.getBoolean(KEY_ENABLE_PROXY, false);
-		cb.setHostAddressResolver(mApplication.getHostAddressResolver());
-		cb.setHttpClientImplementation(HttpClientImpl.class);
+		cb.setHostAddressResolverFactory(new TwidereHostResolverFactory(mApplication));
+		cb.setHttpClientFactory(new TwidereHttpClientFactory(mApplication));
 		setUserAgent(this, cb);
 		if (!isEmpty(mRestBaseURL)) {
 			cb.setRestBaseURL(mRestBaseURL);
@@ -444,6 +452,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 				DEFAULT_SIGNING_REST_BASE_URL);
 		final String signing_oauth_base_url = getNonEmptyString(mPreferences, KEY_SIGNING_OAUTH_BASE_URL,
 				DEFAULT_SIGNING_OAUTH_BASE_URL);
+		final String jtapi_hostname = getNonEmptyString(mPreferences, KEY_JTAPI_HOSTNAME, null);
 		final int auth_type = mPreferences.getInt(KEY_AUTH_TYPE, Accounts.AUTH_TYPE_OAUTH);
 		if (isEmpty(mConsumerKey) || defaultApiChanged) {
 			mConsumerKey = consumer_key;
@@ -462,6 +471,9 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		}
 		if (isEmpty(mSigningOAuthBaseURL) || defaultApiChanged) {
 			mSigningOAuthBaseURL = signing_oauth_base_url;
+		}
+		if (isEmpty(mJTAPIHostname) || defaultApiChanged) {
+			mJTAPIHostname = jtapi_hostname;
 		}
 		if (mAuthType == 0 || defaultApiChanged) {
 			mAuthType = auth_type;
@@ -487,8 +499,28 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 	void onSignInResult(final SignInActivity.SigninResponse result) {
 		if (result != null) {
 			if (result.succeed) {
-				final ContentValues values = makeAccountContentValues(result.conf, result.basic_password,
-						result.access_token, result.user, result.auth_type, result.color);
+				final ContentValues values;
+				switch (result.auth_type) {
+					case Accounts.AUTH_TYPE_BASIC: {
+						values = makeAccountContentValuesBasic(result.conf, result.basic_username,
+								result.basic_password, result.user, result.color);
+						break;
+
+					}
+					case Accounts.AUTH_TYPE_TWIP_O_MODE: {
+						values = makeAccountContentValuesTWIP(result.conf, result.user, result.color);
+						break;
+					}
+					case Accounts.AUTH_TYPE_OAUTH:
+					case Accounts.AUTH_TYPE_XAUTH: {
+						values = makeAccountContentValuesOAuth(result.conf, result.access_token, result.user,
+								result.auth_type, result.color, result.jtapi_hostname);
+						break;
+					}
+					default: {
+						values = null;
+					}
+				}
 				if (values != null) {
 					mResolver.insert(Accounts.CONTENT_URI, values);
 				}
@@ -587,9 +619,11 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		private final Integer user_color;
 
 		private final Context context;
+		private final String jtapi_hostname;
 
 		public BrowserSignInTask(final SignInActivity context, final Configuration conf, final String request_token,
-				final String request_token_secret, final String oauth_verifier, final Integer user_color) {
+				final String request_token_secret, final String oauth_verifier, final Integer user_color,
+				final String jtapi_hostname) {
 			super(context, conf);
 			this.context = context;
 			this.conf = conf;
@@ -597,6 +631,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 			this.request_token_secret = request_token_secret;
 			this.oauth_verifier = oauth_verifier;
 			this.user_color = user_color;
+			this.jtapi_hostname = jtapi_hostname;
 		}
 
 		@Override
@@ -610,8 +645,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 				final User user = twitter.showUser(user_id);
 				if (isUserLoggedIn(context, user_id)) return new SigninResponse(true, false, null);
 				final int color = user_color != null ? user_color : analyseUserProfileColor(user);
-				return new SigninResponse(false, true, null, conf, null, access_token, user, Accounts.AUTH_TYPE_OAUTH,
-						color);
+				return new SigninResponse(conf, access_token, user, Accounts.AUTH_TYPE_OAUTH, color, jtapi_hostname);
 			} catch (final TwitterException e) {
 				return new SigninResponse(false, false, e);
 			}
@@ -640,9 +674,10 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 		private final Integer user_color;
 
 		private final Context context;
+		private final String jtapi_hostname;
 
 		public SignInTask(final SignInActivity context, final Configuration conf, final String username,
-				final String password, final int auth_type, final Integer user_color) {
+				final String password, final int auth_type, final Integer user_color, final String jtapi_hostname) {
 			super(context, conf);
 			this.context = context;
 			this.conf = conf;
@@ -650,6 +685,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 			this.password = password;
 			this.auth_type = auth_type;
 			this.user_color = user_color;
+			this.jtapi_hostname = jtapi_hostname;
 		}
 
 		@Override
@@ -667,8 +703,10 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 				}
 				return authOAuth();
 			} catch (final TwitterException e) {
+				e.printStackTrace();
 				return new SigninResponse(false, false, e);
 			} catch (final AuthenticationException e) {
+				e.printStackTrace();
 				return new SigninResponse(false, false, e);
 			}
 		}
@@ -680,7 +718,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 			if (user_id <= 0) return new SigninResponse(false, false, null);
 			if (isUserLoggedIn(context, user_id)) return new SigninResponse(true, false, null);
 			final int color = user_color != null ? user_color : analyseUserProfileColor(user);
-			return new SigninResponse(false, true, null, conf, password, null, user, Accounts.AUTH_TYPE_BASIC, color);
+			return new SigninResponse(conf, username, password, user, color);
 		}
 
 		private SigninResponse authOAuth() throws AuthenticationException, TwitterException {
@@ -692,8 +730,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 			final User user = twitter.showUser(user_id);
 			if (isUserLoggedIn(context, user_id)) return new SigninResponse(true, false, null);
 			final int color = user_color != null ? user_color : analyseUserProfileColor(user);
-			return new SigninResponse(false, true, null, conf, null, access_token, user, Accounts.AUTH_TYPE_OAUTH,
-					color);
+			return new SigninResponse(conf, access_token, user, Accounts.AUTH_TYPE_OAUTH, color, jtapi_hostname);
 		}
 
 		private SigninResponse authTwipOMode() throws TwitterException {
@@ -703,7 +740,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 			if (user_id <= 0) return new SigninResponse(false, false, null);
 			if (isUserLoggedIn(context, user_id)) return new SigninResponse(true, false, null);
 			final int color = user_color != null ? user_color : analyseUserProfileColor(user);
-			return new SigninResponse(false, true, null, conf, null, null, user, Accounts.AUTH_TYPE_TWIP_O_MODE, color);
+			return new SigninResponse(conf, user, color);
 		}
 
 		private SigninResponse authxAuth() throws TwitterException {
@@ -714,8 +751,7 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 			if (user_id <= 0) return new SigninResponse(false, false, null);
 			if (isUserLoggedIn(context, user_id)) return new SigninResponse(true, false, null);
 			final int color = user_color != null ? user_color : analyseUserProfileColor(user);
-			return new SigninResponse(false, true, null, conf, null, access_token, user, Accounts.AUTH_TYPE_XAUTH,
-					color);
+			return new SigninResponse(conf, access_token, user, Accounts.AUTH_TYPE_XAUTH, color, jtapi_hostname);
 		}
 
 	}
@@ -730,28 +766,47 @@ public class SignInActivity extends BaseSupportActivity implements TwitterConsta
 
 		public final boolean already_logged_in, succeed;
 		public final Exception exception;
-		final Configuration conf;
-		final String basic_password;
-		final AccessToken access_token;
-		final User user;
-		final int auth_type, color;
+		public final Configuration conf;
+		public final String basic_username, basic_password;
+		public final AccessToken access_token;
+		public final User user;
+		public final int auth_type, color;
+		public final String jtapi_hostname;
 
 		public SigninResponse(final boolean already_logged_in, final boolean succeed, final Exception exception) {
-			this(already_logged_in, succeed, exception, null, null, null, null, 0, 0);
+			this(already_logged_in, succeed, exception, null, null, null, null, null, 0, 0, null);
 		}
 
 		public SigninResponse(final boolean already_logged_in, final boolean succeed, final Exception exception,
-				final Configuration conf, final String basic_password, final AccessToken access_token, final User user,
-				final int auth_type, final int color) {
+				final Configuration conf, final String basic_username, final String basic_password,
+				final AccessToken access_token, final User user, final int auth_type, final int color,
+				final String jtapi_hostname) {
 			this.already_logged_in = already_logged_in;
 			this.succeed = succeed;
 			this.exception = exception;
 			this.conf = conf;
+			this.basic_username = basic_username;
 			this.basic_password = basic_password;
 			this.access_token = access_token;
 			this.user = user;
 			this.auth_type = auth_type;
 			this.color = color;
+			this.jtapi_hostname = jtapi_hostname;
+		}
+
+		public SigninResponse(final Configuration conf, final AccessToken access_token, final User user,
+				final int auth_type, final int color, final String jtapi_hostname) {
+			this(false, true, null, conf, null, null, access_token, user, auth_type, color, jtapi_hostname);
+		}
+
+		public SigninResponse(final Configuration conf, final String basic_username, final String basic_password,
+				final User user, final int color) {
+			this(false, true, null, conf, basic_username, basic_password, null, user, Accounts.AUTH_TYPE_BASIC, color,
+					null);
+		}
+
+		public SigninResponse(final Configuration conf, final User user, final int color) {
+			this(false, true, null, conf, null, null, null, user, Accounts.AUTH_TYPE_TWIP_O_MODE, color, null);
 		}
 	}
 }

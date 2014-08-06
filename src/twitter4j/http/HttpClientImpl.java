@@ -150,7 +150,7 @@ public class HttpClientImpl extends HttpClientBase implements HttpClient, HttpRe
 							write(out, "\r\n");
 
 						} else {
-							con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+							con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
 							final String postParam = HttpParameter.encodeParameters(req.getParameters());
 							logger.debug("Post Params: ", postParam);
 							final byte[] bytes = postParam.getBytes("UTF-8");
@@ -250,7 +250,7 @@ public class HttpClientImpl extends HttpClientBase implements HttpClient, HttpRe
 		} else {
 			proxy = Proxy.NO_PROXY;
 		}
-		final HostAddressResolver resolver = CONF.getHostAddressResolver();
+		final HostAddressResolver resolver = FactoryUtils.getHostAddressResolver(CONF);
 		final URI url_orig;
 		try {
 			url_orig = new URI(url_string);
